@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useSupabase } from "../context/SupabaseProvider";
 import { Logo } from "../components/Logo";
+import { ImportMarkdownDialog } from "../components/ImportMarkdownDialog";
 import { useCreateTrack, useTracks } from "../hooks/useTracks";
 import { useFocusNow, useToggleFocusTask } from "../hooks/useFocusNow";
 import type { Task } from "../lib/database.types";
@@ -128,6 +129,7 @@ function NewTrackForm({ onCreated }: { onCreated: () => void }) {
 export function Dashboard() {
   const { session, client } = useSupabase();
   const { data: tracks, isLoading, refetch } = useTracks();
+  const [importOpen, setImportOpen] = useState(false);
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">
@@ -153,7 +155,16 @@ export function Dashboard() {
       <section className="mt-10">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Tracks</h2>
-          <NewTrackForm onCreated={refetch} />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              className="rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+            >
+              Import from Markdown
+            </button>
+            <NewTrackForm onCreated={refetch} />
+          </div>
         </div>
 
         <div className="mt-3 flex flex-col gap-2">
@@ -174,6 +185,8 @@ export function Dashboard() {
           ))}
         </div>
       </section>
+
+      {importOpen && <ImportMarkdownDialog onClose={() => setImportOpen(false)} />}
     </div>
   );
 }
