@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Analytics } from "@vercel/analytics/react";
 import { SupabaseProvider } from "./context/SupabaseProvider";
 import { ThemeProvider } from "./context/ThemeProvider";
 import { ThemeToggle } from "./components/ThemeToggle";
@@ -37,6 +38,7 @@ function App() {
               </Route>
             </Routes>
           </BrowserRouter>
+          <Analytics />
         </SupabaseProvider>
       </QueryClientProvider>
     </ThemeProvider>
