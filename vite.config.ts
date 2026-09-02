@@ -10,7 +10,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon-32.png', 'favicon-64.png', 'apple-touch-icon.png', 'logo-mark.png'],
       manifest: {
         name: 'Waypoint — One Dashboard. Every Goal.',
         short_name: 'Waypoint',
