@@ -1,9 +1,7 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
-import { useSupabase } from "../context/SupabaseProvider";
-import { Logo } from "../components/Logo";
+import { AppShell } from "../components/AppShell";
 import { ImportMarkdownDialog } from "../components/ImportMarkdownDialog";
-import { useCreateTrack, useTracks } from "../hooks/useTracks";
+import { useCreateTrack } from "../hooks/useTracks";
 import { useFocusNow, useToggleFocusTask } from "../hooks/useFocusNow";
 import type { Task } from "../lib/database.types";
 
@@ -17,8 +15,8 @@ function dueLabel(dueDate: string | null): { text: string; className: string } |
 
   if (delta < 0) return { text: `${-delta}d overdue`, className: "text-destructive" };
   if (delta === 0) return { text: "Due today", className: "text-destructive" };
-  if (delta === 1) return { text: "Due tomorrow", className: "text-amber-500" };
-  if (delta <= 6) return { text: `Due in ${delta}d`, className: "text-amber-500" };
+  if (delta === 1) return { text: "Due tomorrow", className: "text-amber-600 dark:text-amber-400" };
+  if (delta <= 6) return { text: `Due in ${delta}d`, className: "text-amber-600 dark:text-amber-400" };
   return { text: `Due ${due.toLocaleDateString()}`, className: "text-muted-foreground" };
 }
 
@@ -40,7 +38,7 @@ function FocusNowList() {
   if (!tasks || tasks.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Nothing needs your attention right now. Add a task to a topic to see it here.
+        Nothing needs your attention right now.
       </p>
     );
   }
@@ -52,13 +50,13 @@ function FocusNowList() {
         return (
           <li
             key={task.id}
-            className="flex items-start gap-3 rounded-md border border-border px-3 py-2.5"
+            className="flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-3"
           >
             <button
               type="button"
               onClick={() => toggleTask.mutate(task)}
               aria-label="Mark done"
-              className="mt-0.5 h-4 w-4 shrink-0 rounded-full border border-input"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded-full border border-input transition-colors hover:border-primary"
             />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
@@ -79,8 +77,9 @@ function FocusNowList() {
   );
 }
 
-function NewTrackForm({ onCreated }: { onCreated: () => void }) {
+function NewTrackMenu() {
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"manual" | "import" | null>(null);
   const [name, setName] = useState("");
   const createTrack = useCreateTrack();
 
@@ -89,8 +88,34 @@ function NewTrackForm({ onCreated }: { onCreated: () => void }) {
     if (!name.trim()) return;
     await createTrack.mutateAsync({ name: name.trim() });
     setName("");
+    setMode(null);
     setOpen(false);
-    onCreated();
+  }
+
+  if (mode === "import") {
+    return <ImportMarkdownDialog onClose={() => { setMode(null); setOpen(false); }} />;
+  }
+
+  if (mode === "manual") {
+    return (
+      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => !name && setMode(null)}
+          placeholder="Track name"
+          className="w-56 rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+        />
+        <button
+          type="submit"
+          disabled={createTrack.isPending}
+          className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
+        >
+          Add
+        </button>
+      </form>
+    );
   }
 
   if (!open) {
@@ -98,100 +123,54 @@ function NewTrackForm({ onCreated }: { onCreated: () => void }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+        className="rounded-md border border-dashed border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
       >
-        + New track
+        + Add track
       </button>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-2">
-      <input
-        autoFocus
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onBlur={() => !name && setOpen(false)}
-        placeholder="Track name (e.g. C++, Robotics)"
-        className="w-64 rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-      />
+    <div className="flex items-center gap-1 rounded-md border border-border bg-card p-1 text-sm">
       <button
-        type="submit"
-        disabled={createTrack.isPending}
-        className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
+        type="button"
+        onClick={() => setMode("manual")}
+        className="rounded px-2.5 py-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
-        Add
+        Create manually
       </button>
-    </form>
+      <span className="text-border">·</span>
+      <button
+        type="button"
+        onClick={() => setMode("import")}
+        className="rounded px-2.5 py-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      >
+        Import Markdown
+      </button>
+    </div>
   );
 }
 
 export function Dashboard() {
-  const { session, client } = useSupabase();
-  const { data: tracks, isLoading, refetch } = useTracks();
-  const [importOpen, setImportOpen] = useState(false);
+  const today = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12">
-      <div className="flex items-center justify-between">
-        <Logo size={28} />
-        <div className="flex items-center gap-4">
-          <Link to="/settings" className="text-sm text-muted-foreground hover:underline">
-            Reminders
-          </Link>
-          <button
-            type="button"
-            onClick={() => client?.auth.signOut()}
-            className="text-sm text-muted-foreground hover:underline"
-          >
-            Sign out
-          </button>
+    <AppShell>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Focus Now</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{today}</p>
         </div>
+        <NewTrackMenu />
       </div>
-      <p className="mt-2 text-sm text-muted-foreground">Signed in as {session?.user.email}.</p>
 
-      <section className="mt-10">
-        <h2 className="text-sm font-semibold text-foreground">Focus Now</h2>
-        <div className="mt-3">
-          <FocusNowList />
-        </div>
-      </section>
-
-      <section className="mt-10">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Tracks</h2>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              className="rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-            >
-              Import from Markdown
-            </button>
-            <NewTrackForm onCreated={refetch} />
-          </div>
-        </div>
-
-        <div className="mt-3 flex flex-col gap-2">
-          {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-          {!isLoading && tracks?.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              No tracks yet — add one above to get started.
-            </p>
-          )}
-          {tracks?.map((track) => (
-            <Link
-              key={track.id}
-              to={`/tracks/${track.id}`}
-              className="rounded-md border border-border px-3 py-2.5 text-sm transition-colors hover:border-primary"
-            >
-              {track.name}
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {importOpen && <ImportMarkdownDialog onClose={() => setImportOpen(false)} />}
-    </div>
+      <div className="mt-8">
+        <FocusNowList />
+      </div>
+    </AppShell>
   );
 }

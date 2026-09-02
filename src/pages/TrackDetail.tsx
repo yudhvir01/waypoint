@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { AppShell } from "../components/AppShell";
 import { useTrack, useUpdateTrackStatus } from "../hooks/useTracks";
 import {
   nextTopicStatus,
@@ -130,6 +131,8 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
 function TopicItem({ topic, trackId }: { topic: Topic; trackId: string }) {
   const { data: tasks } = useTasks(topic.id);
   const updateStatus = useUpdateTopicStatus(trackId);
+  const tasksCount = tasks?.length;
+  const doneCount = tasks?.filter((t) => t.done).length ?? 0;
 
   return (
     <div className="border-b border-border py-3 last:border-0">
@@ -137,12 +140,18 @@ function TopicItem({ topic, trackId }: { topic: Topic; trackId: string }) {
         <button
           type="button"
           onClick={() => updateStatus.mutate({ id: topic.id, status: nextTopicStatus(topic.status) })}
-          className="flex items-center gap-1.5 rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:border-primary"
+          aria-label={`Status: ${TOPIC_STATUS_LABEL[topic.status]}. Click to advance.`}
+          title={TOPIC_STATUS_LABEL[topic.status]}
+          className="shrink-0 rounded-full p-0.5 transition-opacity hover:opacity-70"
         >
-          <span className={`h-1.5 w-1.5 rounded-full ${TOPIC_STATUS_DOT[topic.status]}`} />
-          {TOPIC_STATUS_LABEL[topic.status]}
+          <span className={`block h-2 w-2 rounded-full ${TOPIC_STATUS_DOT[topic.status]}`} />
         </button>
         <span className="text-sm font-medium">{topic.title}</span>
+        {!!tasksCount && (
+          <span className="text-xs text-muted-foreground">
+            {doneCount}/{tasksCount}
+          </span>
+        )}
       </div>
 
       {tasks && tasks.length > 0 && (
@@ -219,37 +228,30 @@ export function TrackDetail() {
 
   if (trackLoading) {
     return (
-      <div className="mx-auto max-w-3xl px-6 py-12">
+      <AppShell>
         <p className="text-sm text-muted-foreground">Loading…</p>
-      </div>
+      </AppShell>
     );
   }
 
   if (!track) {
     return (
-      <div className="mx-auto max-w-3xl px-6 py-12">
+      <AppShell>
         <p className="text-sm text-muted-foreground">Track not found.</p>
-        <Link to="/" className="text-sm text-primary hover:underline">
-          ← Back to dashboard
-        </Link>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12">
-      <Link to="/" className="text-sm text-muted-foreground hover:underline">
-        ← Back
-      </Link>
-
-      <div className="mt-4 flex items-center justify-between">
+    <AppShell>
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{track.name}</h1>
         <button
           type="button"
           onClick={handleArchive}
-          className="text-sm text-muted-foreground hover:underline"
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
-          Archive track
+          Archive
         </button>
       </div>
       {track.description && (
@@ -269,6 +271,6 @@ export function TrackDetail() {
       </div>
 
       <NewTopicForm trackId={track.id} />
-    </div>
+    </AppShell>
   );
 }

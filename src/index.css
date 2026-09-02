@@ -4,56 +4,59 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
-  Theme tokens — this block is intentionally shaped to match tweakcn's
-  export format (https://tweakcn.com). To apply a theme you design there,
-  copy its generated `:root { ... }` and `.dark { ... }` blocks and swap
-  them in below.
+  Theme tokens — restrained, light-first palette. The logo carries the
+  brand's color (blue → teal); the UI itself stays quiet so Focus Now
+  reads as the product, not the chrome around it. --teal is a deliberately
+  rare accent (progress fills, the odd highlight) — never the default
+  interactive color, which stays --primary.
 */
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.55 0.18 245);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.96 0.02 245);
-  --accent-foreground: oklch(0.205 0 0);
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #eff6ff;
+  --accent-foreground: #0f172a;
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  --success: oklch(0.6 0.15 155);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.55 0.18 245);
+  --success: #16a34a;
+  --teal: #14b8a6;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #2563eb;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.7 0.16 245);
-  --primary-foreground: oklch(0.145 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: #0b1120;
+  --foreground: #eef2fb;
+  --card: #121a2c;
+  --card-foreground: #eef2fb;
+  --popover: #121a2c;
+  --popover-foreground: #eef2fb;
+  --primary: #5b9dff;
+  --primary-foreground: #0b1120;
+  --secondary: #182238;
+  --secondary-foreground: #eef2fb;
+  --muted: #182238;
+  --muted-foreground: #8592ac;
+  --accent: #182238;
+  --accent-foreground: #eef2fb;
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.985 0 0);
-  --success: oklch(0.7 0.15 155);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 18%);
-  --ring: oklch(0.7 0.16 245);
+  --success: #34d399;
+  --teal: #2dd4bf;
+  --border: #263149;
+  --input: #263149;
+  --ring: #5b9dff;
 }
 
 @theme inline {
@@ -74,6 +77,7 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
+  --color-teal: var(--teal);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -88,7 +92,7 @@ body {
   min-height: 100vh;
   background-color: var(--color-background);
   color: var(--color-foreground);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 /* Light/dark toggle transition: a circle wipe expanding from the clicked
