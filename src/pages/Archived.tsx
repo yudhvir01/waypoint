@@ -7,7 +7,7 @@ export function Archived() {
 
   return (
     <AppShell>
-      <h1 className="text-3xl font-semibold tracking-tight">Archived tracks</h1>
+      <h1 className="text-2xl font-semibold tracking-[-0.02em]">Archived tracks</h1>
       <p className="mt-2 text-[15px] text-muted-foreground">
         Archiving hides a track from the sidebar and Focus Now. Nothing is
         deleted — restore it here any time.

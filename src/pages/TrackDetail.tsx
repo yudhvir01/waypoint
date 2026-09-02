@@ -290,7 +290,7 @@ export function TrackDetail() {
   return (
     <AppShell>
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-semibold tracking-tight">{track.name}</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.02em]">{track.name}</h1>
         <button
           type="button"
           onClick={handleArchive}

@@ -43,7 +43,7 @@ export function Settings() {
 
   return (
     <AppShell>
-      <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+      <h1 className="text-2xl font-semibold tracking-[-0.02em]">Settings</h1>
 
       {isLoading ? (
         <p className="mt-8 text-sm text-muted-foreground">Loading…</p>

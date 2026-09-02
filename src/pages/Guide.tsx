@@ -49,12 +49,14 @@ export function Guide() {
   return (
     <div className="mx-auto flex min-h-screen max-w-5xl">
       <aside
-        className={`shrink-0 overflow-hidden border-r border-border transition-all duration-200 ${
+        className={`shrink-0 overflow-hidden border-r border-border bg-card transition-all duration-200 ${
           sidebarOpen ? "w-64" : "w-0 border-r-0"
         }`}
       >
         <div className="w-64 px-5 py-8">
-          <p className="text-sm font-semibold text-foreground">Guide</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Guide
+          </p>
           <nav className="mt-4 flex flex-col gap-0.5 text-sm">
             {CHAPTERS.map((c) => (
               <Link
@@ -85,7 +87,7 @@ export function Guide() {
             <MenuIcon />
           </button>
           <Link to={backTo} className="text-sm text-muted-foreground hover:underline">
-            ← Back
+            ← Back to Waypoint
           </Link>
         </div>
 

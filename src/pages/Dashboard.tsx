@@ -42,7 +42,7 @@ function TaskRow({ task }: { task: FocusTask }) {
   const due = dueLabel(task.due_date);
 
   return (
-    <li className="flex items-start gap-3 border-b border-border py-3.5 last:border-0">
+    <li className="flex items-start gap-3 border-b border-border py-4 last:border-0">
       <button
         type="button"
         onClick={() => toggleTask.mutate(task)}
@@ -178,7 +178,7 @@ function NewTrackMenu({ compact = false }: { compact?: boolean }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-dashed border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+        className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-accent hover:text-primary"
       >
         + Add track
       </button>
@@ -231,10 +231,10 @@ export function Dashboard() {
   }
 
   return (
-    <AppShell>
+    <AppShell wide>
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Focus Now</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em]">Focus Now</h1>
           <p className="mt-1.5 text-[15px] text-muted-foreground">{today}</p>
         </div>
         <NewTrackMenu />
