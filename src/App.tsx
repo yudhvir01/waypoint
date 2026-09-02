@@ -7,6 +7,7 @@ import { RequireAuth, RequireConfig, RedirectIfAuthed } from "./components/Requi
 import { Connect } from "./pages/Connect";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
+import { TrackDetail } from "./pages/TrackDetail";
 import { Guide } from "./pages/Guide";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ function App() {
                 </Route>
                 <Route element={<RequireAuth />}>
                   <Route path="/" element={<Dashboard />} />
+                  <Route path="/tracks/:trackId" element={<TrackDetail />} />
                 </Route>
               </Route>
             </Routes>
