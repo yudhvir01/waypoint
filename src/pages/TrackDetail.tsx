@@ -106,7 +106,7 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
   const toggleTask = useToggleTask(topicId);
 
   return (
-    <li className="ml-6 flex items-center gap-2 py-1">
+    <li className="ml-6 flex items-center gap-2.5 py-1.5">
       <button
         type="button"
         onClick={() => toggleTask.mutate(task)}
@@ -116,7 +116,7 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
         }`}
       />
       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${PRIORITY_DOT[task.priority]}`} />
-      <span className={`text-sm ${task.done ? "text-muted-foreground line-through" : ""}`}>
+      <span className={`text-[15px] ${task.done ? "text-muted-foreground line-through" : ""}`}>
         {task.title}
       </span>
       {task.due_date && (
@@ -135,8 +135,8 @@ function TopicItem({ topic, trackId }: { topic: Topic; trackId: string }) {
   const doneCount = tasks?.filter((t) => t.done).length ?? 0;
 
   return (
-    <div className="border-b border-border py-3 last:border-0">
-      <div className="flex items-center gap-2">
+    <div className="border-b border-border py-4 last:border-0">
+      <div className="flex items-center gap-2.5">
         <button
           type="button"
           onClick={() => updateStatus.mutate({ id: topic.id, status: nextTopicStatus(topic.status) })}
@@ -146,16 +146,17 @@ function TopicItem({ topic, trackId }: { topic: Topic; trackId: string }) {
         >
           <span className={`block h-2 w-2 rounded-full ${TOPIC_STATUS_DOT[topic.status]}`} />
         </button>
-        <span className="text-sm font-medium">{topic.title}</span>
+        <span className="text-[15px] font-medium">{topic.title}</span>
+        <span className="flex-1" />
         {!!tasksCount && (
-          <span className="text-xs text-muted-foreground">
-            {doneCount}/{tasksCount}
+          <span className="font-mono text-xs tabular-nums text-muted-foreground">
+            {doneCount} / {tasksCount}
           </span>
         )}
       </div>
 
       {tasks && tasks.length > 0 && (
-        <ul className="mt-2 flex flex-col">
+        <ul className="mt-2.5 flex flex-col">
           {tasks.map((task) => (
             <TaskRow key={task.id} task={task} topicId={topic.id} />
           ))}
@@ -245,7 +246,7 @@ export function TrackDetail() {
   return (
     <AppShell>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{track.name}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">{track.name}</h1>
         <button
           type="button"
           onClick={handleArchive}
@@ -255,10 +256,12 @@ export function TrackDetail() {
         </button>
       </div>
       {track.description && (
-        <p className="mt-1 text-sm text-muted-foreground">{track.description}</p>
+        <p className="mt-2 text-[15px] text-muted-foreground">{track.description}</p>
       )}
 
-      <div className="mt-8">
+      <hr className="mt-6 border-border" />
+
+      <div className="mt-4">
         {topicsLoading && <p className="text-sm text-muted-foreground">Loading topics…</p>}
         {!topicsLoading && topics?.length === 0 && (
           <p className="text-sm text-muted-foreground">

@@ -11,7 +11,7 @@ function NavLink({ to, children }: { to: string; children: ReactNode }) {
   return (
     <Link
       to={to}
-      className={`rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+      className={`rounded-md px-3 py-1.5 text-[15px] transition-colors ${
         active
           ? "bg-accent font-medium text-foreground"
           : "text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -28,19 +28,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { data: progress } = useTrackProgress();
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-5xl">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-border px-4 py-8">
-        <Link to="/" className="flex items-center gap-2 px-1">
-          <LogoMark size={22} />
-          <span className="text-base font-semibold tracking-tight">Waypoint</span>
+    <div className="mx-auto flex min-h-screen max-w-6xl">
+      <aside className="flex w-64 shrink-0 flex-col border-r border-border bg-card px-5 py-7">
+        <Link to="/" className="flex items-center gap-2.5 px-1">
+          <LogoMark size={26} />
+          <span className="text-[17px] font-semibold tracking-tight">Waypoint</span>
         </Link>
 
-        <nav className="mt-8 flex flex-col gap-0.5">
+        <nav className="mt-9 flex flex-col gap-0.5">
           <NavLink to="/">Focus Now</NavLink>
         </nav>
 
-        <div className="mt-6 flex flex-col gap-0.5">
-          <p className="px-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="mt-8 flex flex-col gap-0.5">
+          <p className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Tracks
           </p>
           {tracks?.map((track) => {
@@ -49,11 +49,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link
                 key={track.id}
                 to={`/tracks/${track.id}`}
-                className="flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="flex items-center justify-between rounded-md px-3 py-1.5 text-[15px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <span className="truncate">{track.name}</span>
                 {p && p.total > 0 && (
-                  <span className="ml-2 shrink-0 text-xs text-muted-foreground">
+                  <span className="ml-2 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
                     {p.done}/{p.total}
                   </span>
                 )}
@@ -61,7 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
           {tracks?.length === 0 && (
-            <p className="px-2.5 text-sm text-muted-foreground">No tracks yet</p>
+            <p className="px-3 text-sm text-muted-foreground">No tracks yet</p>
           )}
         </div>
 
@@ -70,17 +70,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button
             type="button"
             onClick={() => client?.auth.signOut()}
-            className="rounded-md px-2.5 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="rounded-md px-3 py-1.5 text-left text-[15px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             Sign out
           </button>
-          <p className="mt-2 truncate px-2.5 text-xs text-muted-foreground">
+          <p className="mt-2 truncate px-3 text-xs text-muted-foreground">
             {session?.user.email}
           </p>
         </div>
       </aside>
 
-      <div className="min-w-0 flex-1 px-10 py-10">{children}</div>
+      <div className="min-w-0 flex-1 px-14 py-12">
+        <div className="mx-auto max-w-2xl">{children}</div>
+      </div>
     </div>
   );
 }

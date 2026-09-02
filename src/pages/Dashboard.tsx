@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { AppShell } from "../components/AppShell";
 import { ImportMarkdownDialog } from "../components/ImportMarkdownDialog";
-import { useCreateTrack } from "../hooks/useTracks";
-import { useFocusNow, useToggleFocusTask } from "../hooks/useFocusNow";
+import { useCreateTrack, useTracks } from "../hooks/useTracks";
+import { useFocusNow, useToggleFocusTask, type FocusTask } from "../hooks/useFocusNow";
 import type { Task } from "../lib/database.types";
 
 function dueLabel(dueDate: string | null): { text: string; className: string } | null {
@@ -27,9 +27,44 @@ const PRIORITY_DOT: Record<Task["priority"], string> = {
   none: "bg-transparent",
 };
 
+function isUrgent(task: FocusTask): boolean {
+  if (!task.due_date) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(task.due_date);
+  due.setHours(0, 0, 0, 0);
+  const delta = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+  return delta <= 1;
+}
+
+function TaskRow({ task }: { task: FocusTask }) {
+  const toggleTask = useToggleFocusTask();
+  const due = dueLabel(task.due_date);
+
+  return (
+    <li className="flex items-start gap-3 border-b border-border py-3.5 last:border-0">
+      <button
+        type="button"
+        onClick={() => toggleTask.mutate(task)}
+        aria-label="Mark done"
+        className="mt-0.5 h-4 w-4 shrink-0 rounded-full border border-input transition-colors hover:border-primary"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] leading-snug">{task.title}</p>
+        <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${PRIORITY_DOT[task.priority]}`} />
+          <span className="truncate">
+            {task.topic.track.name} &rarr; {task.topic.title}
+          </span>
+        </div>
+      </div>
+      {due && <span className={`mt-0.5 shrink-0 text-xs ${due.className}`}>{due.text}</span>}
+    </li>
+  );
+}
+
 function FocusNowList() {
   const { data: tasks, isLoading } = useFocusNow();
-  const toggleTask = useToggleFocusTask();
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Loading…</p>;
@@ -37,47 +72,47 @@ function FocusNowList() {
 
   if (!tasks || tasks.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Nothing needs your attention right now.
-      </p>
+      <div className="py-6">
+        <p className="text-[15px]">Nothing needs your attention.</p>
+        <p className="mt-1 text-sm text-muted-foreground">You're clear for today.</p>
+      </div>
     );
   }
 
+  const today = tasks.filter(isUrgent).slice(0, 8);
+  const upNext = tasks.filter((t) => !isUrgent(t)).slice(0, Math.max(0, 8 - today.length));
+
   return (
-    <ul className="flex flex-col gap-1.5">
-      {tasks.slice(0, 8).map((task) => {
-        const due = dueLabel(task.due_date);
-        return (
-          <li
-            key={task.id}
-            className="flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-3"
-          >
-            <button
-              type="button"
-              onClick={() => toggleTask.mutate(task)}
-              aria-label="Mark done"
-              className="mt-0.5 h-4 w-4 shrink-0 rounded-full border border-input transition-colors hover:border-primary"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${PRIORITY_DOT[task.priority]}`}
-                />
-                <p className="truncate text-sm">{task.title}</p>
-              </div>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {task.topic.track.name} · {task.topic.title}
-              </p>
-            </div>
-            {due && <span className={`shrink-0 text-xs ${due.className}`}>{due.text}</span>}
-          </li>
-        );
-      })}
-    </ul>
+    <div className="flex flex-col gap-8">
+      {today.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Today
+          </p>
+          <ul className="mt-2">
+            {today.map((task) => (
+              <TaskRow key={task.id} task={task} />
+            ))}
+          </ul>
+        </div>
+      )}
+      {upNext.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Up next
+          </p>
+          <ul className="mt-2">
+            {upNext.map((task) => (
+              <TaskRow key={task.id} task={task} />
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 
-function NewTrackMenu() {
+function NewTrackMenu({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"manual" | "import" | null>(null);
   const [name, setName] = useState("");
@@ -119,6 +154,26 @@ function NewTrackMenu() {
   }
 
   if (!open) {
+    if (compact) {
+      return (
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setMode("manual")}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+          >
+            Create track
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("import")}
+            className="rounded-md border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          >
+            Import Markdown
+          </button>
+        </div>
+      );
+    }
     return (
       <button
         type="button"
@@ -152,23 +207,40 @@ function NewTrackMenu() {
 }
 
 export function Dashboard() {
+  const { data: tracks, isLoading: tracksLoading } = useTracks();
   const today = new Date().toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",
     day: "numeric",
   });
 
+  if (!tracksLoading && tracks?.length === 0) {
+    return (
+      <AppShell>
+        <div className="flex flex-col items-start py-16">
+          <h1 className="text-2xl font-semibold">Your workspace is empty</h1>
+          <p className="mt-2 text-[15px] text-muted-foreground">
+            Create your first track, or import one from Markdown.
+          </p>
+          <div className="mt-6">
+            <NewTrackMenu compact />
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Focus Now</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{today}</p>
+          <h1 className="text-3xl font-semibold tracking-tight">Focus Now</h1>
+          <p className="mt-1.5 text-[15px] text-muted-foreground">{today}</p>
         </div>
         <NewTrackMenu />
       </div>
 
-      <div className="mt-8">
+      <div className="mt-9">
         <FocusNowList />
       </div>
     </AppShell>

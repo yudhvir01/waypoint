@@ -1,4 +1,5 @@
 import { AppShell } from "../components/AppShell";
+import { ThemeToggle } from "../components/ThemeToggle";
 import { useSupabase } from "../context/SupabaseProvider";
 import { useReminderPrefs, useUpdateReminderPrefs } from "../hooks/useReminderPrefs";
 import { usePushSubscription } from "../hooks/usePushSubscription";
@@ -42,12 +43,16 @@ export function Settings() {
 
   return (
     <AppShell>
-      <h1 className="text-2xl font-semibold">Settings</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
 
       {isLoading ? (
         <p className="mt-8 text-sm text-muted-foreground">Loading…</p>
       ) : (
-        <div className="mt-6 max-w-md">
+        <div className="mt-7 max-w-lg">
+          <Section title="Appearance">
+            <Row label="Theme" control={<ThemeToggle />} />
+          </Section>
+
           <Section title="Notifications">
             <Row
               label="Email reminders"
