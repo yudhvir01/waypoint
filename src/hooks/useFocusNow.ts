@@ -44,8 +44,9 @@ export function useFocusNow() {
     queryFn: async () => {
       const { data, error } = await client!
         .from("tasks")
-        .select("*, topic:topics(id, title, track:tracks(id, name))")
+        .select("*, topic:topics!inner(id, title, track:tracks!inner(id, name, status))")
         .eq("done", false)
+        .eq("topic.track.status", "active")
         .order("due_date", { ascending: true, nullsFirst: false });
       if (error) throw error;
 
