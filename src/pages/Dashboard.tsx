@@ -135,13 +135,18 @@ export function Dashboard() {
     <div className="mx-auto max-w-3xl px-6 py-12">
       <div className="flex items-center justify-between">
         <Logo size={28} />
-        <button
-          type="button"
-          onClick={() => client?.auth.signOut()}
-          className="text-sm text-muted-foreground hover:underline"
-        >
-          Sign out
-        </button>
+        <div className="flex items-center gap-4">
+          <Link to="/settings" className="text-sm text-muted-foreground hover:underline">
+            Reminders
+          </Link>
+          <button
+            type="button"
+            onClick={() => client?.auth.signOut()}
+            className="text-sm text-muted-foreground hover:underline"
+          >
+            Sign out
+          </button>
+        </div>
       </div>
       <p className="mt-2 text-sm text-muted-foreground">Signed in as {session?.user.email}.</p>
 

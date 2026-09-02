@@ -8,6 +8,7 @@ import { Connect } from "./pages/Connect";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { TrackDetail } from "./pages/TrackDetail";
+import { Settings } from "./pages/Settings";
 import { Guide } from "./pages/Guide";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ function App() {
                 <Route element={<RequireAuth />}>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/tracks/:trackId" element={<TrackDetail />} />
+                  <Route path="/settings" element={<Settings />} />
                 </Route>
               </Route>
             </Routes>
