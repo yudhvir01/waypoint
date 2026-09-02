@@ -82,6 +82,25 @@ export function Settings() {
               }
             />
             <Row
+              label="Remind me before due"
+              description="Applies to any task with a due date."
+              control={
+                <select
+                  value={prefs?.lead_time_days ?? 1}
+                  onChange={(e) =>
+                    updatePrefs.mutate({ lead_time_days: Number(e.target.value) })
+                  }
+                  className="rounded-md border border-input bg-background px-2 py-1 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                >
+                  <option value={0}>On the due date</option>
+                  <option value={1}>1 day before</option>
+                  <option value={2}>2 days before</option>
+                  <option value={3}>3 days before</option>
+                  <option value={7}>1 week before</option>
+                </select>
+              }
+            />
+            <Row
               label="This device"
               description={
                 !push.supported
@@ -114,6 +133,10 @@ export function Settings() {
                   : "Couldn't enable notifications."}
               </p>
             )}
+            <p className="text-xs text-muted-foreground">
+              Want a heads-up on one specific task regardless of its due date?
+              Click the bell next to it on the track page.
+            </p>
           </Section>
 
           <Section title="Database">

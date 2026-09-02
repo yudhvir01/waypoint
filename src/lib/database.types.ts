@@ -30,5 +30,6 @@ export interface Task {
   due_date: string | null;
   completed_at: string | null;
   sort_order: number;
+  remind_me: boolean;
   created_at: string;
 }

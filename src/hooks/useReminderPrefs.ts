@@ -5,6 +5,7 @@ export interface ReminderPrefs {
   user_id: string;
   email_reminders_enabled: boolean;
   push_reminders_enabled: boolean;
+  lead_time_days: number;
 }
 
 export function useReminderPrefs() {
@@ -25,6 +26,7 @@ export function useReminderPrefs() {
           user_id: session!.user.id,
           email_reminders_enabled: true,
           push_reminders_enabled: true,
+          lead_time_days: 1,
         }
       );
     },
@@ -36,7 +38,11 @@ export function useUpdateReminderPrefs() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (patch: Partial<Pick<ReminderPrefs, "email_reminders_enabled" | "push_reminders_enabled">>) => {
+    mutationFn: async (
+      patch: Partial<
+        Pick<ReminderPrefs, "email_reminders_enabled" | "push_reminders_enabled" | "lead_time_days">
+      >,
+    ) => {
       const { error } = await client!
         .from("reminder_prefs")
         .upsert({ user_id: session!.user.id, ...patch }, { onConflict: "user_id" });

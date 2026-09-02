@@ -26,7 +26,12 @@ export function useCreateTask(topicId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: { title: string; priority?: TaskPriority; dueDate?: string | null }) => {
+    mutationFn: async (input: {
+      title: string;
+      priority?: TaskPriority;
+      dueDate?: string | null;
+      remindMe?: boolean;
+    }) => {
       const existing = queryClient.getQueryData<Task[]>(["tasks", topicId]) ?? [];
       const { data, error } = await client!
         .from("tasks")
@@ -35,6 +40,7 @@ export function useCreateTask(topicId: string) {
           title: input.title,
           priority: input.priority ?? "none",
           due_date: input.dueDate || null,
+          remind_me: input.remindMe ?? false,
           sort_order: existing.length,
         })
         .select()
@@ -45,6 +51,24 @@ export function useCreateTask(topicId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", topicId] });
       queryClient.invalidateQueries({ queryKey: ["focusNow"] });
+    },
+  });
+}
+
+export function useToggleRemindMe(topicId: string) {
+  const { client } = useSupabase();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (task: Task) => {
+      const { error } = await client!
+        .from("tasks")
+        .update({ remind_me: !task.remind_me })
+        .eq("id", task.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", topicId] });
     },
   });
 }

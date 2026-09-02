@@ -8,8 +8,26 @@ import {
   useTopics,
   useUpdateTopicStatus,
 } from "../hooks/useTopics";
-import { useCreateTask, useTasks, useToggleTask } from "../hooks/useTasks";
+import { useCreateTask, useTasks, useToggleRemindMe, useToggleTask } from "../hooks/useTasks";
 import type { Task, TaskPriority, Topic, TopicStatus } from "../lib/database.types";
+
+function BellIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="13"
+      height="13"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M8 1.5c-2 0-3.2 1.6-3.2 3.6v2c0 .7-.3 1.4-.8 1.9l-.5.5c-.4.4-.1 1 .4 1h8.2c.5 0 .8-.6.4-1l-.5-.5c-.5-.5-.8-1.2-.8-1.9v-2c0-2-1.2-3.6-3.2-3.6Z" />
+      <path d="M6.3 12.5a1.7 1.7 0 0 0 3.4 0" />
+    </svg>
+  );
+}
 
 const TOPIC_STATUS_LABEL: Record<TopicStatus, string> = {
   not_started: "Not started",
@@ -35,15 +53,17 @@ function NewTaskForm({ topicId }: { topicId: string }) {
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("none");
   const [dueDate, setDueDate] = useState("");
+  const [remindMe, setRemindMe] = useState(false);
   const createTask = useCreateTask(topicId);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    await createTask.mutateAsync({ title: title.trim(), priority, dueDate: dueDate || null });
+    await createTask.mutateAsync({ title: title.trim(), priority, dueDate: dueDate || null, remindMe });
     setTitle("");
     setPriority("none");
     setDueDate("");
+    setRemindMe(false);
     setOpen(false);
   }
 
@@ -84,6 +104,15 @@ function NewTaskForm({ topicId }: { topicId: string }) {
         onChange={(e) => setDueDate(e.target.value)}
         className="rounded-md border border-input bg-background px-2 py-1 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
       />
+      <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <input
+          type="checkbox"
+          checked={remindMe}
+          onChange={(e) => setRemindMe(e.target.checked)}
+          className="h-3.5 w-3.5"
+        />
+        Remind me
+      </label>
       <button
         type="submit"
         disabled={createTask.isPending}
@@ -104,6 +133,7 @@ function NewTaskForm({ topicId }: { topicId: string }) {
 
 function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
   const toggleTask = useToggleTask(topicId);
+  const toggleRemindMe = useToggleRemindMe(topicId);
 
   return (
     <li className="ml-6 flex items-center gap-2.5 py-1.5">
@@ -119,11 +149,25 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
       <span className={`text-[15px] ${task.done ? "text-muted-foreground line-through" : ""}`}>
         {task.title}
       </span>
+      <span className="flex-1" />
       {task.due_date && (
         <span className="text-xs text-muted-foreground">
           {new Date(task.due_date).toLocaleDateString()}
         </span>
       )}
+      <button
+        type="button"
+        onClick={() => toggleRemindMe.mutate(task)}
+        aria-label={task.remind_me ? "Remove from reminders" : "Add to reminders"}
+        title={task.remind_me ? "Reminders on for this task" : "Add to reminders"}
+        className={`shrink-0 rounded p-0.5 transition-colors ${
+          task.remind_me
+            ? "text-teal"
+            : "text-muted-foreground/40 hover:text-muted-foreground"
+        }`}
+      >
+        <BellIcon filled={task.remind_me} />
+      </button>
     </li>
   );
 }

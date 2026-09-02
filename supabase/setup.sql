@@ -43,8 +43,14 @@ create table if not exists public.tasks (
   due_date date,
   completed_at timestamptz,
   sort_order integer not null default 0,
+  -- Flags this task for reminders regardless of due date / priority.
+  remind_me boolean not null default false,
   created_at timestamptz not null default now()
 );
+
+-- Safe to re-run against an existing database created before this column
+-- existed.
+alter table public.tasks add column if not exists remind_me boolean not null default false;
 
 -- Web Push subscriptions, one row per device the user has enabled push on.
 create table if not exists public.push_subscriptions (
@@ -60,8 +66,14 @@ create table if not exists public.push_subscriptions (
 create table if not exists public.reminder_prefs (
   user_id uuid primary key references auth.users (id) on delete cascade,
   email_reminders_enabled boolean not null default true,
-  push_reminders_enabled boolean not null default true
+  push_reminders_enabled boolean not null default true,
+  -- How many days before a task's due date it counts as "due soon" for
+  -- reminders (0 = only the due date itself, not before).
+  lead_time_days integer not null default 1 check (lead_time_days >= 0)
 );
+
+alter table public.reminder_prefs
+  add column if not exists lead_time_days integer not null default 1;
 
 create index if not exists topics_track_id_idx on public.topics (track_id);
 create index if not exists tasks_topic_id_idx on public.tasks (topic_id);

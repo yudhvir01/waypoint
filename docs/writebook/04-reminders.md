@@ -61,20 +61,25 @@ schedule the same Edge Function invocation without writing SQL.
 
 ## 4. Turn it on in the app
 
-Open Waypoint → **Reminders** (top right of the dashboard). Toggle email
-and/or push on, and click **Enable** under browser notifications to
-subscribe this device.
+Open Waypoint → **Settings**. Toggle email and/or push on under
+Notifications, and click **Enable** next to "This device" to subscribe it
+for push. The **Remind me before due** dropdown there controls how many
+days ahead of a due date counts as "due soon" (0–7 days, default 1).
 
 ## How it decides what to send
 
-Once a day, the function looks at every task that isn't done and has a due
-date. A task counts as:
+Once a day, the function looks at every task that isn't done. A task
+counts as:
 
 - **Overdue** — due date is in the past.
-- **Due soon** — due today or tomorrow.
+- **Due soon** — due within your **Remind me before due** setting (in
+  Settings; defaults to 1 day, i.e. today or tomorrow).
+- **Flagged** — you clicked the bell icon next to it on the track page.
+  This works regardless of due date, or even with no due date at all —
+  useful for a task you just want a nudge about no matter when it's due.
 
-Everyone with at least one overdue or due-soon task gets one email (if
-enabled) listing all of them, and a push notification (if enabled and
-subscribed) with the count. There's no dedup log yet, so if you trigger the
-function manually more than once in a day, you'll get duplicate reminders —
-stick to the daily schedule for normal use.
+Everyone with at least one overdue, due-soon, or flagged task gets one
+email (if enabled) listing all of them, and a push notification (if
+enabled and subscribed) with the count. There's no dedup log yet, so if
+you trigger the function manually more than once in a day, you'll get
+duplicate reminders — stick to the daily schedule for normal use.
