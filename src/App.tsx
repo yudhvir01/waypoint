@@ -10,6 +10,7 @@ import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { TrackDetail } from "./pages/TrackDetail";
 import { Settings } from "./pages/Settings";
+import { Archived } from "./pages/Archived";
 import { Guide } from "./pages/Guide";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ function App() {
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/tracks/:trackId" element={<TrackDetail />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/archived" element={<Archived />} />
                 </Route>
               </Route>
             </Routes>

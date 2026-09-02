@@ -55,6 +55,8 @@ export function useUpdateTrackStatus() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tracks"] });
+      queryClient.invalidateQueries({ queryKey: ["trackProgress"] });
+      queryClient.invalidateQueries({ queryKey: ["focusNow"] });
     },
   });
 }

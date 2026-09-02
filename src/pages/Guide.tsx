@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { marked } from "marked";
 import { stripFrontMatter } from "../lib/frontMatter";
 import { loadSupabaseConfig } from "../lib/supabaseConfig";
+import { useSupabase } from "../context/SupabaseProvider";
 
 import welcomeRaw from "../../docs/writebook/01-welcome.md?raw";
 import connectRaw from "../../docs/writebook/02-connecting-your-supabase-project.md?raw";
@@ -30,12 +31,13 @@ function MenuIcon() {
 
 export function Guide() {
   const { hash } = useLocation();
+  const { session } = useSupabase();
   const [backTo, setBackTo] = useState<string>("/connect");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
-    setBackTo(loadSupabaseConfig() ? "/login" : "/connect");
-  }, []);
+    setBackTo(session ? "/" : loadSupabaseConfig() ? "/login" : "/connect");
+  }, [session]);
 
   const activeSlug = hash ? hash.slice(1) : CHAPTERS[0].slug;
   const chapter = CHAPTERS.find((c) => c.slug === activeSlug) ?? CHAPTERS[0];

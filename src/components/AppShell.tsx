@@ -63,10 +63,22 @@ export function AppShell({ children }: { children: ReactNode }) {
           {tracks?.length === 0 && (
             <p className="px-3 text-sm text-muted-foreground">No tracks yet</p>
           )}
+          <Link
+            to="/archived"
+            className="rounded-md px-3 py-1.5 text-xs text-muted-foreground/70 transition-colors hover:text-foreground"
+          >
+            Archived
+          </Link>
         </div>
 
         <div className="mt-auto flex flex-col gap-0.5 pt-6">
           <NavLink to="/settings">Settings</NavLink>
+          <Link
+            to="/guide"
+            className="rounded-md px-3 py-1.5 text-[15px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            Guide
+          </Link>
           <button
             type="button"
             onClick={() => client?.auth.signOut()}
