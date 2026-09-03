@@ -43,14 +43,18 @@ create table if not exists public.tasks (
   due_date date,
   completed_at timestamptz,
   sort_order integer not null default 0,
-  -- Flags this task for reminders regardless of due date / priority.
-  remind_me boolean not null default false,
+  -- Per-task override of how many days before due_date to send a reminder.
+  -- Null means "use the account default (reminder_prefs.lead_time_days)".
+  -- Only meaningful when due_date is set — a reminder needs a date to
+  -- count backwards from.
+  reminder_lead_days integer check (reminder_lead_days >= 0),
   created_at timestamptz not null default now()
 );
 
 -- Safe to re-run against an existing database created before this column
--- existed.
-alter table public.tasks add column if not exists remind_me boolean not null default false;
+-- existed (and to drop the boolean flag this column replaced).
+alter table public.tasks drop column if exists remind_me;
+alter table public.tasks add column if not exists reminder_lead_days integer check (reminder_lead_days >= 0);
 
 -- Web Push subscriptions, one row per device the user has enabled push on.
 create table if not exists public.push_subscriptions (

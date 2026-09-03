@@ -1,11 +1,14 @@
 // Supabase Edge Function: send-reminders
 //
 // Run on a schedule (see supabase/reminders-cron.sql) — once a day is
-// recommended. For every user with an overdue, due-soon, or manually
-// flagged ("remind me") task, sends an email (via Resend) and/or a browser
-// push notification (via Web Push), depending on that user's reminder_prefs.
-// "Due soon" is relative to each user's own reminder_prefs.lead_time_days
-// (how many days before the due date counts as due-soon; default 1).
+// recommended. For every user with an overdue or due-soon task, sends an
+// email (via Resend) and/or a browser push notification (via Web Push),
+// depending on that user's reminder_prefs.
+//
+// "Due soon" lead time: each task can set its own reminder_lead_days
+// (via the bell on the track page) that overrides the account default
+// (reminder_prefs.lead_time_days, set in Settings). A reminder always
+// needs a due_date — there's no way to flag a dateless task anymore.
 //
 // Required secrets (set via `supabase secrets set` or the dashboard):
 //   RESEND_API_KEY        — Resend API key
@@ -44,7 +47,7 @@ interface RawTask {
   title: string;
   due_date: string | null;
   priority: string;
-  remind_me: boolean;
+  reminder_lead_days: number | null;
   topic: { title: string; track: { name: string; user_id: string } };
 }
 
@@ -55,33 +58,29 @@ interface ReminderPrefs {
   lead_time_days: number;
 }
 
-function classify(
-  task: RawTask,
-  leadTimeDays: number,
-): "overdue" | "due-soon" | "flagged" | null {
-  if (task.remind_me) return "flagged";
+function classify(task: RawTask, accountLeadDays: number): "overdue" | "due-soon" | null {
   if (!task.due_date) return null;
+  const leadDays = task.reminder_lead_days ?? accountLeadDays;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const due = new Date(task.due_date);
   due.setHours(0, 0, 0, 0);
   const delta = Math.round((due.getTime() - today.getTime()) / 86_400_000);
   if (delta < 0) return "overdue";
-  if (delta <= leadTimeDays) return "due-soon";
+  if (delta <= leadDays) return "due-soon";
   return null;
 }
 
-const TAG_LABEL: Record<"overdue" | "due-soon" | "flagged", string> = {
+const TAG_LABEL: Record<"overdue" | "due-soon", string> = {
   overdue: "Overdue",
   "due-soon": "Due soon",
-  flagged: "Flagged",
 };
 
 Deno.serve(async () => {
   const { data: tasks, error: tasksError } = await supabase
     .from("tasks")
     .select(
-      "id, title, due_date, priority, remind_me, topic:topics(title, track:tracks(name, user_id))",
+      "id, title, due_date, priority, reminder_lead_days, topic:topics(title, track:tracks(name, user_id))",
     )
     .eq("done", false);
 
@@ -100,7 +99,7 @@ Deno.serve(async () => {
     (prefsRows ?? []).map((p) => [p.user_id, p as ReminderPrefs]),
   );
 
-  const dueByUser = new Map<string, { task: RawTask; tag: "overdue" | "due-soon" | "flagged" }[]>();
+  const dueByUser = new Map<string, { task: RawTask; tag: "overdue" | "due-soon" }[]>();
 
   for (const task of allTasks) {
     const userId = task.topic.track.user_id;

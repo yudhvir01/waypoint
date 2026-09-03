@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef, useState, type DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { parseImportMarkdown, type ParsedImport } from "../lib/markdownImport";
+import { IMPORT_AI_PROMPT } from "../lib/importPrompt";
 import { useImportTrack } from "../hooks/useImportTrack";
 
 const PLACEHOLDER = `# Track Name
@@ -16,7 +17,41 @@ export function ImportMarkdownDialog({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState("");
   const [parsed, setParsed] = useState<ParsedImport | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [promptCopied, setPromptCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const importTrack = useImportTrack();
+
+  async function loadFile(file: File) {
+    const content = await file.text();
+    setText(content);
+    setParseError(null);
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) loadFile(file);
+    e.target.value = "";
+  }
+
+  function handleDrop(e: DragEvent<HTMLTextAreaElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) loadFile(file);
+  }
+
+  async function handleCopyPrompt() {
+    try {
+      await navigator.clipboard.writeText(IMPORT_AI_PROMPT);
+      setCopyError(false);
+      setPromptCopied(true);
+      setTimeout(() => setPromptCopied(false), 2000);
+    } catch {
+      setCopyError(true);
+    }
+  }
 
   function handlePreview() {
     setParseError(null);
@@ -61,13 +96,53 @@ export function ImportMarkdownDialog({ onClose }: { onClose: () => void }) {
         <div className="overflow-y-auto px-5 py-4">
           {!parsed && (
             <>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Got messy notes instead of this format? Copy the prompt below
+                  and hand it to an AI along with your notes.
+                </p>
+                <div className="flex shrink-0 items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".md,.markdown,text/markdown,text/plain"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                  >
+                    Upload .md file
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyPrompt}
+                    className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                  >
+                    {promptCopied ? "Copied!" : copyError ? "Couldn't copy" : "Copy AI prompt"}
+                  </button>
+                </div>
+              </div>
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
                 placeholder={PLACEHOLDER}
                 rows={12}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                className={`mt-3 w-full rounded-md border bg-background px-3 py-2 font-mono text-xs outline-none focus:border-ring focus:ring-1 focus:ring-ring ${
+                  isDragging ? "border-primary bg-accent" : "border-input"
+                }`}
               />
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Paste text above, or drag a .md file onto it.
+              </p>
               {parseError && <p className="mt-2 text-sm text-destructive">{parseError}</p>}
             </>
           )}

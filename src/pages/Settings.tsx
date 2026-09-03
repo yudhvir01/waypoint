@@ -1,5 +1,6 @@
 import { AppShell } from "../components/AppShell";
 import { ThemeToggle } from "../components/ThemeToggle";
+import { Switch } from "../components/Switch";
 import { useSupabase } from "../context/SupabaseProvider";
 import { useReminderPrefs, useUpdateReminderPrefs } from "../hooks/useReminderPrefs";
 import { usePushSubscription } from "../hooks/usePushSubscription";
@@ -58,26 +59,24 @@ export function Settings() {
               label="Email reminders"
               description="Once a day, when something's overdue or due soon."
               control={
-                <input
-                  type="checkbox"
+                <Switch
+                  label="Email reminders"
                   checked={prefs?.email_reminders_enabled ?? true}
-                  onChange={(e) =>
-                    updatePrefs.mutate({ email_reminders_enabled: e.target.checked })
+                  onChange={(checked) =>
+                    updatePrefs.mutate({ email_reminders_enabled: checked })
                   }
-                  className="h-4 w-4"
                 />
               }
             />
             <Row
               label="Push notifications"
               control={
-                <input
-                  type="checkbox"
+                <Switch
+                  label="Push notifications"
                   checked={prefs?.push_reminders_enabled ?? true}
-                  onChange={(e) =>
-                    updatePrefs.mutate({ push_reminders_enabled: e.target.checked })
+                  onChange={(checked) =>
+                    updatePrefs.mutate({ push_reminders_enabled: checked })
                   }
-                  className="h-4 w-4"
                 />
               }
             />

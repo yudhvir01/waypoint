@@ -30,6 +30,15 @@ export interface Task {
   due_date: string | null;
   completed_at: string | null;
   sort_order: number;
-  remind_me: boolean;
+  reminder_lead_days: number | null;
   created_at: string;
 }
+
+// Shared "days before due date" options for reminder pickers.
+export const REMINDER_LEAD_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: "On the due date" },
+  { value: 1, label: "1 day before" },
+  { value: 2, label: "2 days before" },
+  { value: 3, label: "3 days before" },
+  { value: 7, label: "1 week before" },
+];

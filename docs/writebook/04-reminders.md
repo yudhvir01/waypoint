@@ -63,23 +63,33 @@ schedule the same Edge Function invocation without writing SQL.
 
 Open Waypoint → **Settings**. Toggle email and/or push on under
 Notifications, and click **Enable** next to "This device" to subscribe it
-for push. The **Remind me before due** dropdown there controls how many
-days ahead of a due date counts as "due soon" (0–7 days, default 1).
+for push. The **Remind me before due** dropdown there sets your account's
+*default* lead time — how many days ahead of a due date counts as "due
+soon" (0–7 days, default 1) for any task that doesn't set its own.
+
+## Setting a reminder on a task
+
+Click the bell next to a task on its track page.
+
+- **No due date yet?** You'll be asked to set both a deadline and a
+  reminder time together — a reminder always needs a date to count
+  backwards from, so there's no way to flag a dateless task.
+- **Already has a due date?** You'll just pick the reminder timing (same
+  options as the account default: on the due date, 1/2/3 days before, or
+  1 week before). This overrides the account default for that one task
+  only — everything else still uses whatever's set in Settings.
 
 ## How it decides what to send
 
-Once a day, the function looks at every task that isn't done. A task
-counts as:
+Once a day, the function looks at every task that isn't done and has a
+due date. A task counts as:
 
 - **Overdue** — due date is in the past.
-- **Due soon** — due within your **Remind me before due** setting (in
-  Settings; defaults to 1 day, i.e. today or tomorrow).
-- **Flagged** — you clicked the bell icon next to it on the track page.
-  This works regardless of due date, or even with no due date at all —
-  useful for a task you just want a nudge about no matter when it's due.
+- **Due soon** — due within its lead time (the task's own override if it
+  has one, otherwise your account default from Settings).
 
-Everyone with at least one overdue, due-soon, or flagged task gets one
-email (if enabled) listing all of them, and a push notification (if
-enabled and subscribed) with the count. There's no dedup log yet, so if
-you trigger the function manually more than once in a day, you'll get
-duplicate reminders — stick to the daily schedule for normal use.
+Everyone with at least one overdue or due-soon task gets one email (if
+enabled) listing all of them, and a push notification (if enabled and
+subscribed) with the count. There's no dedup log yet, so if you trigger
+the function manually more than once in a day, you'll get duplicate
+reminders — stick to the daily schedule for normal use.
