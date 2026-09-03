@@ -66,3 +66,35 @@ export function useUpdateTopicStatus(trackId: string) {
     },
   });
 }
+
+export function useUpdateTopicTitle(trackId: string) {
+  const { client } = useSupabase();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, title }: { id: string; title: string }) => {
+      const { error } = await client!.from("topics").update({ title }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["topics", trackId] });
+    },
+  });
+}
+
+export function useDeleteTopic(trackId: string) {
+  const { client } = useSupabase();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await client!.from("topics").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["topics", trackId] });
+      queryClient.invalidateQueries({ queryKey: ["focusNow"] });
+      queryClient.invalidateQueries({ queryKey: ["trackProgress"] });
+    },
+  });
+}
