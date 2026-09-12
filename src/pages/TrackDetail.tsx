@@ -4,7 +4,7 @@ import { AppShell } from "../components/AppShell";
 import { SchedulePopover } from "../components/SchedulePopover";
 import { ActionMenu } from "../components/ActionMenu";
 import { useTrack, useUpdateTrackStatus } from "../hooks/useTracks";
-import { useTrackProgress } from "../hooks/useTrackProgress";
+import { useTopicProgress, useTrackProgress, type TrackProgress } from "../hooks/useTrackProgress";
 import {
   nextTopicStatus,
   useCreateTopic,
@@ -104,6 +104,10 @@ function PencilIcon() {
 function reminderLeadLabel(days: number): string {
   return REMINDER_LEAD_OPTIONS.find((o) => o.value === days)?.label ?? `${days}d before`;
 }
+
+// "Expand all" on a very long roadmap would otherwise mount a task query
+// per topic all at once — the exact thing lazy loading is there to avoid.
+const EXPAND_ALL_LIMIT = 25;
 
 const TOPIC_STATUS_LABEL: Record<TopicStatus, string> = {
   not_started: "Not started",
@@ -391,22 +395,34 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
 function TopicItem({
   topic,
   trackId,
+  progress,
   expanded,
   onToggle,
 }: {
   topic: Topic;
   trackId: string;
+  progress: TrackProgress | undefined;
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const { data: tasks } = useTasks(topic.id);
+  // Tasks are fetched only once the topic is actually open. Every topic
+  // used to load its full task list on mount just to render "3 / 8" in the
+  // collapsed header, so opening a 300-topic roadmap fired 300 requests;
+  // the counts now come from one aggregate for the whole track.
+  const {
+    data: taskPages,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useTasks(topic.id, expanded);
   const updateStatus = useUpdateTopicStatus(trackId);
   const updateTitle = useUpdateTopicTitle(trackId);
   const deleteTopic = useDeleteTopic(trackId);
   const [editing, setEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState(topic.title);
-  const tasksCount = tasks?.length;
-  const doneCount = tasks?.filter((t) => t.done).length ?? 0;
+  const tasks = taskPages?.pages.flat();
+  const tasksCount = progress?.total;
+  const doneCount = progress?.done ?? 0;
   const allDone = !!tasksCount && doneCount === tasksCount;
 
   async function saveTitle(e: FormEvent) {
@@ -507,6 +523,17 @@ function TopicItem({
         </ul>
       )}
 
+      {expanded && hasNextPage && (
+        <button
+          type="button"
+          onClick={() => fetchNextPage()}
+          disabled={isFetchingNextPage}
+          className="ml-6 mt-1 text-xs text-muted-foreground transition-colors hover:text-primary disabled:opacity-60"
+        >
+          {isFetchingNextPage ? "Loading…" : `Load more tasks (${tasks?.length ?? 0} of ${tasksCount ?? "?"})`}
+        </button>
+      )}
+
       {expanded && <NewTaskForm topicId={topic.id} />}
     </div>
   );
@@ -561,11 +588,21 @@ function NewTopicForm({ trackId }: { trackId: string }) {
 export function TrackDetail() {
   const { trackId } = useParams<{ trackId: string }>();
   const navigate = useNavigate();
-  const { data: track, isLoading: trackLoading } = useTrack(trackId);
-  const { data: topics, isLoading: topicsLoading } = useTopics(trackId);
+  const { data: track, isLoading: trackLoading, isError: trackError } = useTrack(trackId);
+  const {
+    data: topicPages,
+    isLoading: topicsLoading,
+    isError: topicsError,
+    fetchNextPage: fetchMoreTopics,
+    hasNextPage: hasMoreTopics,
+    isFetchingNextPage: fetchingMoreTopics,
+  } = useTopics(trackId);
   const { data: progressMap } = useTrackProgress();
+  const { data: topicProgress } = useTopicProgress(trackId);
   const updateTrackStatus = useUpdateTrackStatus();
   const [expanded, setExpanded] = useState<Set<string> | null>(null);
+
+  const topics = topicPages?.pages.flat();
 
   // Default to just the first incomplete topic open — a long roadmap
   // shouldn't land as one giant expanded wall.
@@ -597,6 +634,16 @@ export function TrackDetail() {
     return (
       <AppShell>
         <p className="text-sm text-muted-foreground">Loading…</p>
+      </AppShell>
+    );
+  }
+
+  if (trackError) {
+    return (
+      <AppShell>
+        <p className="text-sm text-destructive">
+          Couldn't load this track. Check your connection and reload.
+        </p>
       </AppShell>
     );
   }
@@ -646,7 +693,12 @@ export function TrackDetail() {
         <div className="mt-3 flex justify-end gap-3">
           <button
             type="button"
-            onClick={() => setExpanded(new Set(topics.map((t) => t.id)))}
+            onClick={() => setExpanded(new Set(topics.slice(0, EXPAND_ALL_LIMIT).map((t) => t.id)))}
+            title={
+              topics.length > EXPAND_ALL_LIMIT
+                ? `Expands the first ${EXPAND_ALL_LIMIT} topics`
+                : undefined
+            }
             className="text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             Expand all
@@ -681,15 +733,31 @@ export function TrackDetail() {
             No topics yet — add one below to start breaking this track down.
           </p>
         )}
+        {topicsError && (
+          <p className="text-sm text-destructive">
+            Couldn't load this track's topics. Check your connection and reload.
+          </p>
+        )}
         {topics?.map((topic) => (
           <TopicItem
             key={topic.id}
             topic={topic}
             trackId={track.id}
+            progress={topicProgress?.get(topic.id)}
             expanded={expandedSet.has(topic.id)}
             onToggle={() => toggleTopic(topic.id)}
           />
         ))}
+        {hasMoreTopics && (
+          <button
+            type="button"
+            onClick={() => fetchMoreTopics()}
+            disabled={fetchingMoreTopics}
+            className="mt-4 w-full rounded-md border border-dashed border-border py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:opacity-60"
+          >
+            {fetchingMoreTopics ? "Loading…" : "Load more topics"}
+          </button>
+        )}
       </div>
 
       <NewTopicForm trackId={track.id} />

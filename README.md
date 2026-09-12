@@ -37,7 +37,9 @@ npm install
 ### 2. Create a Supabase project and run the setup script
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor**, paste in the contents of [`supabase/setup.sql`](./supabase/setup.sql), and run it. This creates every table the app needs (`tracks`, `topics`, `tasks`, `push_subscriptions`, `reminder_prefs`) and locks them down with row-level security so only you can read or write your own data.
+2. Open **SQL Editor**, paste in the contents of [`supabase/setup.sql`](./supabase/setup.sql), and run it. This creates every table the app needs (`tracks`, `topics`, `tasks`, `topic_counts`, `push_subscriptions`, `reminder_prefs`), the indexes and helper functions the app's queries rely on, and locks it all down with row-level security so only you can read or write your own data.
+
+   The script is safe to re-run. **Already running an older Waypoint?** Re-run it after pulling — it migrates an existing database in place (adding ownership columns, indexes, and maintained progress counters) without touching your rows.
 3. Grab your **Project ID** (Settings → General) and **anon key** (Settings → API Keys).
 
 The full walkthrough — including how to skip Supabase's email confirmation for a personal, single-user setup — lives in [`docs/writebook/02-connecting-your-supabase-project.md`](./docs/writebook/02-connecting-your-supabase-project.md), also served in-app at `/guide`.

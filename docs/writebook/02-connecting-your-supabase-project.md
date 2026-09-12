@@ -32,8 +32,13 @@ needs and locks them down so only you can read or write your own data.
 4. Click **Run**.
 
 You should see a success message. If you ever want to double-check it worked, open
-**Table Editor** — you should see `tracks`, `topics`, `tasks`, `push_subscriptions`,
-and `reminder_prefs` listed.
+**Table Editor** — you should see `tracks`, `topics`, `tasks`, `topic_counts`,
+`push_subscriptions`, and `reminder_prefs` listed.
+
+The script is safe to run more than once, so if you update Waypoint later, just
+paste the newest version of the file in and run it again. It brings an existing
+database up to date — adding columns, indexes and helper functions — without
+touching the tracks and tasks you've already written.
 
 ## 3. Get your project ID and anon key
 

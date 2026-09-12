@@ -1,22 +1,31 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSupabase } from "../context/SupabaseProvider";
 import type { Topic, TopicStatus } from "../lib/database.types";
+
+// An imported roadmap can be hundreds of topics long, and PostgREST stops
+// at 1000 rows, so the track page pages through them.
+export const TOPIC_PAGE_SIZE = 100;
 
 export function useTopics(trackId: string | undefined) {
   const { client, session } = useSupabase();
 
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["topics", trackId],
     enabled: !!client && !!session && !!trackId,
-    queryFn: async () => {
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: Topic[], allPages: Topic[][]) =>
+      lastPage.length < TOPIC_PAGE_SIZE ? undefined : allPages.length,
+    queryFn: async ({ pageParam }): Promise<Topic[]> => {
+      const from = (pageParam as number) * TOPIC_PAGE_SIZE;
       const { data, error } = await client!
         .from("topics")
         .select("*")
         .eq("track_id", trackId!)
         .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true })
+        .range(from, from + TOPIC_PAGE_SIZE - 1);
       if (error) throw error;
-      return data as Topic[];
+      return (data ?? []) as Topic[];
     },
   });
 }
@@ -27,10 +36,11 @@ export function useCreateTopic(trackId: string) {
 
   return useMutation({
     mutationFn: async (title: string) => {
-      const existing = queryClient.getQueryData<Topic[]>(["topics", trackId]) ?? [];
       const { data, error } = await client!
         .from("topics")
-        .insert({ track_id: trackId, title, sort_order: existing.length })
+        // sort_order is assigned by the database (append to the end of the
+        // track), so it stays correct no matter which page is cached.
+        .insert({ track_id: trackId, title })
         .select()
         .single();
       if (error) throw error;
@@ -95,6 +105,7 @@ export function useDeleteTopic(trackId: string) {
       queryClient.invalidateQueries({ queryKey: ["topics", trackId] });
       queryClient.invalidateQueries({ queryKey: ["focusNow"] });
       queryClient.invalidateQueries({ queryKey: ["trackProgress"] });
+      queryClient.invalidateQueries({ queryKey: ["topicProgress", trackId] });
     },
   });
 }

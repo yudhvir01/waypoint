@@ -2,57 +2,38 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSupabase } from "../context/SupabaseProvider";
 import type { ParsedImport } from "../lib/markdownImport";
 
+// The whole import runs as one database transaction (see import_track in
+// setup.sql). It used to be a request per topic from the browser: a large
+// roadmap took hundreds of round trips, and a failure partway through
+// left a half-imported track behind with no way to tell how far it got.
 export function useImportTrack() {
-  const { client, session } = useSupabase();
+  const { client } = useSupabase();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (parsed: ParsedImport) => {
-      const { data: track, error: trackError } = await client!
-        .from("tracks")
-        .insert({
-          user_id: session!.user.id,
-          name: parsed.trackName,
+    mutationFn: async (parsed: ParsedImport): Promise<string> => {
+      const { data, error } = await client!.rpc("import_track", {
+        payload: {
+          trackName: parsed.trackName,
           description: parsed.description,
-        })
-        .select()
-        .single();
-      if (trackError) throw trackError;
-
-      for (const [topicIndex, topic] of parsed.topics.entries()) {
-        const { data: topicRow, error: topicError } = await client!
-          .from("topics")
-          .insert({
-            track_id: track.id,
+          topics: parsed.topics.map((topic) => ({
             title: topic.title,
-            sort_order: topicIndex,
-            status: topic.tasks.length > 0 && topic.tasks.every((t) => t.done) ? "done" : "not_started",
-          })
-          .select()
-          .single();
-        if (topicError) throw topicError;
-
-        if (topic.tasks.length === 0) continue;
-
-        const { error: tasksError } = await client!.from("tasks").insert(
-          topic.tasks.map((task, taskIndex) => ({
-            topic_id: topicRow.id,
-            title: task.title,
-            done: task.done,
-            priority: task.priority,
-            due_date: task.dueDate,
-            completed_at: task.done ? new Date().toISOString() : null,
-            sort_order: taskIndex,
+            tasks: topic.tasks.map((task) => ({
+              title: task.title,
+              done: task.done,
+              priority: task.priority,
+              dueDate: task.dueDate,
+            })),
           })),
-        );
-        if (tasksError) throw tasksError;
-      }
-
-      return track;
+        },
+      });
+      if (error) throw error;
+      return data as string;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tracks"] });
       queryClient.invalidateQueries({ queryKey: ["focusNow"] });
+      queryClient.invalidateQueries({ queryKey: ["trackProgress"] });
     },
   });
 }

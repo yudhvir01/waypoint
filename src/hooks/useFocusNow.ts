@@ -1,5 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSupabase } from "../context/SupabaseProvider";
 import type { Task } from "../lib/database.types";
 
@@ -14,71 +13,95 @@ export interface FocusTask extends Task {
   };
 }
 
-function daysUntil(dueDate: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(dueDate);
-  due.setHours(0, 0, 0, 0);
-  return Math.round((due.getTime() - today.getTime()) / 86_400_000);
+// The dashboard renders at most eight rows. Asking for a few more than
+// that leaves room for the "Today" / "Up next" split without ever pulling
+// a meaningful fraction of the table.
+const FOCUS_LIMIT = 40;
+
+interface FocusRow {
+  id: string;
+  topic_id: string;
+  title: string;
+  done: boolean;
+  priority: Task["priority"];
+  due_date: string | null;
+  completed_at: string | null;
+  sort_order: number;
+  reminder_lead_days: number | null;
+  created_at: string;
+  topic_title: string;
+  track_id: string;
+  track_name: string;
 }
 
-// Lower score = more urgent. Overdue first, then due soon, then high
-// priority, then everything else — each tier ordered by due date.
-function focusScore(task: FocusTask): number {
-  if (task.due_date) {
-    const delta = daysUntil(task.due_date);
-    if (delta < 0) return 0;
-    if (delta <= 2) return 1;
-  }
-  if (task.priority === "high") return 2;
-  if (task.priority === "medium") return 3;
-  return 4;
-}
-
+// Urgency ranking happens in Postgres (see focus_tasks in setup.sql), so
+// this returns the handful of rows that actually get rendered. Ranking it
+// client-side meant downloading every open task the user had — and
+// PostgREST caps responses at 1000 rows, so past that the "most urgent"
+// list was ranked over an arbitrary subset.
 export function useFocusNow() {
   const { client, session } = useSupabase();
 
   return useQuery({
     queryKey: ["focusNow", session?.user.id],
     enabled: !!client && !!session,
-    queryFn: async () => {
-      const { data, error } = await client!
-        .from("tasks")
-        .select("*, topic:topics!inner(id, title, track:tracks!inner(id, name, status))")
-        .eq("done", false)
-        .eq("topic.track.status", "active")
-        .order("due_date", { ascending: true, nullsFirst: false });
+    queryFn: async (): Promise<FocusTask[]> => {
+      const { data, error } = await client!.rpc("focus_tasks", { p_limit: FOCUS_LIMIT });
       if (error) throw error;
 
-      const tasks = data as unknown as FocusTask[];
-      return [...tasks].sort((a, b) => {
-        const scoreDiff = focusScore(a) - focusScore(b);
-        if (scoreDiff !== 0) return scoreDiff;
-        if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
-        if (a.due_date) return -1;
-        if (b.due_date) return 1;
-        return a.created_at.localeCompare(b.created_at);
-      });
+      return ((data ?? []) as FocusRow[]).map((row) => ({
+        id: row.id,
+        topic_id: row.topic_id,
+        track_id: row.track_id,
+        title: row.title,
+        done: row.done,
+        priority: row.priority,
+        due_date: row.due_date,
+        completed_at: row.completed_at,
+        sort_order: row.sort_order,
+        reminder_lead_days: row.reminder_lead_days,
+        created_at: row.created_at,
+        topic: {
+          id: row.topic_id,
+          title: row.topic_title,
+          track: { id: row.track_id, name: row.track_name },
+        },
+      }));
     },
   });
 }
 
 export function useToggleFocusTask() {
-  const { client } = useSupabase();
+  const { client, session } = useSupabase();
   const queryClient = useQueryClient();
+  const focusKey = ["focusNow", session?.user.id];
 
   return useMutation({
     mutationFn: async (task: Task) => {
-      const done = !task.done;
       const { error } = await client!
         .from("tasks")
-        .update({ done, completed_at: done ? new Date().toISOString() : null })
+        .update({ done: !task.done })
         .eq("id", task.id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    // Ticking something off the dashboard should make it disappear at
+    // once rather than after a round trip.
+    onMutate: async (task: Task) => {
+      await queryClient.cancelQueries({ queryKey: focusKey });
+      const previous = queryClient.getQueryData<FocusTask[]>(focusKey);
+      queryClient.setQueryData<FocusTask[]>(focusKey, (old) =>
+        old?.filter((t) => t.id !== task.id),
+      );
+      return { previous };
+    },
+    onError: (_err, _task, context) => {
+      if (context?.previous) queryClient.setQueryData(focusKey, context.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["focusNow"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["trackProgress"] });
+      queryClient.invalidateQueries({ queryKey: ["topicProgress"] });
     },
   });
 }

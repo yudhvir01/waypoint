@@ -3,9 +3,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import {
   clearSupabaseConfig,
@@ -29,11 +31,13 @@ const SupabaseContext = createContext<SupabaseContextValue | undefined>(
 );
 
 export function SupabaseProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [config, setConfig] = useState<SupabaseConfig | null>(() =>
     loadSupabaseConfig(),
   );
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const lastUserId = useRef<string | null>(null);
 
   const client = useMemo(
     () => (config ? createSupabaseClient(config) : null),
@@ -49,18 +53,28 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
 
     setAuthLoading(true);
     client.auth.getSession().then(({ data }) => {
+      lastUserId.current = data.session?.user.id ?? null;
       setSession(data.session);
       setAuthLoading(false);
     });
 
     const { data: subscription } = client.auth.onAuthStateChange(
       (_event, newSession) => {
+        // Cached rows belong to whoever was signed in when they were
+        // fetched. Signing out — or signing in as somebody else on a
+        // shared browser — has to drop them, or the next account briefly
+        // renders the previous account's tracks from cache.
+        const nextUserId = newSession?.user.id ?? null;
+        if (nextUserId !== lastUserId.current) {
+          lastUserId.current = nextUserId;
+          queryClient.clear();
+        }
         setSession(newSession);
       },
     );
 
     return () => subscription.subscription.unsubscribe();
-  }, [client]);
+  }, [client, queryClient]);
 
   const connect = (newConfig: SupabaseConfig) => {
     saveSupabaseConfig(newConfig);
@@ -69,6 +83,8 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
 
   const disconnect = () => {
     clearSupabaseConfig();
+    queryClient.clear();
+    lastUserId.current = null;
     setConfig(null);
     setSession(null);
   };

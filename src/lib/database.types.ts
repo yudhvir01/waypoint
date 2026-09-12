@@ -15,6 +15,7 @@ export interface Track {
 export interface Topic {
   id: string;
   track_id: string;
+  user_id: string;
   title: string;
   status: TopicStatus;
   sort_order: number;
@@ -24,6 +25,9 @@ export interface Topic {
 export interface Task {
   id: string;
   topic_id: string;
+  // Denormalized from the parent topic by the database, never sent by the
+  // client. It's what lets Focus Now scan by track.
+  track_id: string;
   title: string;
   done: boolean;
   priority: TaskPriority;

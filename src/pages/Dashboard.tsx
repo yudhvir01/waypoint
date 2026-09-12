@@ -64,10 +64,27 @@ function TaskRow({ task }: { task: FocusTask }) {
 }
 
 function FocusNowList() {
-  const { data: tasks, isLoading } = useFocusNow();
+  const { data: tasks, isLoading, isError, refetch } = useFocusNow();
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Loading…</p>;
+  }
+
+  // A failed query used to fall through to the empty state, so a network
+  // or permissions problem read as "you're all caught up".
+  if (isError) {
+    return (
+      <div className="py-6">
+        <p className="text-[15px] text-destructive">Couldn't load your tasks.</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="mt-2 text-sm text-primary hover:underline"
+        >
+          Try again
+        </button>
+      </div>
+    );
   }
 
   if (!tasks || tasks.length === 0) {
@@ -207,14 +224,16 @@ function NewTrackMenu({ compact = false }: { compact?: boolean }) {
 }
 
 export function Dashboard() {
-  const { data: tracks, isLoading: tracksLoading } = useTracks();
+  const { data: tracks, isLoading: tracksLoading, isError: tracksError } = useTracks();
   const today = new Date().toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",
     day: "numeric",
   });
 
-  if (!tracksLoading && tracks?.length === 0) {
+  // Only show the "empty workspace" onboarding when we actually know the
+  // workspace is empty — not when the request failed.
+  if (!tracksLoading && !tracksError && tracks?.length === 0) {
     return (
       <AppShell>
         <div className="flex flex-col items-start py-16">

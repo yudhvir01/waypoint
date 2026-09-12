@@ -19,6 +19,12 @@ export interface ParsedImport {
   warnings: string[];
 }
 
+// Matches the server-side ceiling in import_track (setup.sql). Refusing a
+// runaway file here means the user gets a clear message instead of a
+// rejected transaction after uploading megabytes of Markdown.
+export const MAX_IMPORT_TASKS = 20_000;
+export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+
 const HEADING = /^(#{1,6})\s+(.+?)\s*$/;
 const CHECKBOX_ITEM = /^[-*+]\s*\[([ xX])\]\s*(.*)$/;
 const PLAIN_ITEM = /^[-*+]\s+(.+)$/;
@@ -73,6 +79,12 @@ interface TopicCandidate extends ParsedTopic {
 }
 
 export function parseImportMarkdown(input: string): ParsedImport {
+  if (input.length > MAX_IMPORT_BYTES) {
+    throw new Error(
+      `That file is too large to import in one go (${Math.round(input.length / 1024 / 1024)} MB, limit ${MAX_IMPORT_BYTES / 1024 / 1024} MB). Split it into a few smaller tracks.`,
+    );
+  }
+
   const lines = input.replace(/\r\n/g, "\n").split("\n");
   const warnings: string[] = [];
 
@@ -184,6 +196,13 @@ export function parseImportMarkdown(input: string): ParsedImport {
     if ((titleCounts.get(t.title) ?? 0) > 1 && t.topLevelAncestor && t.topLevelAncestor !== t.title) {
       t.title = `${t.title} (${t.topLevelAncestor})`;
     }
+  }
+
+  const totalTasks = nonEmptyTopics.reduce((sum, t) => sum + t.tasks.length, 0);
+  if (totalTasks > MAX_IMPORT_TASKS) {
+    throw new Error(
+      `That file has ${totalTasks.toLocaleString()} tasks — more than the ${MAX_IMPORT_TASKS.toLocaleString()} a single import can take. Split it into a few smaller tracks.`,
+    );
   }
 
   if (skippedBlocks > 0) {

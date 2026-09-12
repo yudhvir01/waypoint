@@ -4,6 +4,9 @@ import { parseImportMarkdown, type ParsedImport } from "../lib/markdownImport";
 import { IMPORT_AI_PROMPT } from "../lib/importPrompt";
 import { useImportTrack } from "../hooks/useImportTrack";
 
+const PREVIEW_TOPIC_LIMIT = 50;
+const PREVIEW_TASK_LIMIT = 20;
+
 const PLACEHOLDER = `# Track Name
 Optional description line before the first ##.
 
@@ -65,12 +68,17 @@ export function ImportMarkdownDialog({ onClose }: { onClose: () => void }) {
 
   async function handleImport() {
     if (!parsed) return;
-    const track = await importTrack.mutateAsync(parsed);
+    const trackId = await importTrack.mutateAsync(parsed);
     onClose();
-    navigate(`/tracks/${track.id}`);
+    navigate(`/tracks/${trackId}`);
   }
 
   const taskCount = parsed?.topics.reduce((sum, t) => sum + t.tasks.length, 0) ?? 0;
+  // The preview is there to confirm the parse looks right, not to render
+  // the whole import — a 5000-task roadmap would otherwise lock the tab up
+  // building DOM nodes nobody scrolls to.
+  const previewTopics = parsed?.topics.slice(0, PREVIEW_TOPIC_LIMIT) ?? [];
+  const hiddenTopics = (parsed?.topics.length ?? 0) - previewTopics.length;
 
   return (
     <div
@@ -160,23 +168,38 @@ export function ImportMarkdownDialog({ onClose }: { onClose: () => void }) {
               )}
 
               <ul className="mt-4 flex flex-col gap-3">
-                {parsed.topics.map((topic, i) => (
-                  <li key={i}>
-                    <p className="text-sm font-medium">{topic.title}</p>
-                    <ul className="mt-1 flex flex-col gap-0.5">
-                      {topic.tasks.map((task, j) => (
-                        <li key={j} className="ml-4 text-sm text-muted-foreground">
-                          <span className={task.done ? "line-through" : ""}>{task.title}</span>
-                          {task.priority !== "none" && ` · ${task.priority}`}
-                          {task.dueDate && ` · due ${task.dueDate}`}
-                        </li>
-                      ))}
-                      {topic.tasks.length === 0 && (
-                        <li className="ml-4 text-sm text-muted-foreground">No tasks</li>
-                      )}
-                    </ul>
+                {previewTopics.map((topic, i) => {
+                  const shown = topic.tasks.slice(0, PREVIEW_TASK_LIMIT);
+                  const hidden = topic.tasks.length - shown.length;
+                  return (
+                    <li key={i}>
+                      <p className="text-sm font-medium">{topic.title}</p>
+                      <ul className="mt-1 flex flex-col gap-0.5">
+                        {shown.map((task, j) => (
+                          <li key={j} className="ml-4 text-sm text-muted-foreground">
+                            <span className={task.done ? "line-through" : ""}>{task.title}</span>
+                            {task.priority !== "none" && ` · ${task.priority}`}
+                            {task.dueDate && ` · due ${task.dueDate}`}
+                          </li>
+                        ))}
+                        {hidden > 0 && (
+                          <li className="ml-4 text-sm text-muted-foreground/70">
+                            + {hidden} more task{hidden === 1 ? "" : "s"}
+                          </li>
+                        )}
+                        {topic.tasks.length === 0 && (
+                          <li className="ml-4 text-sm text-muted-foreground">No tasks</li>
+                        )}
+                      </ul>
+                    </li>
+                  );
+                })}
+                {hiddenTopics > 0 && (
+                  <li className="text-sm text-muted-foreground/70">
+                    + {hiddenTopics} more topic{hiddenTopics === 1 ? "" : "s"} — all of them will
+                    be imported.
                   </li>
-                ))}
+                )}
               </ul>
 
               {parsed.warnings.length > 0 && (
