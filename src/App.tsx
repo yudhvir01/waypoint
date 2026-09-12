@@ -1,13 +1,12 @@
 import { Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Analytics } from "@vercel/analytics/react";
-import { SupabaseProvider } from "./context/SupabaseProvider";
+import { BackendProvider } from "./context/BackendProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ThemeProvider } from "./context/ThemeProvider";
 import { ThemeToggle } from "./components/ThemeToggle";
-import { RequireAuth, RequireConfig, RedirectIfAuthed } from "./components/RequireConfig";
-import { Connect } from "./pages/Connect";
+import { RequireAuth, RedirectIfAuthed } from "./components/RouteGuards";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { TrackDetail } from "./pages/TrackDetail";
@@ -44,7 +43,7 @@ function App() {
     <ThemeProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <SupabaseProvider>
+          <BackendProvider>
             <BrowserRouter>
               <div className="fixed right-4 top-4 z-50">
                 <ThemeToggle />
@@ -58,22 +57,24 @@ function App() {
                     </Suspense>
                   }
                 />
-                <Route path="/connect" element={<Connect />} />
-                <Route element={<RequireConfig />}>
-                  <Route element={<RedirectIfAuthed />}>
-                    <Route path="/login" element={<Login />} />
-                  </Route>
-                  <Route element={<RequireAuth />}>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/tracks/:trackId" element={<TrackDetail />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="/archived" element={<Archived />} />
-                  </Route>
+                {/* /connect was the old, always-required Supabase setup
+                    gate. Bring-your-own is now one path among three
+                    reachable from /login itself, so old links here just
+                    land on the picker. */}
+                <Route path="/connect" element={<Navigate to="/login" replace />} />
+                <Route element={<RedirectIfAuthed />}>
+                  <Route path="/login" element={<Login />} />
+                </Route>
+                <Route element={<RequireAuth />}>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/tracks/:trackId" element={<TrackDetail />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/archived" element={<Archived />} />
                 </Route>
               </Routes>
             </BrowserRouter>
             <Analytics />
-          </SupabaseProvider>
+          </BackendProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </ThemeProvider>

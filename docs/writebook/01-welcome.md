@@ -26,6 +26,17 @@ and what you've manually flagged as high priority.
 
 ## Your data is yours
 
-Waypoint doesn't have a database of its own. When you set it up, you connect it to a
-Supabase project *you* create and control — your notes live there, not on anyone
-else's server. The next chapter walks through that setup.
+Waypoint doesn't have a database of its own. The login screen offers three ways to
+use it:
+
+- **Guest** — no account, nothing to set up. Your notes are saved only in this
+  browser's local storage, which is easy to lose (clearing site data, a private
+  window, a different device all mean starting over).
+- **Supabase** — you connect a project *you* create and control; your notes live
+  there, not on anyone else's server, and follow you to any device you sign into.
+- **Google** *(coming soon)* — saves into a "Waypoint" folder in your own Drive.
+
+Guest mode is there to try Waypoint out. The next chapter walks through the
+Supabase setup for anyone who wants their notes to actually last — and if you've
+already been using guest mode, Settings has a one-click "Move to Supabase" that
+imports everything you've added.

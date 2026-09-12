@@ -3,12 +3,15 @@ title: Connecting Your Supabase Project
 ---
 # Connecting Your Supabase Project
 
-Waypoint needs somewhere to store your tracks, topics, and tasks. Instead of using a
-shared server, you point it at your own free [Supabase](https://supabase.com)
-project — a real Postgres database, under your account, that only your Waypoint app
-talks to.
+Waypoint's login screen offers three ways in: try it as a guest with no setup (your
+data stays only in that browser), sign in with Google (coming soon), or connect your
+own [Supabase](https://supabase.com) project — a real Postgres database, under your
+account, that only your Waypoint app talks to, and the only option today that syncs
+across devices and can send you reminders.
 
-This takes about five minutes, once.
+This chapter covers that last option. It takes about five minutes, once. Already
+using guest mode? Settings has a "Move to Supabase" button that walks you through
+this same setup and then imports everything you've already added.
 
 ## 1. Create a Supabase project
 

@@ -1,120 +1,130 @@
-import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
-import { useSupabase } from "../context/SupabaseProvider";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useBackend } from "../context/BackendProvider";
+import { SupabaseAuthPanel } from "../components/SupabaseAuthPanel";
 import { Logo } from "../components/Logo";
 
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.68-3.87 2.68-6.62Z"
+      />
+      <path
+        fill="#34A853"
+        d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.96v2.33A9 9 0 0 0 9 18Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.03l2.99-2.33Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.97l2.99 2.33C4.66 5.17 6.65 3.58 9 3.58Z"
+      />
+    </svg>
+  );
+}
+
+function GuardIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+      <path d="M9 1.5 15 4v4.2c0 4-2.6 6.7-6 8.3-3.4-1.6-6-4.3-6-8.3V4l6-2.5Z" />
+    </svg>
+  );
+}
+
+function DatabaseIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+      <ellipse cx="9" cy="4" rx="6" ry="2.2" />
+      <path d="M3 4v10c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2V4" />
+      <path d="M3 9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2" />
+    </svg>
+  );
+}
+
+type View = "landing" | "supabase";
+
 export function Login() {
-  const { client, disconnect } = useSupabase();
+  const { loginAsGuest } = useBackend();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [view, setView] = useState<View>("landing");
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!client) return;
-    setError(null);
-    setInfo(null);
-    setSubmitting(true);
-
-    if (mode === "login") {
-      const { error: signInError } = await client.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (signInError) {
-        setError(signInError.message);
-      } else {
-        navigate("/", { replace: true });
-      }
-    } else {
-      const { error: signUpError } = await client.auth.signUp({
-        email,
-        password,
-      });
-      if (signUpError) {
-        setError(signUpError.message);
-      } else {
-        setInfo("Account created. Check your email to confirm, then log in.");
-        setMode("login");
-      }
-    }
-
-    setSubmitting(false);
+  function handleGuest() {
+    loginAsGuest();
+    navigate("/", { replace: true });
   }
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
       <Logo size={40} tagline className="mb-8" />
 
-      <h1 className="text-2xl font-semibold">
-        {mode === "login" ? "Log in" : "Create your account"}
-      </h1>
+      {view === "supabase" ? (
+        <SupabaseAuthPanel onConnected={() => navigate("/", { replace: true })} onCancel={() => setView("landing")} />
+      ) : (
+        <>
+          <h1 className="text-2xl font-semibold">Get started</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Pick where your tracks and tasks live. You can switch later without losing anything
+            you've already stored with Supabase or Google.
+          </p>
 
-      <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm">
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-2 outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-            required
-          />
-        </label>
+          <div className="mt-8 flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => setView("supabase")}
+              className="flex items-center gap-3 rounded-md border border-border px-4 py-3 text-left text-sm font-medium transition-colors hover:border-primary hover:bg-accent"
+            >
+              <DatabaseIcon />
+              <span className="flex-1">
+                Continue with Supabase
+                <span className="block text-xs font-normal text-muted-foreground">
+                  Your own database. Nothing is ever lost.
+                </span>
+              </span>
+            </button>
 
-        <label className="flex flex-col gap-1 text-sm">
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            minLength={6}
-            className="rounded-md border border-input bg-background px-3 py-2 outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-            required
-          />
-        </label>
+            <button
+              type="button"
+              disabled
+              title="Coming soon"
+              className="flex items-center gap-3 rounded-md border border-border px-4 py-3 text-left text-sm font-medium opacity-50"
+            >
+              <GoogleIcon />
+              <span className="flex-1">
+                Sign in with Google
+                <span className="block text-xs font-normal text-muted-foreground">
+                  Saves to a "Waypoint" folder in your Drive. Coming soon.
+                </span>
+              </span>
+            </button>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        {info && <p className="text-sm text-success">{info}</p>}
+            <button
+              type="button"
+              onClick={handleGuest}
+              className="flex items-center gap-3 rounded-md border border-dashed border-border px-4 py-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
+            >
+              <GuardIcon />
+              <span className="flex-1">
+                Just try it as a guest
+                <span className="block text-xs font-normal">No account — see what Waypoint can do first.</span>
+              </span>
+            </button>
+          </div>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="mt-2 rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
-        >
-          {submitting
-            ? "Please wait..."
-            : mode === "login"
-              ? "Log in"
-              : "Sign up"}
-        </button>
-      </form>
+          <p className="mt-5 text-xs text-muted-foreground">
+            Guest tracks are saved only in this browser. Clearing your browser data, or opening
+            Waypoint on another device, means they're gone — sign in with Supabase or Google
+            first if you'd rather not risk that.
+          </p>
+        </>
+      )}
 
-      <button
-        type="button"
-        onClick={() => {
-          setMode(mode === "login" ? "signup" : "login");
-          setError(null);
-          setInfo(null);
-        }}
-        className="mt-4 text-sm text-primary hover:underline"
-      >
-        {mode === "login"
-          ? "Need an account? Sign up"
-          : "Already have an account? Log in"}
-      </button>
-
-      <button
-        type="button"
-        onClick={disconnect}
-        className="mt-8 text-xs text-muted-foreground hover:underline"
-      >
-        Connect a different Supabase project
-      </button>
+      <Link to="/guide" className="mt-8 text-center text-sm text-muted-foreground hover:underline">
+        Read the Guide
+      </Link>
     </div>
   );
 }

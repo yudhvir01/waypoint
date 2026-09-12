@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSupabase } from "../context/SupabaseProvider";
+import { useBackend } from "../context/BackendProvider";
 import type { Topic, TopicStatus } from "../lib/database.types";
 
 // An imported roadmap can be hundreds of topics long, and PostgREST stops
@@ -7,45 +7,24 @@ import type { Topic, TopicStatus } from "../lib/database.types";
 export const TOPIC_PAGE_SIZE = 100;
 
 export function useTopics(trackId: string | undefined) {
-  const { client, session } = useSupabase();
+  const { backend } = useBackend();
 
   return useInfiniteQuery({
     queryKey: ["topics", trackId],
-    enabled: !!client && !!session && !!trackId,
+    enabled: !!backend && !!trackId,
     initialPageParam: 0,
     getNextPageParam: (lastPage: Topic[], allPages: Topic[][]) =>
       lastPage.length < TOPIC_PAGE_SIZE ? undefined : allPages.length,
-    queryFn: async ({ pageParam }): Promise<Topic[]> => {
-      const from = (pageParam as number) * TOPIC_PAGE_SIZE;
-      const { data, error } = await client!
-        .from("topics")
-        .select("*")
-        .eq("track_id", trackId!)
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: true })
-        .range(from, from + TOPIC_PAGE_SIZE - 1);
-      if (error) throw error;
-      return (data ?? []) as Topic[];
-    },
+    queryFn: ({ pageParam }) => backend!.listTopics(trackId!, pageParam as number, TOPIC_PAGE_SIZE),
   });
 }
 
 export function useCreateTopic(trackId: string) {
-  const { client } = useSupabase();
+  const { backend } = useBackend();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (title: string) => {
-      const { data, error } = await client!
-        .from("topics")
-        // sort_order is assigned by the database (append to the end of the
-        // track), so it stays correct no matter which page is cached.
-        .insert({ track_id: trackId, title })
-        .select()
-        .single();
-      if (error) throw error;
-      return data as Topic;
-    },
+    mutationFn: (title: string) => backend!.createTopic(trackId, title),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["topics", trackId] });
     },
@@ -63,14 +42,12 @@ export function nextTopicStatus(status: TopicStatus): TopicStatus {
 }
 
 export function useUpdateTopicStatus(trackId: string) {
-  const { client } = useSupabase();
+  const { backend } = useBackend();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: TopicStatus }) => {
-      const { error } = await client!.from("topics").update({ status }).eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: ({ id, status }: { id: string; status: TopicStatus }) =>
+      backend!.updateTopicStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["topics", trackId] });
     },
@@ -78,14 +55,11 @@ export function useUpdateTopicStatus(trackId: string) {
 }
 
 export function useUpdateTopicTitle(trackId: string) {
-  const { client } = useSupabase();
+  const { backend } = useBackend();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, title }: { id: string; title: string }) => {
-      const { error } = await client!.from("topics").update({ title }).eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: ({ id, title }: { id: string; title: string }) => backend!.updateTopicTitle(id, title),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["topics", trackId] });
     },
@@ -93,14 +67,11 @@ export function useUpdateTopicTitle(trackId: string) {
 }
 
 export function useDeleteTopic(trackId: string) {
-  const { client } = useSupabase();
+  const { backend } = useBackend();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await client!.from("topics").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => backend!.deleteTopic(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["topics", trackId] });
       queryClient.invalidateQueries({ queryKey: ["focusNow"] });

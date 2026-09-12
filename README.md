@@ -4,7 +4,7 @@
 
 Waypoint is one dashboard for everything you're learning and building. Instead of digging through a dozen notes to remember what you're supposed to be doing today, you get one ranked list: what's overdue, what's urgent, and what's next — across every track you're working on.
 
-There's no shared backend. Every user connects their own [Supabase](https://supabase.com) project, so tracks, topics, and tasks never touch a server you don't control.
+There's no backend Waypoint controls. Try it instantly as a guest (data stays in your browser), or connect it to your own [Supabase](https://supabase.com) project for a real account that works across devices and can send you reminders. Every storage option lives behind one interface (`Backend`, in `src/lib/backend/`), so which one you're on never changes how a page works.
 
 ## How it's different
 
@@ -18,7 +18,8 @@ Everything rolls up into one **Focus Now** list on the dashboard: the tasks that
 
 ## Features
 
-- **Bring-your-own-database connect flow** — paste a Supabase project ID and anon key; Waypoint derives the project URL, verifies the schema, and never sends your credentials anywhere else. Config lives only in `localStorage`.
+- **Three ways in** — try it as a guest with no account (data lives in this browser's IndexedDB only), or connect your own Supabase project (paste a project ID and anon key, or bake one in via `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` so a deployment just works on every device). Google Drive is a planned third option. See [`docs/writebook/02-connecting-your-supabase-project.md`](docs/writebook/02-connecting-your-supabase-project.md).
+- **Guest → Supabase migration** — Settings offers a one-click "Move to Supabase" for guest data: connect a project, sign in, and every guest track is imported into the new account. Nothing local is touched unless you ask.
 - **Tracks / Topics / Tasks** with row-level security — every row is scoped to `auth.uid()`, so a user can only ever see their own data.
 - **Focus Now** — overdue tasks first, then due-within-2-days, then by priority, sorted by due date within each tier.
 - **Markdown import** — write a whole track as `# Track / ## Topic / - [ ] Task #priority:high #due:2026-09-10` and import it in one shot, with a preview and non-fatal warnings for anything it can't parse. See [`docs/writebook/03-the-markdown-import-format.md`](docs/writebook/03-the-markdown-import-format.md).
@@ -50,7 +51,7 @@ The full walkthrough — including how to skip Supabase's email confirmation for
 npm run dev
 ```
 
-Open the app and paste in your Project ID and anon key when prompted.
+Open the app — the login screen lets you try it as a guest immediately, or connect a Supabase project (paste your Project ID and anon key, or set `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` beforehand so it's already connected).
 
 ### 4. (Optional) Set up reminders
 
@@ -84,27 +85,33 @@ src/
     Logo.tsx                 Theme-aware logo/wordmark lockup
     ImportMarkdownDialog.tsx Markdown import preview + confirm modal
     ThemeToggle.tsx           Light/dark/system theme switcher
-    RequireConfig.tsx         Route guards (config connected, authed, etc.)
+    RouteGuards.tsx           RequireAuth / RedirectIfAuthed, keyed off Backend presence
+    SupabaseAuthPanel.tsx     Shared "pick a project, then log in" panel (Login + migration)
+    GuestMigrationDialog.tsx  Guest → Supabase one-click import
   context/
-    SupabaseProvider.tsx      Holds the connected Supabase client + session
+    BackendProvider.tsx       Picks guest vs. Supabase, exposes the active Backend + session
     ThemeProvider.tsx         Light/dark theme state
   hooks/
-    useTracks.ts / useTopics.ts / useTasks.ts   CRUD queries + mutations
+    useTracks.ts / useTopics.ts / useTasks.ts   CRUD queries + mutations, backend-agnostic
     useFocusNow.ts             Focus Now ranking query
     useImportTrack.ts          Bulk insert for Markdown import
-    useReminderPrefs.ts        Per-user email/push toggle state
-    usePushSubscription.ts     Browser push subscribe/unsubscribe
+    useReminderPrefs.ts        Per-user email/push toggle state (Supabase only)
+    usePushSubscription.ts     Browser push subscribe/unsubscribe (Supabase only)
   lib/
+    backend/types.ts           The Backend interface every page talks through
+    backend/supabaseBackend.ts Backend implementation over Postgres/PostgREST
+    backend/guestBackend.ts    Backend implementation over IndexedDB (via `idb`)
+    backend/guestStore.ts      IndexedDB schema + persistence request
     supabaseClient.ts / supabaseConfig.ts   Client creation + localStorage config
+    env.ts                     Optional baked-in default Supabase project (VITE_ env vars)
     markdownImport.ts          Markdown → track/topic/task parser
     push.ts                    Web Push subscription helpers, VAPID public key
     database.types.ts          Track/Topic/Task types
   pages/
-    Connect.tsx    Supabase project connect screen
-    Login.tsx      Sign up / log in
+    Login.tsx      Landing screen: guest / Supabase / Google (planned)
     Dashboard.tsx  Focus Now + Tracks list
     TrackDetail.tsx Topics + tasks for one track
-    Settings.tsx   Reminders preferences + push enable/disable
+    Settings.tsx   Database/migration status, reminders preferences, push enable/disable
     Guide.tsx      In-app docs, sidebar nav
   sw.ts            Custom service worker (push + notificationclick handlers)
 supabase/
@@ -118,11 +125,11 @@ docs/
 
 ## Status
 
-All four planned phases are built and verified against a live Supabase project:
+Core phases are built and verified against a live Supabase project, plus a local guest backend:
 
-1. **Connect & Auth** — bring-your-own-database flow, row-level security.
-2. **Tracks, Topics, Tasks & Focus Now** — the core tracking model.
+1. **Storage backends** — guest mode (IndexedDB, no account) and Supabase (bring-your-own project or a baked-in default), behind one `Backend` interface. A "Move to Supabase" flow migrates guest data in. Google Drive is planned as a third backend.
+2. **Tracks, Topics, Tasks & Focus Now** — the core tracking model, on either backend.
 3. **Markdown import** — bulk-create a track from a `.md` file.
-4. **Reminders** — daily email/push notifications via a Supabase Edge Function.
+4. **Reminders** — daily email/push notifications via a Supabase Edge Function. Supabase-only: a backend with no server (guest, eventually Drive) can't act while you're away, so Settings explains this rather than showing dead toggles.
 
 Reminders need a one-time manual deploy (Edge Function + secrets + `pg_cron` schedule) — see [`docs/writebook/04-reminders.md`](./docs/writebook/04-reminders.md) for exact steps.

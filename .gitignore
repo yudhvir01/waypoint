@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# Local env overrides — .env.example documents the variables the app
+# reads; keep real values out of git even though the anon key itself is
+# meant to be public.
+.env
+.env.*
+!.env.example
+
 # Supabase CLI local state
 supabase/.temp
 

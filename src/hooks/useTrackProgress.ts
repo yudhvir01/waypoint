@@ -1,57 +1,31 @@
 import { useQuery } from "@tanstack/react-query";
-import { useSupabase } from "../context/SupabaseProvider";
+import { useBackend } from "../context/BackendProvider";
+import type { TrackProgress } from "../lib/backend/types";
 
-export interface TrackProgress {
-  done: number;
-  total: number;
-}
+export type { TrackProgress };
 
-interface TrackProgressRow {
-  track_id: string;
-  done: number;
-  total: number;
-}
-
-// Done/total per track, aggregated by Postgres. This used to select every
-// task row the user owned and count them in the browser, which meant the
-// sidebar's "12/40" cost a full table download on every page — and, past
-// PostgREST's 1000-row response cap, quietly reported the wrong totals.
+// Done/total per track. On Supabase this is a Postgres aggregate (see
+// track_progress() in setup.sql) so the sidebar's "12/40" never costs a
+// full table download; on the guest backend it's a pass over an
+// in-memory dataset small enough not to matter.
 export function useTrackProgress() {
-  const { client, session } = useSupabase();
+  const { backend } = useBackend();
 
   return useQuery({
-    queryKey: ["trackProgress", session?.user.id],
-    enabled: !!client && !!session,
-    queryFn: async () => {
-      const { data, error } = await client!.rpc("track_progress");
-      if (error) throw error;
-
-      const map = new Map<string, TrackProgress>();
-      for (const row of (data ?? []) as TrackProgressRow[]) {
-        map.set(row.track_id, { done: Number(row.done), total: Number(row.total) });
-      }
-      return map;
-    },
+    queryKey: ["trackProgress"],
+    enabled: !!backend,
+    queryFn: (): Promise<Map<string, TrackProgress>> => backend!.trackProgress(),
   });
 }
 
 // Done/total per topic within one track — one request for the whole track
 // instead of one per topic row.
 export function useTopicProgress(trackId: string | undefined) {
-  const { client, session } = useSupabase();
+  const { backend } = useBackend();
 
   return useQuery({
     queryKey: ["topicProgress", trackId],
-    enabled: !!client && !!session && !!trackId,
-    queryFn: async () => {
-      const { data, error } = await client!.rpc("topic_progress", { p_track_id: trackId! });
-      if (error) throw error;
-
-      const map = new Map<string, TrackProgress>();
-      for (const row of (data ?? []) as { topic_id: string; done: number; total: number }[]) {
-        map.set(row.topic_id, { done: Number(row.done), total: Number(row.total) });
-      }
-      return map;
-    },
+    enabled: !!backend && !!trackId,
+    queryFn: (): Promise<Map<string, TrackProgress>> => backend!.topicProgress(trackId!),
   });
 }

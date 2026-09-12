@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useSupabase } from "../context/SupabaseProvider";
+import { useBackend } from "../context/BackendProvider";
 import {
   isPushSupported,
   subscribeToPush,
@@ -9,7 +9,7 @@ import {
 } from "../lib/push";
 
 export function usePushSubscription() {
-  const { client } = useSupabase();
+  const { client } = useBackend();
   const [subscribed, setSubscribed] = useState(false);
   const [checking, setChecking] = useState(true);
 

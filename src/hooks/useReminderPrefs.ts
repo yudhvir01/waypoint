@@ -1,53 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSupabase } from "../context/SupabaseProvider";
+import { useBackend } from "../context/BackendProvider";
+import type { ReminderPrefs } from "../lib/backend/types";
 
-export interface ReminderPrefs {
-  user_id: string;
-  email_reminders_enabled: boolean;
-  push_reminders_enabled: boolean;
-  lead_time_days: number;
-}
+export type { ReminderPrefs };
 
 export function useReminderPrefs() {
-  const { client, session } = useSupabase();
+  const { backend } = useBackend();
 
   return useQuery({
-    queryKey: ["reminderPrefs", session?.user.id],
-    enabled: !!client && !!session,
-    queryFn: async () => {
-      const { data, error } = await client!
-        .from("reminder_prefs")
-        .select("*")
-        .eq("user_id", session!.user.id)
-        .maybeSingle();
-      if (error) throw error;
-      return (
-        data ?? {
-          user_id: session!.user.id,
-          email_reminders_enabled: true,
-          push_reminders_enabled: true,
-          lead_time_days: 1,
-        }
-      );
-    },
+    queryKey: ["reminderPrefs"],
+    enabled: !!backend,
+    queryFn: (): Promise<ReminderPrefs> => backend!.getReminderPrefs(),
   });
 }
 
 export function useUpdateReminderPrefs() {
-  const { client, session } = useSupabase();
+  const { backend } = useBackend();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      patch: Partial<
-        Pick<ReminderPrefs, "email_reminders_enabled" | "push_reminders_enabled" | "lead_time_days">
-      >,
-    ) => {
-      const { error } = await client!
-        .from("reminder_prefs")
-        .upsert({ user_id: session!.user.id, ...patch }, { onConflict: "user_id" });
-      if (error) throw error;
-    },
+    mutationFn: (patch: Partial<ReminderPrefs>) => backend!.updateReminderPrefs(patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reminderPrefs"] });
     },

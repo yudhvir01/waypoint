@@ -1,35 +1,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSupabase } from "../context/SupabaseProvider";
+import { useBackend } from "../context/BackendProvider";
 import type { ParsedImport } from "../lib/markdownImport";
 
-// The whole import runs as one database transaction (see import_track in
-// setup.sql). It used to be a request per topic from the browser: a large
-// roadmap took hundreds of round trips, and a failure partway through
-// left a half-imported track behind with no way to tell how far it got.
+// On Supabase the whole import runs as one database transaction (see
+// import_track in setup.sql); on the guest backend it's a synchronous
+// pass over IndexedDB. Either way it's one call, so a failure partway
+// through can't leave a half-imported track behind.
 export function useImportTrack() {
-  const { client } = useSupabase();
+  const { backend } = useBackend();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (parsed: ParsedImport): Promise<string> => {
-      const { data, error } = await client!.rpc("import_track", {
-        payload: {
-          trackName: parsed.trackName,
-          description: parsed.description,
-          topics: parsed.topics.map((topic) => ({
-            title: topic.title,
-            tasks: topic.tasks.map((task) => ({
-              title: task.title,
-              done: task.done,
-              priority: task.priority,
-              dueDate: task.dueDate,
-            })),
-          })),
-        },
-      });
-      if (error) throw error;
-      return data as string;
-    },
+    mutationFn: (parsed: ParsedImport): Promise<string> => backend!.importTrack(parsed),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tracks"] });
       queryClient.invalidateQueries({ queryKey: ["focusNow"] });
