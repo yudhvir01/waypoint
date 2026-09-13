@@ -150,14 +150,14 @@ function NewTrackMenu({ compact = false }: { compact?: boolean }) {
 
   if (mode === "manual") {
     return (
-      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+      <form onSubmit={handleSubmit} className="flex w-full items-center gap-2 sm:w-auto">
         <input
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={() => !name && setMode(null)}
           placeholder="Track name"
-          className="w-56 rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+          className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring sm:w-56 sm:flex-none"
         />
         <button
           type="submit"
@@ -173,7 +173,7 @@ function NewTrackMenu({ compact = false }: { compact?: boolean }) {
   if (!open) {
     if (compact) {
       return (
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={() => setMode("manual")}
@@ -251,7 +251,7 @@ export function Dashboard() {
 
   return (
     <AppShell wide>
-      <div className="flex items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-[-0.02em]">Focus Now</h1>
           <p className="mt-1.5 text-[15px] text-muted-foreground">{today}</p>

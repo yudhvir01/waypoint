@@ -104,12 +104,12 @@ export function ImportMarkdownDialog({ onClose }: { onClose: () => void }) {
         <div className="overflow-y-auto px-5 py-4">
           {!parsed && (
             <>
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs text-muted-foreground">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="min-w-0 flex-1 text-xs text-muted-foreground">
                   Got messy notes instead of this format? Copy the prompt below
                   and hand it to an AI along with your notes.
                 </p>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <input
                     ref={fileInputRef}
                     type="file"

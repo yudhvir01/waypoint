@@ -34,7 +34,10 @@ export function Guide() {
   const { hash } = useLocation();
   const { backend } = useBackend();
   const backTo = backend ? "/" : "/login";
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Open by default on a screen wide enough to show it inline; closed by
+  // default on a phone, where it would otherwise squeeze the actual
+  // chapter content into a sliver — see the drawer treatment below.
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
 
   const activeSlug = hash ? hash.slice(1) : CHAPTERS[0].slug;
   const chapter = CHAPTERS.find((c) => c.slug === activeSlug) ?? CHAPTERS[0];
@@ -45,20 +48,43 @@ export function Guide() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-5xl">
+      {/* Below md this becomes an overlay drawer (fixed, off-canvas by
+          default) instead of an inline column — at phone widths, an
+          always-present 256px sidebar would leave almost nothing for the
+          actual chapter text. At md+ it's the original inline column that
+          the hamburger below just widens/collapses in place. */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       <aside
-        className={`shrink-0 overflow-hidden border-r border-border bg-card transition-all duration-200 ${
-          sidebarOpen ? "w-64" : "w-0 border-r-0"
+        className={`fixed inset-y-0 left-0 z-50 w-72 -translate-x-full overflow-hidden border-r border-border bg-card transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:transition-[width] ${
+          sidebarOpen ? "translate-x-0 md:w-64" : "md:w-0 md:border-r-0"
         }`}
       >
-        <div className="w-64 px-5 py-8">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Guide
-          </p>
+        <div className="w-72 px-5 py-8 md:w-64">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Guide
+            </p>
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close chapter list"
+              className="rounded-md p-1 text-muted-foreground hover:text-foreground md:hidden"
+            >
+              ✕
+            </button>
+          </div>
           <nav className="mt-4 flex flex-col gap-0.5 text-sm">
             {CHAPTERS.map((c) => (
               <Link
                 key={c.slug}
                 to={`/guide#${c.slug}`}
+                onClick={() => setSidebarOpen(window.innerWidth >= 768)}
                 className={`rounded-md px-2 py-1.5 transition-colors ${
                   c.slug === activeSlug
                     ? "bg-accent font-medium text-accent-foreground"
@@ -72,7 +98,7 @@ export function Guide() {
         </div>
       </aside>
 
-      <div className="min-w-0 flex-1 px-8 py-8">
+      <div className="min-w-0 flex-1 px-4 py-8 sm:px-8">
         <div className="flex items-center gap-3">
           <button
             type="button"

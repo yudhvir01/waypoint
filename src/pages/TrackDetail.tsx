@@ -166,13 +166,18 @@ function TaskForm({
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="flex items-center gap-1.5">
+      {/* flex-wrap: six controls in one row don't fit a phone's width no
+          matter how much the title input shrinks — wrapping lets the
+          title take its own full-width line first, then the rest wrap
+          below as a compact group, instead of forcing the row wider than
+          the screen. */}
+      <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-1.5">
         <input
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Task title…"
-          className="min-w-0 flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+          className="min-w-[10rem] flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
         />
         <select
           value={priority}
@@ -302,7 +307,7 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
   }
 
   return (
-    <li className="group ml-6 flex items-center gap-2.5 py-1.5">
+    <li className="group ml-6 flex flex-wrap items-center gap-x-2.5 gap-y-1 py-1.5">
       <button
         type="button"
         onClick={() => toggleTask.mutate(task)}
@@ -312,18 +317,27 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
         }`}
       />
       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${PRIORITY_DOT[task.priority]}`} />
-      <span className={`text-[15px] ${task.done ? "text-muted-foreground line-through" : ""}`}>
+      {/* min-w-0 lets this actually shrink/truncate within the flex row
+          instead of forcing the whole row wider than the screen — the
+          default flex behavior is to protect a text node's full
+          unwrapped width. */}
+      <span
+        className={`min-w-0 flex-1 truncate text-[15px] ${task.done ? "text-muted-foreground line-through" : ""}`}
+      >
         {task.title}
       </span>
-      <span className="flex-1" />
       {task.due_date && (
-        <span className="text-xs text-muted-foreground">
+        <span className="shrink-0 text-xs text-muted-foreground">
           {new Date(task.due_date).toLocaleDateString()}
           {hasReminder && ` · Reminder ${reminderLeadLabel(task.reminder_lead_days!).toLowerCase()}`}
         </span>
       )}
 
-      <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+      {/* Hover-reveal only makes sense with a mouse — a touch screen has
+          no hover at all, which would make Edit/Delete permanently
+          unreachable. Always visible below md; hover-hidden above it,
+          where a pointer is the common case. */}
+      <div className="flex items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
         <button
           type="button"
           onClick={() => setEditing(true)}
@@ -482,7 +496,7 @@ function TopicItem({
               <ChevronIcon expanded={expanded} />
               <span className="truncate text-[15px] font-medium">{topic.title}</span>
             </button>
-            <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+            <div className="flex items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
               <button
                 type="button"
                 onClick={() => setEditing(true)}
@@ -572,7 +586,7 @@ function NewTopicForm({ trackId }: { trackId: string }) {
         onChange={(e) => setTitle(e.target.value)}
         onBlur={() => !title && setOpen(false)}
         placeholder="Topic title (e.g. Pointers)"
-        className="w-64 rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+        className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring sm:w-64 sm:flex-none"
       />
       <button
         type="submit"
@@ -661,12 +675,12 @@ export function TrackDetail() {
 
   return (
     <AppShell>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-[-0.02em]">{track.name}</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="min-w-0 truncate text-2xl font-semibold tracking-[-0.02em]">{track.name}</h1>
         <button
           type="button"
           onClick={handleArchive}
-          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="shrink-0 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           Archive
         </button>

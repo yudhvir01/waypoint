@@ -28,8 +28,11 @@ function Row({
   control: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div>
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      {/* min-w-0: without it, a long description can't wrap within its
+          share of the row and forces the whole row wider than the
+          screen instead. */}
+      <div className="min-w-0 flex-1">
         <p className="text-sm">{label}</p>
         {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
       </div>

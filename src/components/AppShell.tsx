@@ -22,11 +22,20 @@ function NavLink({ to, children }: { to: string; children: ReactNode }) {
   );
 }
 
+function MenuIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <path d="M2.5 5h13M2.5 9h13M2.5 13h13" />
+    </svg>
+  );
+}
+
 export function AppShell({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   const { mode, ownerLabel, signOut } = useBackend();
   const { data: tracks } = useTracks();
   const { data: progress } = useTrackProgress();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [guestBannerDismissed, setGuestBannerDismissed] = useState(
     () => sessionStorage.getItem("waypoint.guestBannerDismissed") === "1",
   );
@@ -34,7 +43,12 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
   return (
     <div className="flex min-h-screen flex-col">
       {mode === "guest" && !guestBannerDismissed && (
-        <div className="flex items-center justify-center gap-3 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-center text-xs text-amber-700 dark:text-amber-400">
+        // The app's fixed-position hamburger (mobile) and theme toggle
+        // (all sizes) both float in the top corners at all times — a
+        // fixed element paints over whatever's underneath rather than
+        // making room for it, so this banner has to reserve that space
+        // itself with padding, or its text silently renders behind them.
+        <div className="flex items-center justify-center gap-3 border-b border-amber-500/30 bg-amber-500/10 py-2 pl-16 pr-28 text-center text-xs text-amber-700 md:pl-4 dark:text-amber-400">
           <span>
             You're in guest mode — your tracks live only in this browser and can be lost if you
             clear its data.{" "}
@@ -56,12 +70,48 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
           </button>
         </div>
       )}
-      <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1">
-        <aside className="flex w-64 shrink-0 flex-col border-r border-border bg-card px-5 py-7">
-          <Link to="/" className="flex items-center gap-2.5 px-1">
-            <LogoMark size={24} />
-            <span className="text-[17px] font-semibold tracking-tight">Waypoint</span>
-          </Link>
+
+      {/* Below md there's no room for a permanent sidebar, so it becomes
+          an off-canvas drawer — this is what opens it. Sits opposite the
+          global ThemeToggle (top-right) rather than sharing a corner
+          with it. */}
+      <button
+        type="button"
+        onClick={() => setMobileNavOpen(true)}
+        aria-label="Open menu"
+        className="fixed left-4 top-4 z-30 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm md:hidden"
+      >
+        <MenuIcon />
+      </button>
+
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <div className="mx-auto flex w-full max-w-6xl flex-1">
+        <aside
+          className={`fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 -translate-x-full flex-col overflow-y-auto border-r border-border bg-card px-5 py-7 transition-transform duration-200 md:static md:z-auto md:w-64 md:translate-x-0 ${
+            mobileNavOpen ? "translate-x-0" : ""
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-2.5 px-1" onClick={() => setMobileNavOpen(false)}>
+              <LogoMark size={24} />
+              <span className="text-[17px] font-semibold tracking-tight">Waypoint</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(false)}
+              aria-label="Close menu"
+              className="rounded-md p-1.5 text-muted-foreground hover:text-foreground md:hidden"
+            >
+              ✕
+            </button>
+          </div>
 
           <nav className="mt-9 flex flex-col gap-0.5">
             <NavLink to="/">Focus Now</NavLink>
@@ -119,7 +169,11 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
           </div>
         </aside>
 
-        <div className="min-w-0 flex-1 px-14 py-12">
+        {/* Extra top clearance below md, where the page has no sidebar to
+            push content past the fixed hamburger + theme toggle sitting
+            in the top corners — without it, a page's own heading renders
+            underneath them instead of below. */}
+        <div className="min-w-0 flex-1 px-4 pb-8 pt-16 sm:px-6 sm:pb-10 sm:pt-14 md:px-14 md:py-12">
           <div className={`mx-auto ${wide ? "max-w-3xl" : "max-w-2xl"}`}>{children}</div>
         </div>
       </div>
