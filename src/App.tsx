@@ -6,7 +6,7 @@ import { BackendProvider } from "./context/BackendProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ThemeProvider } from "./context/ThemeProvider";
 import { ThemeToggle } from "./components/ThemeToggle";
-import { RequireAuth, RedirectIfAuthed } from "./components/RouteGuards";
+import { RequireAuth, RedirectIfAuthed, NotFoundRedirect } from "./components/RouteGuards";
 import { Login } from "./pages/Login";
 import { GoogleCallback } from "./pages/GoogleCallback";
 import { Dashboard } from "./pages/Dashboard";
@@ -77,6 +77,12 @@ function App() {
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/archived" element={<Archived />} />
                 </Route>
+                {/* Anything else — a typo'd URL, an old bookmark, a
+                    removed page — lands on the dashboard if signed in,
+                    or the picker otherwise, instead of a blank screen.
+                    Lowest-priority match regardless of declaration
+                    order, so it never shadows a real route above. */}
+                <Route path="*" element={<NotFoundRedirect />} />
               </Routes>
             </BrowserRouter>
             <Analytics />

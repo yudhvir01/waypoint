@@ -19,3 +19,14 @@ export function RedirectIfAuthed() {
   if (backend) return <Navigate to="/" replace />;
   return <Outlet />;
 }
+
+// Catches any path that isn't one of the app's actual routes — a typo'd
+// URL, an old bookmark, a link into a page that's since been removed —
+// and sends it somewhere real instead of rendering blank. path="*" is
+// lowest-priority in React Router regardless of where it's declared, so
+// this only ever matches when nothing more specific did.
+export function NotFoundRedirect() {
+  const { ready, backend } = useBackend();
+  if (!ready) return null;
+  return <Navigate to={backend ? "/" : "/login"} replace />;
+}
