@@ -8,6 +8,7 @@ import { ThemeProvider } from "./context/ThemeProvider";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { RequireAuth, RedirectIfAuthed } from "./components/RouteGuards";
 import { Login } from "./pages/Login";
+import { GoogleCallback } from "./pages/GoogleCallback";
 import { Dashboard } from "./pages/Dashboard";
 import { TrackDetail } from "./pages/TrackDetail";
 import { Settings } from "./pages/Settings";
@@ -62,6 +63,11 @@ function App() {
                     reachable from /login itself, so old links here just
                     land on the picker. */}
                 <Route path="/connect" element={<Navigate to="/login" replace />} />
+                {/* Neither "already signed in" nor "needs a mode" applies
+                    mid-flow — Google has redirected back with a code but
+                    the app hasn't adopted a session yet — so this sits
+                    outside both guards. */}
+                <Route path="/auth/google/callback" element={<GoogleCallback />} />
                 <Route element={<RedirectIfAuthed />}>
                   <Route path="/login" element={<Login />} />
                 </Route>

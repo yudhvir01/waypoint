@@ -149,6 +149,23 @@ function DatabaseSection({ onMigrate }: { onMigrate: () => void }) {
     );
   }
 
+  if (mode === "drive") {
+    return (
+      <Section title="Database">
+        <Row
+          label="Google Drive"
+          description="Stored as one file in a “Waypoint” folder in your Drive."
+          control={
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-success" />
+              {ownerLabel}
+            </span>
+          }
+        />
+      </Section>
+    );
+  }
+
   return (
     <Section title="Database">
       <Row
@@ -197,7 +214,8 @@ export function Settings() {
           <Section title="Notifications">
             <p className="text-xs text-muted-foreground">
               Email and push reminders need a server watching your due dates while you're away —
-              guest mode has none. Move to Supabase to turn these on.
+              {mode === "drive" ? " Google Drive has none." : " guest mode has none."} Move to
+              Supabase to turn these on.
             </p>
           </Section>
         )}

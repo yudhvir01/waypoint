@@ -18,7 +18,8 @@ Everything rolls up into one **Focus Now** list on the dashboard: the tasks that
 
 ## Features
 
-- **Three ways in** — try it as a guest with no account (data lives in this browser's IndexedDB only), or connect your own Supabase project (paste a project ID and anon key, or bake one in via `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` so a deployment just works on every device). Google Drive is a planned third option. See [`docs/writebook/02-connecting-your-supabase-project.md`](docs/writebook/02-connecting-your-supabase-project.md).
+- **Three ways in** — try it as a guest with no account (data lives in this browser's IndexedDB only), connect your own Supabase project (paste a project ID and anon key, or bake one in via `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` so a deployment just works on every device), or sign in with Google (data lives as one file in a "Waypoint" folder in your own Drive — `drive.file` scope, so the app can never see anything else in your Drive). See [`docs/writebook/02-connecting-your-supabase-project.md`](docs/writebook/02-connecting-your-supabase-project.md).
+- **Google sign-in needs one-time setup of your own**: a Google Cloud OAuth client, and a tiny stateless Supabase Edge Function (`supabase/functions/google-token`) that holds the OAuth client secret so it never reaches the browser — see that function's header comment for the exact steps and required secrets.
 - **Guest → Supabase migration** — Settings offers a one-click "Move to Supabase" for guest data: connect a project, sign in, and every guest track is imported into the new account. Nothing local is touched unless you ask.
 - **Tracks / Topics / Tasks** with row-level security — every row is scoped to `auth.uid()`, so a user can only ever see their own data.
 - **Focus Now** — overdue tasks first, then due-within-2-days, then by priority, sorted by due date within each tier.
@@ -75,6 +76,7 @@ Reminders are entirely optional — the rest of the app works fine without them.
 - [React Router](https://reactrouter.com)
 - [Resend](https://resend.com) for reminder emails
 - [Web Push](https://web.dev/push-notifications-overview/) (VAPID) for browser push, via a custom service worker built with [Workbox](https://developer.chrome.com/docs/workbox)
+- [Google Drive API](https://developers.google.com/drive) (`drive.file` scope) + [Google Identity](https://developers.google.com/identity) OAuth for the Drive backend
 - Installable as a PWA via [vite-plugin-pwa](https://vite-pwa-org.netlify.app) (`injectManifest` strategy)
 
 ## Project structure
@@ -108,7 +110,8 @@ src/
     push.ts                    Web Push subscription helpers, VAPID public key
     database.types.ts          Track/Topic/Task types
   pages/
-    Login.tsx      Landing screen: guest / Supabase / Google (planned)
+    Login.tsx      Landing screen: guest / Supabase / Google
+    GoogleCallback.tsx  Handles Google's OAuth redirect back to the app
     Dashboard.tsx  Focus Now + Tracks list
     TrackDetail.tsx Topics + tasks for one track
     Settings.tsx   Database/migration status, reminders preferences, push enable/disable
@@ -127,9 +130,9 @@ docs/
 
 Core phases are built and verified against a live Supabase project, plus a local guest backend:
 
-1. **Storage backends** — guest mode (IndexedDB, no account) and Supabase (bring-your-own project or a baked-in default), behind one `Backend` interface. A "Move to Supabase" flow migrates guest data in. Google Drive is planned as a third backend.
+1. **Storage backends** — guest mode (IndexedDB, no account), Supabase (bring-your-own project or a baked-in default), and Google Drive (one JSON file in a "Waypoint" folder, via a stateless OAuth token-relay Edge Function), all behind one `Backend` interface. A "Move to Supabase" flow migrates guest data in.
 2. **Tracks, Topics, Tasks & Focus Now** — the core tracking model, on either backend.
 3. **Markdown import** — bulk-create a track from a `.md` file.
-4. **Reminders** — daily email/push notifications via a Supabase Edge Function. Supabase-only: a backend with no server (guest, eventually Drive) can't act while you're away, so Settings explains this rather than showing dead toggles.
+4. **Reminders** — daily email/push notifications via a Supabase Edge Function. Supabase-only: guest and Drive have no server able to act while you're away, so Settings explains this rather than showing dead toggles.
 
 Reminders need a one-time manual deploy (Edge Function + secrets + `pg_cron` schedule) — see [`docs/writebook/04-reminders.md`](./docs/writebook/04-reminders.md) for exact steps.

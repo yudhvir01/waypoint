@@ -14,3 +14,5 @@ meantime.
 | `01-welcome.md` | Welcome |
 | `02-connecting-your-supabase-project.md` | Connecting Your Supabase Project |
 | `03-the-markdown-import-format.md` | The Markdown Import Format |
+| `04-reminders.md` | Setting Up Reminders |
+| `05-google-drive-setup.md` | Setting Up Google Sign-In |

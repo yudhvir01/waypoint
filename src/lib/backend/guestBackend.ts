@@ -1,6 +1,7 @@
 import type { Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
 import type { ParsedImport, ParsedTopic } from "../markdownImport";
 import { GUEST_USER_ID, getGuestDB, newGuestId, nowIso } from "./guestStore";
+import { computeTopicProgress, computeTrackProgress, rankFocusTasks } from "./localRanking";
 import {
   DEFAULT_REMINDER_PREFS,
   type Backend,
@@ -11,27 +12,6 @@ import {
   type UpdateTaskInput,
   type UpdateTaskScheduleInput,
 } from "./types";
-
-// Mirrors the ranking in setup.sql's focus_tasks(): overdue first, then
-// due within two days, then priority, each tier ordered by due date /
-// creation. Kept in JS here because a guest's whole dataset already lives
-// in memory — there's no index to design around.
-function daysUntil(dueDate: string, today: Date): number {
-  const due = new Date(dueDate);
-  due.setHours(0, 0, 0, 0);
-  return Math.round((due.getTime() - today.getTime()) / 86_400_000);
-}
-
-function focusTier(task: Task, today: Date): number {
-  if (task.due_date) {
-    const delta = daysUntil(task.due_date, today);
-    if (delta < 0) return 0;
-    if (delta <= 2) return 1;
-  }
-  if (task.priority === "high") return 2;
-  if (task.priority === "medium") return 3;
-  return 4;
-}
 
 // A local-only backend for trying Waypoint without an account. Every
 // track, topic, and task lives in this browser's IndexedDB — there is no
@@ -190,29 +170,20 @@ export class GuestBackend implements Backend {
   async trackProgress(): Promise<Map<string, TrackProgress>> {
     const db = await getGuestDB();
     const [tracks, tasks] = await Promise.all([db.getAll("tracks"), db.getAll("tasks")]);
-    const map = new Map<string, TrackProgress>();
-    for (const track of tracks) map.set(track.id, { done: 0, total: 0 });
-    for (const task of tasks) {
-      const entry = map.get(task.track_id);
-      if (!entry) continue;
-      entry.total += 1;
-      if (task.done) entry.done += 1;
-    }
-    for (const [id, entry] of map) if (entry.total === 0) map.delete(id);
+    const map = computeTrackProgress(tasks);
+    // computeTrackProgress only knows about tasks, so a track with none
+    // never appears — which is exactly what the sidebar wants (no "0/0"
+    // rows), but it has no way to distinguish "no tasks" from "no such
+    // track" on its own, hence checking against the real track list here.
+    const trackIds = new Set(tracks.map((t) => t.id));
+    for (const id of map.keys()) if (!trackIds.has(id)) map.delete(id);
     return map;
   }
 
   async topicProgress(trackId: string): Promise<Map<string, TrackProgress>> {
     const db = await getGuestDB();
     const tasks = await db.getAllFromIndex("tasks", "trackId", trackId);
-    const map = new Map<string, TrackProgress>();
-    for (const task of tasks) {
-      const entry = map.get(task.topic_id) ?? { done: 0, total: 0 };
-      entry.total += 1;
-      if (task.done) entry.done += 1;
-      map.set(task.topic_id, entry);
-    }
-    return map;
+    return computeTopicProgress(tasks, trackId);
   }
 
   async focusTasks(limit: number): Promise<FocusTask[]> {
@@ -222,31 +193,7 @@ export class GuestBackend implements Backend {
       db.getAll("topics"),
       db.getAll("tasks"),
     ]);
-    const trackById = new Map(tracks.map((t) => [t.id, t]));
-    const topicById = new Map(topics.map((t) => [t.id, t]));
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const open = tasks.filter((t) => !t.done && trackById.get(t.track_id)?.status === "active");
-    const ranked = open
-      .sort((a, b) => {
-        const diff = focusTier(a, today) - focusTier(b, today);
-        if (diff !== 0) return diff;
-        if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
-        if (a.due_date) return -1;
-        if (b.due_date) return 1;
-        return a.created_at.localeCompare(b.created_at);
-      })
-      .slice(0, limit);
-
-    return ranked.map((task) => {
-      const topic = topicById.get(task.topic_id)!;
-      const track = trackById.get(task.track_id)!;
-      return {
-        ...task,
-        topic: { id: topic.id, title: topic.title, track: { id: track.id, name: track.name } },
-      };
-    });
+    return rankFocusTasks(tracks, topics, tasks, limit);
   }
 
   async importTrack(parsed: ParsedImport): Promise<string> {

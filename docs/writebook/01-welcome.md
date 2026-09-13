@@ -34,7 +34,7 @@ use it:
   window, a different device all mean starting over).
 - **Supabase** — you connect a project *you* create and control; your notes live
   there, not on anyone else's server, and follow you to any device you sign into.
-- **Google** *(coming soon)* — saves into a "Waypoint" folder in your own Drive.
+- **Google** — saves into a "Waypoint" folder in your own Drive. Only that folder is ever touched, never the rest of your Drive.
 
 Guest mode is there to try Waypoint out. The next chapter walks through the
 Supabase setup for anyone who wants their notes to actually last — and if you've

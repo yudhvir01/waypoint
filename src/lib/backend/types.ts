@@ -66,7 +66,7 @@ export interface UpdateTaskScheduleInput {
 //     with its own cursor shape can still satisfy this by tracking
 //     offsets internally.
 export interface Backend {
-  readonly kind: "supabase" | "guest";
+  readonly kind: "supabase" | "guest" | "drive";
 
   // Tracks
   listTracks(status: TrackStatus): Promise<Track[]>;

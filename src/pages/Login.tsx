@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useBackend } from "../context/BackendProvider";
 import { SupabaseAuthPanel } from "../components/SupabaseAuthPanel";
 import { Logo } from "../components/Logo";
+import { buildGoogleAuthUrl } from "../lib/backend/googleAuth";
+import { GOOGLE_SIGNIN_ENABLED } from "../lib/env";
 
 function GoogleIcon() {
   return (
@@ -57,6 +59,14 @@ export function Login() {
     navigate("/", { replace: true });
   }
 
+  function handleGoogle() {
+    // A full-page redirect, not a popup — Google's OAuth code flow
+    // (needed to get a refresh_token back through the relay) redirects
+    // back to /auth/google/callback with the result rather than posting
+    // a message to an opener window.
+    window.location.href = buildGoogleAuthUrl();
+  }
+
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
       <Logo size={40} tagline className="mb-8" />
@@ -88,15 +98,19 @@ export function Login() {
 
             <button
               type="button"
-              disabled
-              title="Coming soon"
-              className="flex items-center gap-3 rounded-md border border-border px-4 py-3 text-left text-sm font-medium opacity-50"
+              onClick={GOOGLE_SIGNIN_ENABLED ? handleGoogle : undefined}
+              disabled={!GOOGLE_SIGNIN_ENABLED}
+              title={GOOGLE_SIGNIN_ENABLED ? undefined : "Coming soon"}
+              className={`flex items-center gap-3 rounded-md border border-border px-4 py-3 text-left text-sm font-medium transition-colors ${
+                GOOGLE_SIGNIN_ENABLED ? "hover:border-primary hover:bg-accent" : "opacity-50"
+              }`}
             >
               <GoogleIcon />
               <span className="flex-1">
                 Sign in with Google
                 <span className="block text-xs font-normal text-muted-foreground">
-                  Saves to a "Waypoint" folder in your Drive. Coming soon.
+                  Saves to a "Waypoint" folder in your Drive.
+                  {!GOOGLE_SIGNIN_ENABLED && " Coming soon."}
                 </span>
               </span>
             </button>

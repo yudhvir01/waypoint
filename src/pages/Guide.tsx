@@ -8,12 +8,14 @@ import welcomeRaw from "../../docs/writebook/01-welcome.md?raw";
 import connectRaw from "../../docs/writebook/02-connecting-your-supabase-project.md?raw";
 import importRaw from "../../docs/writebook/03-the-markdown-import-format.md?raw";
 import remindersRaw from "../../docs/writebook/04-reminders.md?raw";
+import googleDriveRaw from "../../docs/writebook/05-google-drive-setup.md?raw";
 
 const CHAPTERS = [
   { slug: "welcome", raw: welcomeRaw },
   { slug: "connecting-your-supabase-project", raw: connectRaw },
   { slug: "the-markdown-import-format", raw: importRaw },
   { slug: "reminders", raw: remindersRaw },
+  { slug: "google-drive-setup", raw: googleDriveRaw },
 ].map(({ slug, raw }) => {
   const { title, body } = stripFrontMatter(raw);
   return { slug, title, html: marked.parse(body, { async: false }) };
