@@ -17,6 +17,12 @@ import { Archived } from "./pages/Archived";
 // Loading it lazily keeps roughly half a megabyte out of the entry chunk
 // that every signed-in page has to download first.
 const Guide = lazy(() => import("./pages/Guide").then((m) => ({ default: m.Guide })));
+const PrivacyPolicy = lazy(() =>
+  import("./pages/PrivacyPolicy").then((m) => ({ default: m.PrivacyPolicy })),
+);
+const TermsOfService = lazy(() =>
+  import("./pages/TermsOfService").then((m) => ({ default: m.TermsOfService })),
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,6 +69,25 @@ function App() {
                     reachable from /login itself, so old links here just
                     land on the picker. */}
                 <Route path="/connect" element={<Navigate to="/login" replace />} />
+                {/* Public and unauthenticated on purpose — a Google OAuth
+                    reviewer (or anyone else) needs to open these without
+                    ever signing in. */}
+                <Route
+                  path="/privacy"
+                  element={
+                    <Suspense fallback={null}>
+                      <PrivacyPolicy />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/terms"
+                  element={
+                    <Suspense fallback={null}>
+                      <TermsOfService />
+                    </Suspense>
+                  }
+                />
                 {/* Neither "already signed in" nor "needs a mode" applies
                     mid-flow — Google has redirected back with a code but
                     the app hasn't adopted a session yet — so this sits

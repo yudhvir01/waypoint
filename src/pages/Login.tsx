@@ -139,6 +139,14 @@ export function Login() {
       <Link to="/guide" className="mt-8 text-center text-sm text-muted-foreground hover:underline">
         Read the Guide
       </Link>
+      <div className="mt-3 flex justify-center gap-4 text-xs text-muted-foreground/70">
+        <Link to="/privacy" className="hover:underline">
+          Privacy Policy
+        </Link>
+        <Link to="/terms" className="hover:underline">
+          Terms of Service
+        </Link>
+      </div>
     </div>
   );
 }

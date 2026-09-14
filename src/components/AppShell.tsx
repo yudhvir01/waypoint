@@ -166,6 +166,14 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
               {mode === "guest" ? "Exit guest mode" : "Sign out"}
             </button>
             <p className="mt-2 truncate px-3 text-xs text-muted-foreground">{ownerLabel}</p>
+            <div className="mt-1 flex gap-3 px-3 text-xs text-muted-foreground/60">
+              <Link to="/privacy" className="hover:text-muted-foreground hover:underline">
+                Privacy Policy
+              </Link>
+              <Link to="/terms" className="hover:text-muted-foreground hover:underline">
+                Terms of Service
+              </Link>
+            </div>
           </div>
         </aside>
 
