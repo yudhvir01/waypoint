@@ -189,6 +189,37 @@ function decodeEntities(text: string): string {
     .replace(/&apos;/g, "'");
 }
 
+function isYouTubeHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return h === "youtu.be" || h === "youtube.com" || h.endsWith(".youtube.com");
+}
+
+async function fetchYouTubeOEmbed(
+  pageUrl: string,
+): Promise<{ title: string; description: string | null; image: string | null; siteName: string } | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(
+      `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(pageUrl)}`,
+      { signal: controller.signal },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { title?: string; author_name?: string; thumbnail_url?: string };
+    if (!data.title) return null;
+    return {
+      title: data.title,
+      description: data.author_name ?? null,
+      image: data.thumbnail_url ?? null,
+      siteName: "YouTube",
+    };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -219,6 +250,15 @@ Deno.serve(async (req) => {
       }
     }
     const siteName = extractMeta(html, "og:site_name") ?? new URL(finalUrl).hostname;
+
+    // YouTube sometimes serves a server-side fetch its generic homepage
+    // <head> (title "- YouTube", no image) even for a public video, so a
+    // page with no og:image there can't be trusted. oEmbed is YouTube's
+    // supported way to get a video's real title and thumbnail.
+    if (!image && isYouTubeHost(new URL(finalUrl).hostname)) {
+      const oembed = await fetchYouTubeOEmbed(finalUrl);
+      if (oembed) return json({ url: finalUrl, ...oembed });
+    }
 
     return json({ url: finalUrl, title, description, image, siteName });
   } catch (err) {

@@ -253,7 +253,7 @@ function LinkPreviewView({ node, updateAttributes, deleteNode }: NodeViewProps) 
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex overflow-hidden rounded-md border border-border bg-card transition-colors hover:border-primary"
+        className="not-prose flex overflow-hidden rounded-md border border-border bg-card no-underline transition-colors hover:border-primary"
       >
         {image && !imageFailed && (
           <img src={image} alt="" onError={() => setImageFailed(true)} className="h-24 w-24 shrink-0 object-cover" />
