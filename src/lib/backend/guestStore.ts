@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { Task, Topic, Track } from "../database.types";
+import type { Note, Task, Topic, Track } from "../database.types";
 
 // The single local user id stamped onto every row a guest creates. There
 // is exactly one guest per browser profile, so this exists only so
@@ -11,14 +11,19 @@ interface GuestDB extends DBSchema {
   tracks: { key: string; value: Track; indexes: { status: string } };
   topics: { key: string; value: Topic; indexes: { trackId: string } };
   tasks: { key: string; value: Task; indexes: { topicId: string; trackId: string } };
+  notes: { key: string; value: Note; indexes: { taskId: string } };
 }
 
 let dbPromise: Promise<IDBPDatabase<GuestDB>> | null = null;
 
 export function getGuestDB(): Promise<IDBPDatabase<GuestDB>> {
   if (!dbPromise) {
-    dbPromise = openDB<GuestDB>("waypoint-guest", 1, {
-      upgrade(db) {
+    dbPromise = openDB<GuestDB>("waypoint-guest", 2, {
+      upgrade(db, oldVersion) {
+        const notes = db.createObjectStore("notes", { keyPath: "id" });
+        notes.createIndex("taskId", "task_id");
+        // v1 -> v2 only adds notes; existing stores are untouched.
+        if (oldVersion >= 1) return;
         const tracks = db.createObjectStore("tracks", { keyPath: "id" });
         tracks.createIndex("status", "status");
         const topics = db.createObjectStore("topics", { keyPath: "id" });
@@ -57,16 +62,21 @@ export async function requestPersistentGuestStorage(): Promise<boolean> {
 
 export async function hasAnyGuestData(): Promise<boolean> {
   const db = await getGuestDB();
-  const count = await db.count("tracks");
-  return count > 0;
+  const [tracks, notes] = await Promise.all([db.count("tracks"), db.count("notes")]);
+  return tracks + notes > 0;
 }
 
 // Wipes every guest row. Used when someone abandons guest mode for a real
 // backend after migrating their data, or explicitly asks to start over.
 export async function clearGuestData(): Promise<void> {
   const db = await getGuestDB();
-  const tx = db.transaction(["tracks", "topics", "tasks"], "readwrite");
-  await Promise.all([tx.objectStore("tracks").clear(), tx.objectStore("topics").clear(), tx.objectStore("tasks").clear()]);
+  const tx = db.transaction(["tracks", "topics", "tasks", "notes"], "readwrite");
+  await Promise.all([
+    tx.objectStore("tracks").clear(),
+    tx.objectStore("topics").clear(),
+    tx.objectStore("tasks").clear(),
+    tx.objectStore("notes").clear(),
+  ]);
   await tx.done;
 }
 

@@ -1,4 +1,4 @@
-import type { Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
+import type { Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
 
 export interface TrackProgress {
@@ -28,6 +28,23 @@ export const DEFAULT_REMINDER_PREFS: ReminderPrefs = {
   push_reminders_enabled: true,
   lead_time_days: 1,
 };
+
+// Where a task's note lives, for the "back to" breadcrumb on its page.
+export interface NoteContext {
+  trackId: string;
+  trackName: string;
+  topicTitle: string;
+  taskTitle: string;
+}
+
+export interface NoteWithContext extends Note {
+  context: NoteContext | null;
+}
+
+export interface ImportedNote {
+  title: string;
+  content: string;
+}
 
 export interface CreateTaskInput {
   title: string;
@@ -88,6 +105,17 @@ export interface Backend {
   updateTaskSchedule(taskId: string, input: UpdateTaskScheduleInput): Promise<void>;
   deleteTask(taskId: string): Promise<void>;
   toggleTask(task: Task): Promise<void>;
+
+  // Notes
+  listNotes(): Promise<Note[]>;
+  getNote(id: string): Promise<NoteWithContext | null>;
+  createNote(input?: { title?: string; content?: string }): Promise<Note>;
+  updateNote(id: string, patch: { title?: string; content?: string }): Promise<void>;
+  deleteNote(id: string): Promise<void>;
+  // The note attached to a task, created (titled with the task) the first
+  // time the task is opened. Returns null if the task no longer exists.
+  getOrCreateTaskNote(taskId: string): Promise<Note | null>;
+  importNotes(notes: ImportedNote[]): Promise<void>;
 
   // Aggregates
   trackProgress(): Promise<Map<string, TrackProgress>>;

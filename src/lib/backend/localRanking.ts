@@ -1,4 +1,4 @@
-import type { Task, Topic, Track } from "../database.types";
+import type { Task, Topic, TopicStatus, Track } from "../database.types";
 import type { FocusTask, TrackProgress } from "./types";
 
 // Shared by every backend that keeps its whole dataset in memory (guest,
@@ -37,7 +37,17 @@ export function rankFocusTasks(tracks: Track[], topics: Topic[], tasks: Task[], 
       if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
       if (a.due_date) return -1;
       if (b.due_date) return 1;
-      return a.created_at.localeCompare(b.created_at);
+      // Nothing to separate them by deadline or priority: what you are
+      // in the middle of comes first, in roadmap order.
+      const ta = topicById.get(a.topic_id);
+      const tb = topicById.get(b.topic_id);
+      const activeDiff = Number(tb?.status === "in_progress") - Number(ta?.status === "in_progress");
+      if (activeDiff !== 0) return activeDiff;
+      if (ta && tb && ta.id !== tb.id) {
+        const orderDiff = ta.sort_order - tb.sort_order;
+        if (orderDiff !== 0) return orderDiff;
+      }
+      return a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at);
     })
     .slice(0, limit);
 
@@ -72,4 +82,37 @@ export function computeTopicProgress(tasks: Task[], trackId: string): Map<string
     map.set(task.topic_id, entry);
   }
   return map;
+}
+
+// Topic statuses follow the tasks: ticking a task starts its topic,
+// finishing the last one completes it, and completing a topic starts the
+// next not-yet-started one in the track. `topics` is every topic in the
+// track; `tasks` is the changed topic's tasks. Returns only real changes.
+export function topicStatusChanges(
+  topics: Topic[],
+  tasks: Pick<Task, "done">[],
+  topicId: string,
+): { id: string; status: TopicStatus }[] {
+  const topic = topics.find((t) => t.id === topicId);
+  if (!topic) return [];
+  const done = tasks.filter((t) => t.done).length;
+
+  let status: TopicStatus = topic.status;
+  if (tasks.length > 0 && done === tasks.length) status = "done";
+  else if (done > 0) status = "in_progress";
+  else if (topic.status === "done") status = "not_started";
+
+  const changes: { id: string; status: TopicStatus }[] = [];
+  if (status !== topic.status) changes.push({ id: topic.id, status });
+
+  if (status === "done" && topic.status !== "done") {
+    const ordered = [...topics].sort(
+      (a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at),
+    );
+    const next = ordered
+      .slice(ordered.findIndex((t) => t.id === topic.id) + 1)
+      .find((t) => t.status === "not_started");
+    if (next) changes.push({ id: next.id, status: "in_progress" });
+  }
+  return changes;
 }

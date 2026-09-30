@@ -38,6 +38,19 @@ export interface Task {
   created_at: string;
 }
 
+// A free-form note. `content` is HTML produced by the note editor. A note
+// with a task_id is that task's own page of details and learnings; one
+// without is a standalone note.
+export interface Note {
+  id: string;
+  user_id: string;
+  task_id: string | null;
+  title: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Shared "days before due date" options for reminder pickers.
 export const REMINDER_LEAD_OPTIONS: { value: number; label: string }[] = [
   { value: 0, label: "On the due date" },

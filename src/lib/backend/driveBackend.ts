@@ -1,13 +1,16 @@
-import type { Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
+import type { Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
 import { createDataFile, ensureWaypointFolder, loadDataFile, saveDataFile } from "./driveClient";
 import type { GoogleDriveSession } from "./googleAuth";
-import { computeTopicProgress, computeTrackProgress, rankFocusTasks } from "./localRanking";
+import { buildNoteContext, newNote, newestFirst } from "./localNotes";
+import { computeTopicProgress, computeTrackProgress, rankFocusTasks, topicStatusChanges } from "./localRanking";
 import {
   DEFAULT_REMINDER_PREFS,
   type Backend,
   type CreateTaskInput,
   type FocusTask,
+  type ImportedNote,
+  type NoteWithContext,
   type ReminderPrefs,
   type TrackProgress,
   type UpdateTaskInput,
@@ -21,6 +24,7 @@ interface DriveData {
   tracks: Track[];
   topics: Topic[];
   tasks: Task[];
+  notes: Note[];
 }
 
 function newId(): string {
@@ -32,7 +36,7 @@ function nowIso(): string {
 }
 
 function emptyData(): DriveData {
-  return { version: DATA_VERSION, tracks: [], topics: [], tasks: [] };
+  return { version: DATA_VERSION, tracks: [], topics: [], tasks: [], notes: [] };
 }
 
 // The whole account's data is one JSON file in a "Waypoint" folder in the
@@ -77,6 +81,7 @@ export class DriveBackend implements Backend {
               tracks: parsed.tracks ?? [],
               topics: parsed.topics ?? [],
               tasks: parsed.tasks ?? [],
+              notes: parsed.notes ?? [],
             };
           } catch {
             throw new Error(
@@ -187,7 +192,9 @@ export class DriveBackend implements Backend {
   async deleteTopic(id: string): Promise<void> {
     await this.ensureLoaded();
     this.data.topics = this.data.topics.filter((t) => t.id !== id);
+    const removed = new Set(this.data.tasks.filter((t) => t.topic_id === id).map((t) => t.id));
     this.data.tasks = this.data.tasks.filter((t) => t.topic_id !== id);
+    this.detachNotes(removed);
     await this.persist();
   }
 
@@ -245,6 +252,7 @@ export class DriveBackend implements Backend {
   async deleteTask(taskId: string): Promise<void> {
     await this.ensureLoaded();
     this.data.tasks = this.data.tasks.filter((t) => t.id !== taskId);
+    this.detachNotes(new Set([taskId]));
     await this.persist();
   }
 
@@ -254,7 +262,76 @@ export class DriveBackend implements Backend {
     if (!current) return;
     current.done = !current.done;
     current.completed_at = current.done ? nowIso() : null;
+
+    const topics = this.data.topics.filter((t) => t.track_id === current.track_id);
+    const tasks = this.data.tasks.filter((t) => t.topic_id === current.topic_id);
+    for (const change of topicStatusChanges(topics, tasks, current.topic_id)) {
+      const row = topics.find((t) => t.id === change.id);
+      if (row) row.status = change.status;
+    }
     await this.persist();
+  }
+
+  // A task's note outlives the task, as a standalone note.
+  private detachNotes(taskIds: Set<string>): void {
+    for (const note of this.data.notes) {
+      if (note.task_id && taskIds.has(note.task_id)) note.task_id = null;
+    }
+  }
+
+  async listNotes(): Promise<Note[]> {
+    await this.ensureLoaded();
+    return [...this.data.notes].sort(newestFirst);
+  }
+
+  async getNote(id: string): Promise<NoteWithContext | null> {
+    await this.ensureLoaded();
+    const note = this.data.notes.find((n) => n.id === id);
+    if (!note) return null;
+    const task = this.data.tasks.find((t) => t.id === note.task_id);
+    const topic = task && this.data.topics.find((t) => t.id === task.topic_id);
+    const track = task && this.data.tracks.find((t) => t.id === task.track_id);
+    return { ...note, context: buildNoteContext(note, task, topic, track) };
+  }
+
+  async createNote(input: { title?: string; content?: string } = {}): Promise<Note> {
+    await this.ensureLoaded();
+    const note = newNote(newId(), this.session.email, nowIso(), input);
+    this.data.notes.push(note);
+    await this.persist();
+    return note;
+  }
+
+  async updateNote(id: string, patch: { title?: string; content?: string }): Promise<void> {
+    await this.ensureLoaded();
+    const note = this.data.notes.find((n) => n.id === id);
+    if (!note) return;
+    Object.assign(note, patch, { updated_at: nowIso() });
+    await this.persist();
+  }
+
+  async deleteNote(id: string): Promise<void> {
+    await this.ensureLoaded();
+    this.data.notes = this.data.notes.filter((n) => n.id !== id);
+    await this.persist();
+  }
+
+  async getOrCreateTaskNote(taskId: string): Promise<Note | null> {
+    await this.ensureLoaded();
+    const existing = this.data.notes.find((n) => n.task_id === taskId);
+    if (existing) return existing;
+    const task = this.data.tasks.find((t) => t.id === taskId);
+    if (!task) return null;
+    const note = newNote(newId(), this.session.email, nowIso(), { title: task.title, taskId });
+    this.data.notes.push(note);
+    await this.persist();
+    return note;
+  }
+
+  async importNotes(notes: ImportedNote[]): Promise<void> {
+    await this.ensureLoaded();
+    for (const n of notes) this.data.notes.push(newNote(newId(), this.session.email, nowIso(), n));
+    if (notes.length > 0) await this.persist();
   }
 
   async trackProgress(): Promise<Map<string, TrackProgress>> {

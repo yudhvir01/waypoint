@@ -1,11 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Task, Topic, Track, TrackStatus, TopicStatus } from "../database.types";
+import type { Note, Task, Topic, Track, TrackStatus, TopicStatus } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
+import { topicStatusChanges } from "./localRanking";
 import {
   DEFAULT_REMINDER_PREFS,
   type Backend,
   type CreateTaskInput,
   type FocusTask,
+  type ImportedNote,
+  type NoteWithContext,
   type ReminderPrefs,
   type TrackProgress,
   type UpdateTaskInput,
@@ -16,6 +19,8 @@ import {
 // a thousand-row response on every page load. See setup.sql's matching
 // index on (user_id, status, created_at).
 const TRACK_LIMIT = 500;
+// Same idea for the sidebar's notes list.
+const NOTE_LIMIT = 500;
 
 interface TrackProgressRow {
   track_id: string;
@@ -190,6 +195,134 @@ export class SupabaseBackend implements Backend {
     // completed_at is stamped by the database from `done`, so the two
     // can never disagree.
     const { error } = await this.client.from("tasks").update({ done: !task.done }).eq("id", task.id);
+    if (error) throw error;
+    await this.syncTopicStatus(task.topic_id, task.track_id);
+  }
+
+  // Keeps topic status in step with its tasks (see topicStatusChanges).
+  // Reads the trigger-maintained counts rather than every task row, so it
+  // stays cheap on a topic with thousands of tasks.
+  private async syncTopicStatus(topicId: string, trackId: string): Promise<void> {
+    const [{ data: counts, error: countError }, { data: topics, error: topicError }] = await Promise.all([
+      this.client.from("topic_counts").select("done_count, total_count").eq("topic_id", topicId).maybeSingle(),
+      this.client.from("topics").select("*").eq("track_id", trackId),
+    ]);
+    if (countError) throw countError;
+    if (topicError) throw topicError;
+    const c = counts as { done_count: number; total_count: number } | null;
+    if (!c) return;
+    // topicStatusChanges only needs the done/total shape of the tasks.
+    const stand = Array.from({ length: c.total_count }, (_, i) => ({ done: i < c.done_count }));
+    for (const change of topicStatusChanges((topics ?? []) as Topic[], stand, topicId)) {
+      const { error } = await this.client.from("topics").update({ status: change.status }).eq("id", change.id);
+      if (error) throw error;
+    }
+  }
+
+  async listNotes(): Promise<Note[]> {
+    const { data, error } = await this.client
+      .from("notes")
+      .select("*")
+      .eq("user_id", this.userId)
+      .order("updated_at", { ascending: false })
+      .limit(NOTE_LIMIT);
+    if (error) throw error;
+    return (data ?? []) as Note[];
+  }
+
+  async getNote(id: string): Promise<NoteWithContext | null> {
+    const { data, error } = await this.client.from("notes").select("*").eq("id", id).maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    const note = data as Note;
+    if (!note.task_id) return { ...note, context: null };
+
+    const { data: task, error: taskError } = await this.client
+      .from("tasks")
+      .select("title, track_id, topics(title), tracks(name)")
+      .eq("id", note.task_id)
+      .maybeSingle();
+    if (taskError) throw taskError;
+    if (!task) return { ...note, context: null };
+    const row = task as unknown as {
+      title: string;
+      track_id: string;
+      topics: { title: string } | null;
+      tracks: { name: string } | null;
+    };
+    return {
+      ...note,
+      context: {
+        trackId: row.track_id,
+        trackName: row.tracks?.name ?? "",
+        topicTitle: row.topics?.title ?? "",
+        taskTitle: row.title,
+      },
+    };
+  }
+
+  async createNote(input: { title?: string; content?: string } = {}): Promise<Note> {
+    const { data, error } = await this.client
+      .from("notes")
+      .insert({ user_id: this.userId, title: input.title ?? "", content: input.content ?? "" })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Note;
+  }
+
+  async updateNote(id: string, patch: { title?: string; content?: string }): Promise<void> {
+    // updated_at is stamped by a trigger, like every other derived column.
+    const { error } = await this.client.from("notes").update(patch).eq("id", id);
+    if (error) throw error;
+  }
+
+  async deleteNote(id: string): Promise<void> {
+    const { error } = await this.client.from("notes").delete().eq("id", id);
+    if (error) throw error;
+  }
+
+  async getOrCreateTaskNote(taskId: string): Promise<Note | null> {
+    const { data: existing, error } = await this.client
+      .from("notes")
+      .select("*")
+      .eq("task_id", taskId)
+      .maybeSingle();
+    if (error) throw error;
+    if (existing) return existing as Note;
+
+    const { data: task, error: taskError } = await this.client
+      .from("tasks")
+      .select("title")
+      .eq("id", taskId)
+      .maybeSingle();
+    if (taskError) throw taskError;
+    if (!task) return null;
+
+    const { data, error: insertError } = await this.client
+      .from("notes")
+      .insert({ user_id: this.userId, task_id: taskId, title: (task as { title: string }).title })
+      .select()
+      .single();
+    if (insertError) {
+      // Two tabs opening the same task at once: the unique index on
+      // task_id makes the loser fail, so read back the winner's row.
+      const { data: raced } = await this.client
+        .from("notes")
+        .select("*")
+        .eq("task_id", taskId)
+        .maybeSingle();
+      if (raced) return raced as Note;
+      throw insertError;
+    }
+    return data as Note;
+  }
+
+  async importNotes(notes: ImportedNote[]): Promise<void> {
+    if (notes.length === 0) return;
+    const { error } = await this.client
+      .from("notes")
+      .insert(notes.map((n) => ({ user_id: this.userId, title: n.title, content: n.content })));
     if (error) throw error;
   }
 

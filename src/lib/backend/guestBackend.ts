@@ -1,12 +1,15 @@
-import type { Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
+import type { Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
 import type { ParsedImport, ParsedTopic } from "../markdownImport";
 import { GUEST_USER_ID, getGuestDB, newGuestId, nowIso } from "./guestStore";
-import { computeTopicProgress, computeTrackProgress, rankFocusTasks } from "./localRanking";
+import { buildNoteContext, newNote, newestFirst } from "./localNotes";
+import { computeTopicProgress, computeTrackProgress, rankFocusTasks, topicStatusChanges } from "./localRanking";
 import {
   DEFAULT_REMINDER_PREFS,
   type Backend,
   type CreateTaskInput,
   type FocusTask,
+  type ImportedNote,
+  type NoteWithContext,
   type ReminderPrefs,
   type TrackProgress,
   type UpdateTaskInput,
@@ -95,9 +98,14 @@ export class GuestBackend implements Backend {
   async deleteTopic(id: string): Promise<void> {
     const db = await getGuestDB();
     const tasks = await db.getAllFromIndex("tasks", "topicId", id);
-    const tx = db.transaction(["topics", "tasks"], "readwrite");
+    const tx = db.transaction(["topics", "tasks", "notes"], "readwrite");
     await tx.objectStore("topics").delete(id);
     await Promise.all(tasks.map((t) => tx.objectStore("tasks").delete(t.id)));
+    // A task's note outlives the task, as a standalone note.
+    for (const task of tasks) {
+      const note = await tx.objectStore("notes").index("taskId").get(task.id);
+      if (note) await tx.objectStore("notes").put({ ...note, task_id: null });
+    }
     await tx.done;
   }
 
@@ -156,7 +164,11 @@ export class GuestBackend implements Backend {
 
   async deleteTask(taskId: string): Promise<void> {
     const db = await getGuestDB();
-    await db.delete("tasks", taskId);
+    const tx = db.transaction(["tasks", "notes"], "readwrite");
+    await tx.objectStore("tasks").delete(taskId);
+    const note = await tx.objectStore("notes").index("taskId").get(taskId);
+    if (note) await tx.objectStore("notes").put({ ...note, task_id: null });
+    await tx.done;
   }
 
   async toggleTask(task: Task): Promise<void> {
@@ -165,6 +177,66 @@ export class GuestBackend implements Backend {
     if (!current) return;
     const done = !current.done;
     await db.put("tasks", { ...current, done, completed_at: done ? nowIso() : null });
+
+    const topic = await db.get("topics", current.topic_id);
+    if (!topic) return;
+    const [topics, tasks] = await Promise.all([
+      db.getAllFromIndex("topics", "trackId", topic.track_id),
+      db.getAllFromIndex("tasks", "topicId", topic.id),
+    ]);
+    for (const change of topicStatusChanges(topics, tasks, topic.id)) {
+      const row = topics.find((t) => t.id === change.id);
+      if (row) await db.put("topics", { ...row, status: change.status });
+    }
+  }
+
+  async listNotes(): Promise<Note[]> {
+    const db = await getGuestDB();
+    return (await db.getAll("notes")).sort(newestFirst);
+  }
+
+  async getNote(id: string): Promise<NoteWithContext | null> {
+    const db = await getGuestDB();
+    const note = await db.get("notes", id);
+    if (!note) return null;
+    const task = note.task_id ? await db.get("tasks", note.task_id) : undefined;
+    const topic = task ? await db.get("topics", task.topic_id) : undefined;
+    const track = task ? await db.get("tracks", task.track_id) : undefined;
+    return { ...note, context: buildNoteContext(note, task, topic, track) };
+  }
+
+  async createNote(input: { title?: string; content?: string } = {}): Promise<Note> {
+    const db = await getGuestDB();
+    const note = newNote(newGuestId(), GUEST_USER_ID, nowIso(), input);
+    await db.put("notes", note);
+    return note;
+  }
+
+  async updateNote(id: string, patch: { title?: string; content?: string }): Promise<void> {
+    const db = await getGuestDB();
+    const note = await db.get("notes", id);
+    if (!note) return;
+    await db.put("notes", { ...note, ...patch, updated_at: nowIso() });
+  }
+
+  async deleteNote(id: string): Promise<void> {
+    const db = await getGuestDB();
+    await db.delete("notes", id);
+  }
+
+  async getOrCreateTaskNote(taskId: string): Promise<Note | null> {
+    const db = await getGuestDB();
+    const existing = await db.getFromIndex("notes", "taskId", taskId);
+    if (existing) return existing;
+    const task = await db.get("tasks", taskId);
+    if (!task) return null;
+    const note = newNote(newGuestId(), GUEST_USER_ID, nowIso(), { title: task.title, taskId });
+    await db.put("notes", note);
+    return note;
+  }
+
+  async importNotes(notes: ImportedNote[]): Promise<void> {
+    for (const n of notes) await this.createNote(n);
   }
 
   async trackProgress(): Promise<Map<string, TrackProgress>> {
@@ -247,6 +319,12 @@ export class GuestBackend implements Backend {
   // track, restated as the shape importTrack() already knows how to
   // consume, so migrating is "read these, import_track() each one" rather
   // than a second data-shuffling path to maintain.
+  async exportAllNotes(): Promise<ImportedNote[]> {
+    const db = await getGuestDB();
+    const notes = await db.getAll("notes");
+    return notes.filter((n) => n.title || n.content).map((n) => ({ title: n.title, content: n.content }));
+  }
+
   async exportAllAsImports(): Promise<ParsedImport[]> {
     const db = await getGuestDB();
     const [tracks, topics, tasks] = await Promise.all([

@@ -32,6 +32,8 @@ function useTaskInvalidator(topicId: string) {
     queryClient.invalidateQueries({ queryKey: ["focusNow"] });
     queryClient.invalidateQueries({ queryKey: ["trackProgress"] });
     queryClient.invalidateQueries({ queryKey: ["topicProgress"] });
+    // Ticking a task can move its topic (and the next one) along.
+    queryClient.invalidateQueries({ queryKey: ["topics"] });
   };
 }
 

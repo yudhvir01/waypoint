@@ -60,6 +60,38 @@ create table if not exists public.tasks (
 alter table public.tasks drop column if exists remind_me;
 alter table public.tasks add column if not exists reminder_lead_days integer check (reminder_lead_days >= 0);
 
+-- Free-form notes. A note with a task_id is that task's own page; deleting
+-- the task keeps the note (task_id becomes null) so what you wrote down
+-- is never lost along with a checklist item. `content` is HTML from the
+-- note editor.
+create table if not exists public.notes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  task_id uuid references public.tasks (id) on delete set null,
+  title text not null default '',
+  content text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists notes_task_id_key on public.notes (task_id) where task_id is not null;
+create index if not exists notes_user_updated_idx on public.notes (user_id, updated_at desc);
+
+create or replace function public.notes_touch()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists notes_touch on public.notes;
+create trigger notes_touch
+  before update on public.notes
+  for each row execute function public.notes_touch();
+
 -- Web Push subscriptions, one row per device the user has enabled push on.
 create table if not exists public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),
@@ -286,6 +318,7 @@ create index if not exists push_subscriptions_user_id_idx on public.push_subscri
 alter table public.tracks enable row level security;
 alter table public.topics enable row level security;
 alter table public.tasks enable row level security;
+alter table public.notes enable row level security;
 alter table public.push_subscriptions enable row level security;
 alter table public.reminder_prefs enable row level security;
 
@@ -303,6 +336,10 @@ create policy "topics_owner_all" on public.topics
 
 drop policy if exists "tasks_owner_all" on public.tasks;
 create policy "tasks_owner_all" on public.tasks
+  for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+
+drop policy if exists "notes_owner_all" on public.notes;
+create policy "notes_owner_all" on public.notes
   for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
 drop policy if exists "push_subscriptions_owner_all" on public.push_subscriptions;
@@ -625,7 +662,11 @@ with
        where ts.track_id = a.id and ts.done = false
          and ts.priority not in ('high', 'medium')
          and (ts.due_date is null or ts.due_date > current_date + 2)
-       order by ts.created_at asc limit (select lim from args)
+       -- Topics in progress come first, so a track with a thousand
+       -- tasks cannot crowd them out of the per-track limit.
+       order by (select tp.status = 'in_progress' from public.topics tp where tp.id = ts.topic_id) desc,
+                ts.created_at asc
+       limit (select lim from args)
     ) x order by x.created_at asc limit (select lim from args)
   ),
   candidates as (
@@ -638,7 +679,8 @@ select c.id, c.topic_id, c.title, c.done, c.priority, c.due_date,
   from candidates c
   join public.topics tp on tp.id = c.topic_id
   join public.tracks t  on t.id  = c.track_id
- order by c.tier, c.due_date asc nulls last, c.created_at asc
+ order by c.tier, c.due_date asc nulls last,
+          (tp.status <> 'in_progress'), tp.sort_order, c.sort_order, c.created_at asc
  limit (select lim from args);
 $$;
 
