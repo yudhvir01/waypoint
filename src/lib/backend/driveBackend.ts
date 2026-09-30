@@ -5,13 +5,11 @@ import type { GoogleDriveSession } from "./googleAuth";
 import { buildNoteContext, newNote, newestFirst } from "./localNotes";
 import { computeTopicProgress, computeTrackProgress, rankFocusTasks, topicStatusChanges } from "./localRanking";
 import {
-  DEFAULT_REMINDER_PREFS,
   type Backend,
   type CreateTaskInput,
   type FocusTask,
   type ImportedNote,
   type NoteWithContext,
-  type ReminderPrefs,
   type TrackProgress,
   type UpdateTaskInput,
   type UpdateTaskScheduleInput,
@@ -48,7 +46,6 @@ function emptyData(): DriveData {
 // PATCH, and every sign-in re-downloads the whole thing.
 export class DriveBackend implements Backend {
   readonly kind = "drive" as const;
-  readonly supportsReminders = false;
 
   private readonly session: GoogleDriveSession;
   private folderId: string | null = null;
@@ -221,7 +218,6 @@ export class DriveBackend implements Backend {
       due_date: input.dueDate || null,
       completed_at: null,
       sort_order: existing.length,
-      reminder_lead_days: input.dueDate ? (input.reminderLeadDays ?? null) : null,
       created_at: nowIso(),
     };
     this.data.tasks.push(task);
@@ -236,7 +232,6 @@ export class DriveBackend implements Backend {
     task.title = input.title;
     task.priority = input.priority;
     task.due_date = input.dueDate;
-    task.reminder_lead_days = input.dueDate ? input.reminderLeadDays : null;
     await this.persist();
   }
 
@@ -245,7 +240,6 @@ export class DriveBackend implements Backend {
     const task = this.data.tasks.find((t) => t.id === taskId);
     if (!task) return;
     if ("dueDate" in input) task.due_date = input.dueDate || null;
-    if ("reminderLeadDays" in input) task.reminder_lead_days = input.reminderLeadDays ?? null;
     await this.persist();
   }
 
@@ -391,21 +385,11 @@ export class DriveBackend implements Backend {
           due_date: task.dueDate,
           completed_at: task.done ? nowIso() : null,
           sort_order: taskIndex,
-          reminder_lead_days: null,
           created_at: nowIso(),
         });
       });
     });
 
     return track;
-  }
-
-  async getReminderPrefs(): Promise<ReminderPrefs> {
-    return DEFAULT_REMINDER_PREFS;
-  }
-
-  async updateReminderPrefs(): Promise<void> {
-    // No-op: see supportsReminders — there's no server to act on this
-    // while the user is away, on Drive any more than on guest.
   }
 }

@@ -3,13 +3,11 @@ import type { Note, Task, Topic, Track, TrackStatus, TopicStatus } from "../data
 import type { ParsedImport } from "../markdownImport";
 import { topicStatusChanges } from "./localRanking";
 import {
-  DEFAULT_REMINDER_PREFS,
   type Backend,
   type CreateTaskInput,
   type FocusTask,
   type ImportedNote,
   type NoteWithContext,
-  type ReminderPrefs,
   type TrackProgress,
   type UpdateTaskInput,
   type UpdateTaskScheduleInput,
@@ -38,7 +36,6 @@ interface FocusRow {
   due_date: string | null;
   completed_at: string | null;
   sort_order: number;
-  reminder_lead_days: number | null;
   created_at: string;
   topic_title: string;
   track_name: string;
@@ -154,8 +151,6 @@ export class SupabaseBackend implements Backend {
         title: input.title,
         priority: input.priority ?? "none",
         due_date: input.dueDate || null,
-        // A reminder needs a date to count backwards from.
-        reminder_lead_days: input.dueDate ? (input.reminderLeadDays ?? null) : null,
         // sort_order is left to the database, which appends to the end
         // of the topic.
       })
@@ -172,7 +167,6 @@ export class SupabaseBackend implements Backend {
         title: input.title,
         priority: input.priority,
         due_date: input.dueDate,
-        reminder_lead_days: input.dueDate ? input.reminderLeadDays : null,
       })
       .eq("id", taskId);
     if (error) throw error;
@@ -181,7 +175,6 @@ export class SupabaseBackend implements Backend {
   async updateTaskSchedule(taskId: string, input: UpdateTaskScheduleInput): Promise<void> {
     const patch: Record<string, unknown> = {};
     if ("dueDate" in input) patch.due_date = input.dueDate || null;
-    if ("reminderLeadDays" in input) patch.reminder_lead_days = input.reminderLeadDays;
     const { error } = await this.client.from("tasks").update(patch).eq("id", taskId);
     if (error) throw error;
   }
@@ -359,7 +352,6 @@ export class SupabaseBackend implements Backend {
       due_date: row.due_date,
       completed_at: row.completed_at,
       sort_order: row.sort_order,
-      reminder_lead_days: row.reminder_lead_days,
       created_at: row.created_at,
       topic: {
         id: row.topic_id,
@@ -387,24 +379,5 @@ export class SupabaseBackend implements Backend {
     });
     if (error) throw error;
     return data as string;
-  }
-
-  readonly supportsReminders = true;
-
-  async getReminderPrefs(): Promise<ReminderPrefs> {
-    const { data, error } = await this.client
-      .from("reminder_prefs")
-      .select("*")
-      .eq("user_id", this.userId)
-      .maybeSingle();
-    if (error) throw error;
-    return data ? (data as ReminderPrefs) : DEFAULT_REMINDER_PREFS;
-  }
-
-  async updateReminderPrefs(patch: Partial<ReminderPrefs>): Promise<void> {
-    const { error } = await this.client
-      .from("reminder_prefs")
-      .upsert({ user_id: this.userId, ...patch }, { onConflict: "user_id" });
-    if (error) throw error;
   }
 }

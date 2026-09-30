@@ -4,7 +4,7 @@
 
 Waypoint is one dashboard for everything you're learning and building. Instead of digging through a dozen notes to remember what you're supposed to be doing today, you get one ranked list: what's overdue, what's urgent, and what's next — across every track you're working on.
 
-There's no backend Waypoint controls. Try it instantly as a guest (data stays in your browser), or connect it to your own [Supabase](https://supabase.com) project for a real account that works across devices and can send you reminders. Every storage option lives behind one interface (`Backend`, in `src/lib/backend/`), so which one you're on never changes how a page works.
+There's no backend Waypoint controls. Try it instantly as a guest (data stays in your browser), or connect it to your own [Supabase](https://supabase.com) project for a real account that works across devices. Every storage option lives behind one interface (`Backend`, in `src/lib/backend/`), so which one you're on never changes how a page works.
 
 ## How it's different
 
@@ -24,9 +24,8 @@ Everything rolls up into one **Focus Now** list on the dashboard: the tasks that
 - **Tracks / Topics / Tasks** with row-level security — every row is scoped to `auth.uid()`, so a user can only ever see their own data.
 - **Focus Now** — overdue tasks first, then due-within-2-days, then by priority, sorted by due date within each tier.
 - **Markdown import** — write a whole track as `# Track / ## Topic / - [ ] Task #priority:high #due:2026-09-10` and import it in one shot, with a preview and non-fatal warnings for anything it can't parse. See [`docs/writebook/03-the-markdown-import-format.md`](docs/writebook/03-the-markdown-import-format.md).
-- **Email & push reminders** — a Supabase Edge Function checks overdue/due-soon tasks daily and notifies by email (Resend) and/or browser push (Web Push + VAPID), per user preference. See [`docs/writebook/04-reminders.md`](docs/writebook/04-reminders.md).
 - **In-app guide** at `/guide` — a sidebar-nav walkthrough of setup and every feature, so the docs ship with the app.
-- **Installable PWA** with light/dark theming, including a custom service worker for push notifications.
+- **Installable PWA** with light/dark theming.
 
 ## Getting started
 
@@ -39,7 +38,7 @@ npm install
 ### 2. Create a Supabase project and run the setup script
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor**, paste in the contents of [`supabase/setup.sql`](./supabase/setup.sql), and run it. This creates every table the app needs (`tracks`, `topics`, `tasks`, `topic_counts`, `push_subscriptions`, `reminder_prefs`), the indexes and helper functions the app's queries rely on, and locks it all down with row-level security so only you can read or write your own data.
+2. Open **SQL Editor**, paste in the contents of [`supabase/setup.sql`](./supabase/setup.sql), and run it. This creates every table the app needs (`tracks`, `topics`, `tasks`, `topic_counts`), the indexes and helper functions the app's queries rely on, and locks it all down with row-level security so only you can read or write your own data.
 
    The script is safe to re-run. **Already running an older Waypoint?** Re-run it after pulling — it migrates an existing database in place (adding ownership columns, indexes, and maintained progress counters) without touching your rows.
 3. Grab your **Project ID** (Settings → General) and **anon key** (Settings → API Keys).
@@ -54,10 +53,6 @@ npm run dev
 
 Open the app — the login screen lets you try it as a guest immediately, or connect a Supabase project (paste your Project ID and anon key, or set `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` beforehand so it's already connected).
 
-### 4. (Optional) Set up reminders
-
-Reminders are entirely optional — the rest of the app works fine without them. If you want daily email/push nudges about overdue and due-soon tasks, it needs a one-time deploy of a Supabase Edge Function plus a Resend account. Full steps, including exact secret values, are in [`docs/writebook/04-reminders.md`](./docs/writebook/04-reminders.md).
-
 ## Scripts
 
 | Command           | Description                        |
@@ -71,13 +66,11 @@ Reminders are entirely optional — the rest of the app works fine without them.
 
 - [React 19](https://react.dev) + [TypeScript](https://www.typescriptlang.org) + [Vite](https://vite.dev)
 - [Tailwind CSS 4](https://tailwindcss.com)
-- [Supabase](https://supabase.com) (Postgres, Auth, row-level security, Edge Functions, `pg_cron`)
+- [Supabase](https://supabase.com) (Postgres, Auth, row-level security, Edge Functions)
 - [TanStack Query](https://tanstack.com/query) for data fetching
 - [React Router](https://reactrouter.com)
-- [Resend](https://resend.com) for reminder emails
-- [Web Push](https://web.dev/push-notifications-overview/) (VAPID) for browser push, via a custom service worker built with [Workbox](https://developer.chrome.com/docs/workbox)
 - [Google Drive API](https://developers.google.com/drive) (`drive.file` scope) + [Google Identity](https://developers.google.com/identity) OAuth for the Drive backend
-- Installable as a PWA via [vite-plugin-pwa](https://vite-pwa-org.netlify.app) (`injectManifest` strategy)
+- Installable as a PWA via [vite-plugin-pwa](https://vite-pwa-org.netlify.app) (`injectManifest` strategy, via a custom service worker built with [Workbox](https://developer.chrome.com/docs/workbox))
 
 ## Project structure
 
@@ -97,8 +90,6 @@ src/
     useTracks.ts / useTopics.ts / useTasks.ts   CRUD queries + mutations, backend-agnostic
     useFocusNow.ts             Focus Now ranking query
     useImportTrack.ts          Bulk insert for Markdown import
-    useReminderPrefs.ts        Per-user email/push toggle state (Supabase only)
-    usePushSubscription.ts     Browser push subscribe/unsubscribe (Supabase only)
   lib/
     backend/types.ts           The Backend interface every page talks through
     backend/supabaseBackend.ts Backend implementation over Postgres/PostgREST
@@ -107,21 +98,17 @@ src/
     supabaseClient.ts / supabaseConfig.ts   Client creation + localStorage config
     env.ts                     Optional baked-in default Supabase project (VITE_ env vars)
     markdownImport.ts          Markdown → track/topic/task parser
-    push.ts                    Web Push subscription helpers, VAPID public key
     database.types.ts          Track/Topic/Task types
   pages/
     Login.tsx      Landing screen: guest / Supabase / Google
     GoogleCallback.tsx  Handles Google's OAuth redirect back to the app
     Dashboard.tsx  Focus Now + Tracks list
     TrackDetail.tsx Topics + tasks for one track
-    Settings.tsx   Database/migration status, reminders preferences, push enable/disable
+    Settings.tsx   Database/migration status
     Guide.tsx      In-app docs, sidebar nav
-  sw.ts            Custom service worker (push + notificationclick handlers)
+  sw.ts            Custom service worker (precaches app assets)
 supabase/
   setup.sql              One-time schema + RLS setup for your Supabase project
-  reminders-cron.sql     Schedules the reminder function via pg_cron
-  functions/
-    send-reminders/      Edge Function: daily email/push reminder job
 docs/
   writebook/       In-app guide content, served at /guide
 ```
@@ -133,6 +120,3 @@ Core phases are built and verified against a live Supabase project, plus a local
 1. **Storage backends** — guest mode (IndexedDB, no account), Supabase (bring-your-own project or a baked-in default), and Google Drive (one JSON file in a "Waypoint" folder, via a stateless OAuth token-relay Edge Function), all behind one `Backend` interface. A "Move to Supabase" flow migrates guest data in.
 2. **Tracks, Topics, Tasks & Focus Now** — the core tracking model, on either backend.
 3. **Markdown import** — bulk-create a track from a `.md` file.
-4. **Reminders** — daily email/push notifications via a Supabase Edge Function. Supabase-only: guest and Drive have no server able to act while you're away, so Settings explains this rather than showing dead toggles.
-
-Reminders need a one-time manual deploy (Edge Function + secrets + `pg_cron` schedule) — see [`docs/writebook/04-reminders.md`](./docs/writebook/04-reminders.md) for exact steps.

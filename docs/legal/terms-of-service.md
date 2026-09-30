@@ -50,17 +50,13 @@ In particular:
   evict or which you can clear yourself. If keeping your data reliably
   matters to you, use Supabase or Google Drive instead.
 - We are not responsible for outages, data loss, or errors originating from
-  third-party services Waypoint depends on — Supabase, Google, Resend, or
-  Vercel.
-- Reminder notifications (email or push) are a best-effort feature and are
-  not guaranteed to be delivered on time or at all — don't rely on them as
-  your only safeguard against a missed deadline.
+  third-party services Waypoint depends on — Supabase, Google, or Vercel.
 
 ## Limitation of liability
 
 To the fullest extent permitted by law, we are not liable for any indirect,
 incidental, special, or consequential damages arising from your use of
-Waypoint, including loss of data, loss of access, or missed reminders. Our
+Waypoint, including loss of data or loss of access. Our
 total liability for any claim relating to the service is limited to the
 amount you've paid us for it — which, since Waypoint is currently free to
 use, is zero.
@@ -84,9 +80,8 @@ materially. Continuing to use Waypoint after a change means you accept it.
 You can stop using Waypoint at any time — clear your browser data, delete
 your Supabase project or its rows, or revoke Google's access, as described
 in the Privacy Policy. We may suspend or terminate access to any
-Waypoint-operated infrastructure (a default Supabase project, the reminder
-or sign-in relay functions) for conduct that violates the acceptable use
-section above.
+Waypoint-operated infrastructure (a default Supabase project, the sign-in
+relay function) for conduct that violates the acceptable use section above.
 
 ## Governing law
 

@@ -4,13 +4,11 @@ import { GUEST_USER_ID, getGuestDB, newGuestId, nowIso } from "./guestStore";
 import { buildNoteContext, newNote, newestFirst } from "./localNotes";
 import { computeTopicProgress, computeTrackProgress, rankFocusTasks, topicStatusChanges } from "./localRanking";
 import {
-  DEFAULT_REMINDER_PREFS,
   type Backend,
   type CreateTaskInput,
   type FocusTask,
   type ImportedNote,
   type NoteWithContext,
-  type ReminderPrefs,
   type TrackProgress,
   type UpdateTaskInput,
   type UpdateTaskScheduleInput,
@@ -18,11 +16,9 @@ import {
 
 // A local-only backend for trying Waypoint without an account. Every
 // track, topic, and task lives in this browser's IndexedDB — there is no
-// server, so nothing here ever leaves the device, and nothing here can
-// send an email or a push notification (see `supportsReminders`).
+// server, so nothing here ever leaves the device.
 export class GuestBackend implements Backend {
   readonly kind = "guest" as const;
-  readonly supportsReminders = false;
 
   async listTracks(status: TrackStatus): Promise<Track[]> {
     const db = await getGuestDB();
@@ -132,7 +128,6 @@ export class GuestBackend implements Backend {
       due_date: input.dueDate || null,
       completed_at: null,
       sort_order: existing.length,
-      reminder_lead_days: input.dueDate ? (input.reminderLeadDays ?? null) : null,
       created_at: nowIso(),
     };
     await db.put("tasks", task);
@@ -148,7 +143,6 @@ export class GuestBackend implements Backend {
       title: input.title,
       priority: input.priority,
       due_date: input.dueDate,
-      reminder_lead_days: input.dueDate ? input.reminderLeadDays : null,
     });
   }
 
@@ -158,7 +152,6 @@ export class GuestBackend implements Backend {
     if (!task) return;
     const patch: Partial<Task> = {};
     if ("dueDate" in input) patch.due_date = input.dueDate || null;
-    if ("reminderLeadDays" in input) patch.reminder_lead_days = input.reminderLeadDays ?? null;
     await db.put("tasks", { ...task, ...patch });
   }
 
@@ -295,7 +288,6 @@ export class GuestBackend implements Backend {
           due_date: task.dueDate,
           completed_at: task.done ? nowIso() : null,
           sort_order: taskIndex,
-          reminder_lead_days: null,
           created_at: nowIso(),
         };
         await db.put("tasks", taskRow);
@@ -303,16 +295,6 @@ export class GuestBackend implements Backend {
     }
 
     return track.id;
-  }
-
-  async getReminderPrefs(): Promise<ReminderPrefs> {
-    return DEFAULT_REMINDER_PREFS;
-  }
-
-  async updateReminderPrefs(): Promise<void> {
-    // No-op: reminders need a server to act while you're not looking, and
-    // a guest backend has none. Settings hides the toggles instead of
-    // calling this, but a stub keeps the interface total.
   }
 
   // Used by the "move to Supabase" migration in Settings — every guest

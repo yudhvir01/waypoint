@@ -25,7 +25,7 @@ each one has a different privacy story:
   "Waypoint" inside your own Google Drive. We never see its contents.
 
 The rest of this page goes through each of these, plus the smaller pieces
-(sign-in, reminders, analytics) in more detail.
+(sign-in, analytics) in more detail.
 
 ## Information stored per sign-in option
 
@@ -39,9 +39,9 @@ sync between devices or browsers.
 ### Supabase
 
 When you connect a Supabase project (your own, or a default one we may
-offer), Waypoint stores your tracks, topics, tasks, and notification
-preferences in that project's Postgres database, and creates an account for
-you there using Supabase's own authentication (email and password).
+offer), Waypoint stores your tracks, topics, and tasks in that project's
+Postgres database, and creates an account for you there using Supabase's own
+authentication (email and password).
 
 - **Your own project:** the database is entirely under your control. We
   never have credentials for it and cannot access your data.
@@ -51,19 +51,6 @@ you there using Supabase's own authentication (email and password).
   maintain the service or respond to a legal obligation. Row-level security
   is enabled so that, through the app itself, you can only ever see your own
   rows — no other user's data is ever exposed to you, or to another user.
-
-If you enable **email or push reminders**, a scheduled server-side job reads
-your open tasks' due dates once a day to decide whether to notify you. That
-job runs against whichever Supabase project you're connected to.
-
-- **Email reminders** are sent through [Resend](https://resend.com). The
-  email address used is the one tied to your Supabase account. Resend
-  processes the message on our behalf and is subject to its own privacy
-  policy.
-- **Push reminders** are delivered via the Web Push standard. Enabling this
-  stores a push subscription (an endpoint URL and encryption keys — not
-  personally identifying on its own) tied to your account, so a notification
-  can be delivered to that specific browser.
 
 ### Google Drive
 
@@ -124,7 +111,6 @@ to identify or profile a specific person.
 |---|---|---|
 | [Supabase](https://supabase.com/privacy) | Your account and app data, if you use Supabase | Database, authentication |
 | [Google](https://policies.google.com/privacy) | Your Drive file, if you use Google sign-in; your email/name at sign-in | Storage, identity |
-| [Resend](https://resend.com/legal/privacy-policy) | Your email address and reminder content, if email reminders are on | Sending reminder emails |
 | [Vercel](https://vercel.com/legal/privacy-policy) | Aggregate, anonymous traffic data | Hosting, analytics |
 
 We do not sell your data, and we do not share it with anyone beyond what's

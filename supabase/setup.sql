@@ -47,18 +47,13 @@ create table if not exists public.tasks (
   due_date date,
   completed_at timestamptz,
   sort_order integer not null default 0,
-  -- Per-task override of how many days before due_date to send a reminder.
-  -- Null means "use the account default (reminder_prefs.lead_time_days)".
-  -- Only meaningful when due_date is set — a reminder needs a date to
-  -- count backwards from.
-  reminder_lead_days integer check (reminder_lead_days >= 0),
   created_at timestamptz not null default now()
 );
 
--- Safe to re-run against an existing database created before this column
--- existed (and to drop the boolean flag this column replaced).
+-- Safe to re-run against an existing database created before these
+-- reminder-related columns were removed.
 alter table public.tasks drop column if exists remind_me;
-alter table public.tasks add column if not exists reminder_lead_days integer check (reminder_lead_days >= 0);
+alter table public.tasks drop column if exists reminder_lead_days;
 
 -- Free-form notes. A note with a task_id is that task's own page; deleting
 -- the task keeps the note (task_id becomes null) so what you wrote down
@@ -92,28 +87,9 @@ create trigger notes_touch
   before update on public.notes
   for each row execute function public.notes_touch();
 
--- Web Push subscriptions, one row per device the user has enabled push on.
-create table if not exists public.push_subscriptions (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
-  endpoint text not null unique,
-  p256dh text not null,
-  auth text not null,
-  created_at timestamptz not null default now()
-);
-
--- Per-user reminder preferences.
-create table if not exists public.reminder_prefs (
-  user_id uuid primary key references auth.users (id) on delete cascade,
-  email_reminders_enabled boolean not null default true,
-  push_reminders_enabled boolean not null default true,
-  -- How many days before a task's due date it counts as "due soon" for
-  -- reminders (0 = only the due date itself, not before).
-  lead_time_days integer not null default 1 check (lead_time_days >= 0)
-);
-
-alter table public.reminder_prefs
-  add column if not exists lead_time_days integer not null default 1;
+-- Removed: reminders and Web Push are no longer part of the app.
+drop table if exists public.push_subscriptions;
+drop table if exists public.reminder_prefs;
 
 -- ---------------------------------------------------------------------
 -- Denormalized ownership
@@ -126,9 +102,9 @@ alter table public.reminder_prefs
 --     instead of a correlated EXISTS that joins two parent tables for
 --     every candidate row. That subquery is what turns a "give me this
 --     user's due tasks" query into a scan of everybody's tasks.
---   * Every "across all my tracks" query (Focus Now, per-track progress,
---     the reminder job) can be answered from one index on tasks rather
---     than a three-table join.
+--   * Every "across all my tracks" query (Focus Now, per-track progress)
+--     can be answered from one index on tasks rather than a three-table
+--     join.
 --
 -- The column is never accepted from the client: the trigger below always
 -- derives it from the parent row, so it cannot be spoofed or drift.
@@ -277,9 +253,8 @@ alter table public.tasks  alter column sort_order drop not null;
 -- Indexes
 --
 -- Each one backs a specific query the app makes. The partial indexes
--- matter most: the reminder job and Focus Now only ever look at
--- unfinished tasks, which stays a small slice even when the table is
--- mostly completed history.
+-- matter most: Focus Now only ever looks at unfinished tasks, which stays
+-- a small slice even when the table is mostly completed history.
 -- ---------------------------------------------------------------------
 
 create index if not exists tracks_user_status_idx on public.tracks (user_id, status, created_at desc);
@@ -301,15 +276,11 @@ create index if not exists tasks_track_open_due_idx on public.tasks (track_id, d
 create index if not exists tasks_track_priority_idx on public.tasks (track_id, priority, created_at) where done = false;
 create index if not exists tasks_track_created_idx on public.tasks (track_id, created_at) where done = false;
 
--- The reminder job's cross-user query: "every open task due on or before
--- <date>", ordered by the date it filters on.
-create index if not exists tasks_open_due_idx on public.tasks (due_date) where done = false and due_date is not null;
-
+drop index if exists public.tasks_open_due_idx;
 drop index if exists public.tasks_due_date_idx;
 drop index if exists public.topics_track_id_idx;
 drop index if exists public.tasks_topic_id_idx;
-
-create index if not exists push_subscriptions_user_id_idx on public.push_subscriptions (user_id);
+drop index if exists public.push_subscriptions_user_id_idx;
 
 -- ---------------------------------------------------------------------
 -- Row Level Security — every user can only ever see their own rows.
@@ -319,8 +290,6 @@ alter table public.tracks enable row level security;
 alter table public.topics enable row level security;
 alter table public.tasks enable row level security;
 alter table public.notes enable row level security;
-alter table public.push_subscriptions enable row level security;
-alter table public.reminder_prefs enable row level security;
 
 drop policy if exists "tracks_owner_all" on public.tracks;
 create policy "tracks_owner_all" on public.tracks
@@ -340,14 +309,6 @@ create policy "tasks_owner_all" on public.tasks
 
 drop policy if exists "notes_owner_all" on public.notes;
 create policy "notes_owner_all" on public.notes
-  for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
-
-drop policy if exists "push_subscriptions_owner_all" on public.push_subscriptions;
-create policy "push_subscriptions_owner_all" on public.push_subscriptions
-  for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
-
-drop policy if exists "reminder_prefs_owner_all" on public.reminder_prefs;
-create policy "reminder_prefs_owner_all" on public.reminder_prefs
   for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
 -- ---------------------------------------------------------------------
@@ -602,7 +563,6 @@ returns table (
   due_date date,
   completed_at timestamptz,
   sort_order integer,
-  reminder_lead_days integer,
   created_at timestamptz,
   topic_title text,
   track_id uuid,
@@ -674,7 +634,7 @@ with
     select * from tier2 union all select * from tier3 union all select * from tier4
   )
 select c.id, c.topic_id, c.title, c.done, c.priority, c.due_date,
-       c.completed_at, c.sort_order, c.reminder_lead_days, c.created_at,
+       c.completed_at, c.sort_order, c.created_at,
        tp.title as topic_title, c.track_id, t.name as track_name
   from candidates c
   join public.topics tp on tp.id = c.topic_id
@@ -766,7 +726,4 @@ $$;
 -- ---------------------------------------------------------------------
 -- Done. Next: copy this project's URL and anon key (Project Settings →
 -- API) into the app's "Connect your Supabase project" screen.
---
--- Reminders (email + push) are set up separately — see
--- docs/writebook/04-reminders.md.
 -- ---------------------------------------------------------------------

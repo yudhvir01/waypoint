@@ -58,8 +58,8 @@ function is safe to leave open — see its header comment in
 `supabase/functions/google-token/index.ts` for why.
 
 Set two secrets on whichever project you deployed it to (it doesn't need to
-be the same project as your tracks/topics/tasks data, or the reminders
-function — its only job is this token exchange):
+be the same project as your tracks/topics/tasks data — its only job is this
+token exchange):
 
 | Secret | Value |
 | --- | --- |

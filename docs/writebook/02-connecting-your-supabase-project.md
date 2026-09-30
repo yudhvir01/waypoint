@@ -7,7 +7,7 @@ Waypoint's login screen offers three ways in: try it as a guest with no setup (y
 data stays only in that browser), sign in with Google (coming soon), or connect your
 own [Supabase](https://supabase.com) project — a real Postgres database, under your
 account, that only your Waypoint app talks to, and the only option today that syncs
-across devices and can send you reminders.
+across devices.
 
 This chapter covers that last option. It takes about five minutes, once. Already
 using guest mode? Settings has a "Move to Supabase" button that walks you through
@@ -35,8 +35,8 @@ needs and locks them down so only you can read or write your own data.
 4. Click **Run**.
 
 You should see a success message. If you ever want to double-check it worked, open
-**Table Editor** — you should see `tracks`, `topics`, `tasks`, `topic_counts`,
-`push_subscriptions`, and `reminder_prefs` listed.
+**Table Editor** — you should see `tracks`, `topics`, `tasks`, and `topic_counts`
+listed.
 
 The script is safe to run more than once, so if you update Waypoint later, just
 paste the newest version of the file in and run it again. It brings an existing

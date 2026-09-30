@@ -21,31 +21,7 @@ import {
   useUpdateTaskSchedule,
   useToggleTask,
 } from "../hooks/useTasks";
-import {
-  REMINDER_LEAD_OPTIONS,
-  type Task,
-  type TaskPriority,
-  type Topic,
-  type TopicStatus,
-} from "../lib/database.types";
-
-function BellIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      width="13"
-      height="13"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M8 1.5c-2 0-3.2 1.6-3.2 3.6v2c0 .7-.3 1.4-.8 1.9l-.5.5c-.4.4-.1 1 .4 1h8.2c.5 0 .8-.6.4-1l-.5-.5c-.5-.5-.8-1.2-.8-1.9v-2c0-2-1.2-3.6-3.2-3.6Z" />
-      <path d="M6.3 12.5a1.7 1.7 0 0 0 3.4 0" />
-    </svg>
-  );
-}
+import { type Task, type TaskPriority, type Topic, type TopicStatus } from "../lib/database.types";
 
 function CalendarIcon() {
   return (
@@ -101,10 +77,6 @@ function PencilIcon() {
   );
 }
 
-function reminderLeadLabel(days: number): string {
-  return REMINDER_LEAD_OPTIONS.find((o) => o.value === days)?.label ?? `${days}d before`;
-}
-
 // "Expand all" on a very long roadmap would otherwise mount a task query
 // per topic all at once — the exact thing lazy loading is there to avoid.
 const EXPAND_ALL_LIMIT = 25;
@@ -132,7 +104,6 @@ interface TaskFormValues {
   title: string;
   priority: TaskPriority;
   dueDate: string | null;
-  reminderLeadDays: number | null;
 }
 
 // Shared by "Add task" and "Edit task" — same compact row, same fields,
@@ -153,15 +124,12 @@ function TaskForm({
   const [title, setTitle] = useState(initial?.title ?? "");
   const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? "none");
   const [dueDate, setDueDate] = useState<string | null>(initial?.dueDate ?? null);
-  const [reminderLeadDays, setReminderLeadDays] = useState<number | null>(
-    initial?.reminderLeadDays ?? null,
-  );
-  const [popover, setPopover] = useState<"date" | "reminder" | null>(null);
+  const [popover, setPopover] = useState(false);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    onSubmit({ title: title.trim(), priority, dueDate, reminderLeadDays });
+    onSubmit({ title: title.trim(), priority, dueDate });
   }
 
   return (
@@ -191,25 +159,13 @@ function TaskForm({
         </select>
         <button
           type="button"
-          onClick={() => setPopover("date")}
+          onClick={() => setPopover(true)}
           title={dueDate ? new Date(dueDate).toLocaleDateString() : "Set a deadline"}
           className={`shrink-0 rounded p-1.5 transition-colors ${
             dueDate ? "text-primary" : "text-muted-foreground/50 hover:text-muted-foreground"
           }`}
         >
           <CalendarIcon />
-        </button>
-        <button
-          type="button"
-          onClick={() => setPopover("reminder")}
-          title={reminderLeadDays !== null ? "Reminder set" : "Set a reminder"}
-          className={`shrink-0 rounded p-1.5 transition-colors ${
-            reminderLeadDays !== null
-              ? "text-teal"
-              : "text-muted-foreground/50 hover:text-muted-foreground"
-          }`}
-        >
-          <BellIcon filled={reminderLeadDays !== null} />
         </button>
         <button
           type="submit"
@@ -229,14 +185,9 @@ function TaskForm({
 
       {popover && (
         <SchedulePopover
-          variant={popover}
           currentDueDate={dueDate}
-          currentReminderLeadDays={reminderLeadDays}
-          onClose={() => setPopover(null)}
-          onSave={(patch) => {
-            if ("dueDate" in patch) setDueDate(patch.dueDate ?? null);
-            if ("reminderLeadDays" in patch) setReminderLeadDays(patch.reminderLeadDays ?? null);
-          }}
+          onClose={() => setPopover(false)}
+          onSave={(patch) => setDueDate(patch.dueDate)}
         />
       )}
     </>
@@ -280,9 +231,7 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
   const updateTask = useUpdateTask(topicId);
   const deleteTask = useDeleteTask(topicId);
   const [popover, setPopover] = useState(false);
-  const [menuPopover, setMenuPopover] = useState<"date" | "reminder" | null>(null);
   const [editing, setEditing] = useState(false);
-  const hasReminder = task.reminder_lead_days !== null;
 
   if (editing) {
     return (
@@ -294,7 +243,6 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
             title: task.title,
             priority: task.priority,
             dueDate: task.due_date,
-            reminderLeadDays: task.reminder_lead_days,
           }}
           onCancel={() => setEditing(false)}
           onSubmit={async (values) => {
@@ -331,7 +279,6 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
       {task.due_date && (
         <span className="shrink-0 text-xs text-muted-foreground">
           {new Date(task.due_date).toLocaleDateString()}
-          {hasReminder && ` · Reminder ${reminderLeadLabel(task.reminder_lead_days!).toLowerCase()}`}
         </span>
       )}
 
@@ -355,16 +302,9 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
             task.due_date
               ? {
                   label: "Remove deadline",
-                  onClick: () =>
-                    updateSchedule.mutate({ taskId: task.id, dueDate: null, reminderLeadDays: null }),
+                  onClick: () => updateSchedule.mutate({ taskId: task.id, dueDate: null }),
                 }
-              : { label: "Set deadline", onClick: () => setMenuPopover("date") },
-            hasReminder
-              ? {
-                  label: "Remove reminder",
-                  onClick: () => updateSchedule.mutate({ taskId: task.id, reminderLeadDays: null }),
-                }
-              : { label: "Set reminder", onClick: () => setMenuPopover("reminder") },
+              : { label: "Set deadline", onClick: () => setPopover(true) },
             {
               label: task.done ? "Mark incomplete" : "Mark complete",
               onClick: () => toggleTask.mutate(task),
@@ -374,34 +314,11 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
         />
       </div>
 
-      <button
-        type="button"
-        onClick={() => setPopover(true)}
-        aria-label={hasReminder ? "Change reminder" : "Set reminder"}
-        title={hasReminder ? "Reminder set" : "Set a reminder"}
-        className={`shrink-0 rounded p-0.5 transition-colors ${
-          hasReminder ? "text-teal" : "text-muted-foreground/40 hover:text-muted-foreground"
-        }`}
-      >
-        <BellIcon filled={hasReminder} />
-      </button>
-
-      {(popover || menuPopover) && (
+      {popover && (
         <SchedulePopover
-          variant={menuPopover ?? "reminder"}
           currentDueDate={task.due_date}
-          currentReminderLeadDays={task.reminder_lead_days}
-          onClose={() => {
-            setPopover(false);
-            setMenuPopover(null);
-          }}
-          onSave={(patch) =>
-            updateSchedule.mutate({
-              taskId: task.id,
-              ...("dueDate" in patch && { dueDate: patch.dueDate }),
-              ...("reminderLeadDays" in patch && { reminderLeadDays: patch.reminderLeadDays }),
-            })
-          }
+          onClose={() => setPopover(false)}
+          onSave={(patch) => updateSchedule.mutate({ taskId: task.id, dueDate: patch.dueDate })}
         />
       )}
     </li>

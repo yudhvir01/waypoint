@@ -17,18 +17,6 @@ export interface FocusTask extends Task {
   };
 }
 
-export interface ReminderPrefs {
-  email_reminders_enabled: boolean;
-  push_reminders_enabled: boolean;
-  lead_time_days: number;
-}
-
-export const DEFAULT_REMINDER_PREFS: ReminderPrefs = {
-  email_reminders_enabled: true,
-  push_reminders_enabled: true,
-  lead_time_days: 1,
-};
-
 // Where a task's note lives, for the "back to" breadcrumb on its page.
 export interface NoteContext {
   trackId: string;
@@ -50,19 +38,16 @@ export interface CreateTaskInput {
   title: string;
   priority?: TaskPriority;
   dueDate?: string | null;
-  reminderLeadDays?: number | null;
 }
 
 export interface UpdateTaskInput {
   title: string;
   priority: TaskPriority;
   dueDate: string | null;
-  reminderLeadDays: number | null;
 }
 
 export interface UpdateTaskScheduleInput {
   dueDate?: string | null;
-  reminderLeadDays?: number | null;
 }
 
 // Every place data can currently live. A Backend is the one seam every
@@ -70,18 +55,10 @@ export interface UpdateTaskScheduleInput {
 // (eventually) Drive directly, so adding a fourth place to keep notes
 // means writing one new file, not touching every page.
 //
-// Two things are deliberately *not* part of this interface:
-//
-//   - Push subscriptions and email reminders. Both need a server to act
-//     on your behalf while you're not looking (a cron job, a mail
-//     sender) — something a browser-only backend fundamentally can't
-//     provide. Gated by `supportsReminders` instead of a no-op
-//     implementation, so the UI can explain why rather than pretend a
-//     guest toggle does something.
-//   - Pagination cursors as anything but a page number. Guest data lives
-//     entirely in memory, so "page 3" is just a slice; a future backend
-//     with its own cursor shape can still satisfy this by tracking
-//     offsets internally.
+// One thing is deliberately *not* part of this interface: pagination
+// cursors as anything but a page number. Guest data lives entirely in
+// memory, so "page 3" is just a slice; a future backend with its own
+// cursor shape can still satisfy this by tracking offsets internally.
 export interface Backend {
   readonly kind: "supabase" | "guest" | "drive";
 
@@ -124,9 +101,4 @@ export interface Backend {
 
   // Markdown import — one call, one unit of work, regardless of backend.
   importTrack(parsed: ParsedImport): Promise<string>;
-
-  // Reminders
-  readonly supportsReminders: boolean;
-  getReminderPrefs(): Promise<ReminderPrefs>;
-  updateReminderPrefs(patch: Partial<ReminderPrefs>): Promise<void>;
 }
