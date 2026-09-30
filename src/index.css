@@ -35,27 +35,30 @@
   --ring: #2563eb;
 }
 
+/* True black (AMOLED) — pure #000 background so OLED screens turn those
+   pixels off entirely, with just enough lift on cards/borders to keep
+   surfaces readable against it. */
 .dark {
-  --background: #0b1220;
+  --background: #000000;
   --foreground: #f1f5f9;
-  --card: #111a2b;
+  --card: #0a0a0a;
   --card-foreground: #f1f5f9;
-  --popover: #111a2b;
+  --popover: #0a0a0a;
   --popover-foreground: #f1f5f9;
   --primary: #5b9dff;
-  --primary-foreground: #0b1220;
-  --secondary: #162033;
+  --primary-foreground: #000000;
+  --secondary: #111111;
   --secondary-foreground: #f1f5f9;
-  --muted: #162033;
+  --muted: #111111;
   --muted-foreground: #94a3b8;
-  --accent: #17233d;
+  --accent: #141414;
   --accent-foreground: #f1f5f9;
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.985 0 0);
   --success: #34d399;
   --teal: #2dd4bf;
-  --border: #243149;
-  --input: #243149;
+  --border: #1e1e1e;
+  --input: #1e1e1e;
   --ring: #5b9dff;
 }
 
