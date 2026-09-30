@@ -15,7 +15,13 @@ import type { ParsedImport } from "../lib/markdownImport";
 export function GuestMigrationDialog({ onClose }: { onClose: () => void }) {
   const { backend, mode } = useBackend();
   const navigate = useNavigate();
-  const [step, setStep] = useState<"connect" | "import" | "done">("connect");
+  // Supabase connects in place (email/password, no redirect), so a guest
+  // still on "guest" mode goes through that form first. Google is a
+  // full-page redirect that's already happened by the time this dialog
+  // can open from Settings' resumeMigration state — mode is "drive"
+  // already, so there's nothing left to connect.
+  const [step, setStep] = useState<"connect" | "import" | "done">(mode === "guest" ? "connect" : "import");
+  const destination = mode === "drive" ? "Google Drive" : "Supabase";
   const [pending, setPending] = useState<ParsedImport[] | null>(null);
   const [pendingNotes, setPendingNotes] = useState<ImportedNote[]>([]);
   const [imported, setImported] = useState(0);
@@ -81,7 +87,7 @@ export function GuestMigrationDialog({ onClose }: { onClose: () => void }) {
             ) : pending.length === 0 && pendingNotes.length === 0 ? (
               <>
                 <p className="mt-3 text-sm text-muted-foreground">
-                  No guest tracks or notes found — you're all set on Supabase already.
+                  No guest tracks or notes found — you're all set on {destination} already.
                 </p>
                 <button
                   type="button"
@@ -97,8 +103,8 @@ export function GuestMigrationDialog({ onClose }: { onClose: () => void }) {
                   Found {pending.length} guest track{pending.length === 1 ? "" : "s"}
                   {pendingNotes.length > 0 &&
                     ` and ${pendingNotes.length} note${pendingNotes.length === 1 ? "" : "s"}`}{" "}
-                  in this browser. Importing copies them into your Supabase account — nothing here is
-                  touched until you confirm.
+                  in this browser. Importing copies them into your {destination} account — nothing here
+                  is touched until you confirm.
                 </p>
                 <label className="mt-4 flex items-center gap-2 text-sm">
                   <input
@@ -143,8 +149,8 @@ export function GuestMigrationDialog({ onClose }: { onClose: () => void }) {
               {failed.length === 0 ? "All done" : "Imported with some failures"}
             </h2>
             <p className="mt-3 text-sm text-muted-foreground">
-              {imported} track{imported === 1 ? "" : "s"} imported into your Supabase account
-              {mode === "supabase" ? "" : " — sign in again to see them"}.
+              {imported} track{imported === 1 ? "" : "s"} imported into your {destination} account
+              {mode === "supabase" || mode === "drive" ? "" : " — sign in again to see them"}.
             </p>
             {failed.length > 0 && (
               <p className="mt-2 text-sm text-destructive">

@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { GuestMigrationDialog } from "../components/GuestMigrationDialog";
 import { useBackend } from "../context/BackendProvider";
+import { buildGoogleAuthUrl, GOOGLE_MIGRATION_KEY } from "../lib/backend/googleAuth";
+import { GOOGLE_SIGNIN_ENABLED } from "../lib/env";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -38,7 +41,13 @@ function Row({
   );
 }
 
-function DatabaseSection({ onMigrate }: { onMigrate: () => void }) {
+function DatabaseSection({
+  onMigrate,
+  onMigrateGoogle,
+}: {
+  onMigrate: () => void;
+  onMigrateGoogle: () => void;
+}) {
   const { mode, ownerLabel, supabaseConfig, isCustomSupabaseProject, disconnectSupabaseProject } = useBackend();
 
   if (mode === "guest") {
@@ -54,13 +63,24 @@ function DatabaseSection({ onMigrate }: { onMigrate: () => void }) {
             moving to another device loses it for good.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onMigrate}
-          className="self-start rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-        >
-          Move to Supabase
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onMigrate}
+            className="self-start rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+          >
+            Move to Supabase
+          </button>
+          <button
+            type="button"
+            onClick={onMigrateGoogle}
+            disabled={!GOOGLE_SIGNIN_ENABLED}
+            title={GOOGLE_SIGNIN_ENABLED ? undefined : "Google sign-in isn't set up for this deployment"}
+            className="self-start rounded-md border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:border-primary hover:bg-accent disabled:opacity-50"
+          >
+            Move to Google Drive
+          </button>
+        </div>
       </Section>
     );
   }
@@ -112,7 +132,31 @@ function DatabaseSection({ onMigrate }: { onMigrate: () => void }) {
 }
 
 export function Settings() {
+  const { mode } = useBackend();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [migrating, setMigrating] = useState(false);
+
+  // Google sign-in is a full-page redirect, so a "Move to Google Drive"
+  // click can't stay inside GuestMigrationDialog the way Supabase's
+  // in-place email/password form does — it leaves the app entirely and
+  // comes back through /auth/google/callback. That callback marks the
+  // returning navigation with this state once it's adopted the new
+  // session, so the dialog can pick up on the import step rather than
+  // making the user find the button again.
+  const resumeMigration = Boolean((location.state as { resumeMigration?: boolean } | null)?.resumeMigration);
+
+  useEffect(() => {
+    if (resumeMigration && mode === "drive") {
+      setMigrating(true);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [resumeMigration, mode, navigate, location.pathname]);
+
+  function handleMigrateGoogle() {
+    sessionStorage.setItem(GOOGLE_MIGRATION_KEY, "1");
+    window.location.href = buildGoogleAuthUrl();
+  }
 
   return (
     <AppShell>
@@ -123,7 +167,7 @@ export function Settings() {
           <Row label="Theme" control={<ThemeToggle />} />
         </Section>
 
-        <DatabaseSection onMigrate={() => setMigrating(true)} />
+        <DatabaseSection onMigrate={() => setMigrating(true)} onMigrateGoogle={handleMigrateGoogle} />
       </div>
 
       {migrating && <GuestMigrationDialog onClose={() => setMigrating(false)} />}

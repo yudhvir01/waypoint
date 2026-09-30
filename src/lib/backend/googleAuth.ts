@@ -8,6 +8,12 @@ const SCOPES = "https://www.googleapis.com/auth/drive.file email profile openid"
 
 const STATE_KEY = "waypoint.googleOAuthState";
 
+// Set by Settings before redirecting to Google when migrating guest data
+// (rather than signing in fresh) — checked by GoogleCallback once the
+// redirect comes back, so it can send the browser to Settings' import
+// dialog instead of the dashboard. One-time use, like STATE_KEY.
+export const GOOGLE_MIGRATION_KEY = "waypoint.googleMigration";
+
 export function googleRedirectUri(): string {
   return `${window.location.origin}/auth/google/callback`;
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Logo } from "../components/Logo";
 import { useBackend } from "../context/BackendProvider";
-import { completeGoogleSignIn, consumeGoogleOAuthState } from "../lib/backend/googleAuth";
+import { completeGoogleSignIn, consumeGoogleOAuthState, GOOGLE_MIGRATION_KEY } from "../lib/backend/googleAuth";
 
 // Where Google sends the browser back to after the consent screen (see
 // googleRedirectUri() — this path has to match what's registered as an
@@ -39,7 +39,15 @@ export function GoogleCallback() {
       .then((session) => {
         if (cancelled) return;
         adoptSession(session);
-        navigate("/", { replace: true });
+        // One-time flag: cleared as soon as it's read, whether or not it
+        // was set, so a replayed callback URL can't re-trigger it.
+        const resumeMigration = sessionStorage.getItem(GOOGLE_MIGRATION_KEY) === "1";
+        sessionStorage.removeItem(GOOGLE_MIGRATION_KEY);
+        if (resumeMigration) {
+          navigate("/settings", { replace: true, state: { resumeMigration: true } });
+        } else {
+          navigate("/", { replace: true });
+        }
       })
       .catch((err: unknown) => {
         if (cancelled) return;
