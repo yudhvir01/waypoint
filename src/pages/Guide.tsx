@@ -61,8 +61,8 @@ export function Guide() {
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 -translate-x-full overflow-hidden border-r border-border bg-card transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:transition-[width] ${
-          sidebarOpen ? "translate-x-0 md:w-64" : "md:w-0 md:border-r-0"
+        className={`fixed inset-y-0 left-0 z-50 w-72 overflow-hidden border-r border-border bg-card transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:transition-[width] ${
+          sidebarOpen ? "translate-x-0 md:w-64" : "-translate-x-full md:w-0 md:translate-x-0 md:border-r-0"
         }`}
       >
         <div className="w-72 px-5 py-8 md:w-64">

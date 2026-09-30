@@ -1,5 +1,6 @@
 export function stripFrontMatter(raw: string): { title: string; body: string } {
-  const match = raw.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  // The chapter files may carry Windows (CRLF) line endings.
+  const match = raw.replace(/\r\n/g, "\n").match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
   if (!match) return { title: "", body: raw };
 
   const [, frontMatter, body] = match;
