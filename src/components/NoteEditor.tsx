@@ -1,4 +1,4 @@
-import { useEffect, type MutableRefObject, type ReactNode } from "react";
+import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
@@ -6,6 +6,19 @@ import Highlight from "@tiptap/extension-highlight";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Color, FontSize, TextStyle } from "@tiptap/extension-text-style";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
+import {
+  AttachmentAudio,
+  AttachmentImage,
+  insertFilesAt,
+  LinkPreviewNode,
+  LinkPreviewPaste,
+} from "./noteAttachments";
+import { useBackend } from "../context/BackendProvider";
+import type { Backend } from "../lib/backend/types";
+
+function isAttachableFile(file: File): boolean {
+  return file.type.startsWith("image/") || file.type.startsWith("audio/");
+}
 
 // Deliberately short lists: pick a color, not a color picker.
 const TEXT_COLORS = [
@@ -192,6 +205,91 @@ function SelectionMenu({ editor }: { editor: Editor }) {
   );
 }
 
+function ImageIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" />
+      <circle cx="5.5" cy="6" r="1.1" />
+      <path d="M2 12l3.5-3.5a1 1 0 0 1 1.4 0L9 10.5l1.6-1.6a1 1 0 0 1 1.4 0L14 11" />
+    </svg>
+  );
+}
+
+function AudioIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 3.5v6.4a1.9 1.9 0 1 0 1 1.67V6h3V4H7a1 1 0 0 0-1 1.5" />
+      <circle cx="5" cy="11.5" r="1.8" />
+    </svg>
+  );
+}
+
+// Persistent (not selection-triggered, unlike SelectionMenu) so it's
+// there whether or not anything's selected — inserting an attachment
+// isn't an act on existing text.
+function AttachmentToolbar({ editor }: { editor: Editor }) {
+  const { backend } = useBackend();
+  const [busy, setBusy] = useState<"image" | "audio" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const imageInput = useRef<HTMLInputElement>(null);
+  const audioInput = useRef<HTMLInputElement>(null);
+
+  async function handleFile(file: File | undefined, kind: "image" | "audio") {
+    if (!file || !backend) return;
+    setError(null);
+    setBusy(kind);
+    await insertFilesAt(editor.view, backend, [file], editor.state.selection.from, setError);
+    setBusy(null);
+    editor.commands.focus();
+  }
+
+  return (
+    <div className="mb-2 flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => imageInput.current?.click()}
+        disabled={busy !== null}
+        title="Insert image"
+        className="flex h-7 items-center gap-1.5 rounded px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60"
+      >
+        <ImageIcon />
+        {busy === "image" ? "Uploading…" : "Image"}
+      </button>
+      <button
+        type="button"
+        onClick={() => audioInput.current?.click()}
+        disabled={busy !== null}
+        title="Insert audio"
+        className="flex h-7 items-center gap-1.5 rounded px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60"
+      >
+        <AudioIcon />
+        {busy === "audio" ? "Uploading…" : "Audio"}
+      </button>
+      {error && <span className="text-xs text-destructive">{error}</span>}
+      <input
+        ref={imageInput}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          void handleFile(e.target.files?.[0], "image");
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={audioInput}
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={(e) => {
+          void handleFile(e.target.files?.[0], "audio");
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
+
 // A Markdown-flavoured rich text editor: type `# `, `- `, `1. `, `> `,
 // `[ ] `, `**bold**`, `_italic_`, `` `code` `` or `---` and it converts as
 // you type. Selecting text pops up a small bar for size, color and
@@ -208,6 +306,18 @@ export function NoteEditor({
   focusStartRef?: MutableRefObject<(() => void) | null>;
   autoFocus?: boolean;
 }) {
+  const { backend } = useBackend();
+  const [dropError, setDropError] = useState<string | null>(null);
+  // handleDrop/handlePaste below close over `backend` at editor-creation
+  // time — kept current across a backend switch via a ref (updated in an
+  // effect, not during render, so it doesn't run afoul of concurrent
+  // rendering discarding an in-progress render), since useEditor isn't
+  // recreated just because this component re-renders.
+  const backendRef = useRef<Backend | null>(backend);
+  useEffect(() => {
+    backendRef.current = backend;
+  }, [backend]);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
@@ -218,6 +328,10 @@ export function NoteEditor({
       TaskList,
       TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: "Write here or jot down something interesting…" }),
+      AttachmentImage,
+      AttachmentAudio,
+      LinkPreviewNode,
+      LinkPreviewPaste,
     ],
     content: initialContent,
     autofocus: autoFocus ? "end" : false,
@@ -225,6 +339,29 @@ export function NoteEditor({
       attributes: {
         class:
           "prose prose-slate max-w-none min-h-[50vh] pb-24 text-[16px] outline-none dark:prose-invert",
+      },
+      // `moved` is true for dragging existing editor content around
+      // (reordering a paragraph, say) — only an drag arriving from
+      // outside (the OS file picker, another app) carries files.
+      handleDrop(view, event, _slice, moved) {
+        const backend = backendRef.current;
+        const files = Array.from(event.dataTransfer?.files ?? []).filter(isAttachableFile);
+        if (moved || files.length === 0 || !backend) return false;
+        event.preventDefault();
+        const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
+        void insertFilesAt(view, backend, files, coords?.pos ?? view.state.selection.from, setDropError);
+        return true;
+      },
+      // Pasting an actual file (a screenshot, a copied image) rather than
+      // a link — LinkPreviewPaste handles the "pasted a bare URL" case
+      // separately, since that's text, not a file.
+      handlePaste(view, event) {
+        const backend = backendRef.current;
+        const files = Array.from(event.clipboardData?.files ?? []).filter(isAttachableFile);
+        if (files.length === 0 || !backend) return false;
+        event.preventDefault();
+        void insertFilesAt(view, backend, files, view.state.selection.from, setDropError);
+        return true;
       },
     },
     onUpdate: ({ editor: e }) => onChange(e.isEmpty ? "" : e.getHTML()),
@@ -242,6 +379,8 @@ export function NoteEditor({
 
   return (
     <>
+      <AttachmentToolbar editor={editor} />
+      {dropError && <p className="-mt-1 mb-2 text-xs text-destructive">{dropError}</p>}
       <BubbleMenu editor={editor} options={{ placement: "top", offset: 8 }}>
         <SelectionMenu editor={editor} />
       </BubbleMenu>

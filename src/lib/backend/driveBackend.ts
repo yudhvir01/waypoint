@@ -1,10 +1,19 @@
 import type { Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
-import { createDataFile, ensureWaypointFolder, loadDataFile, saveDataFile } from "./driveClient";
+import {
+  createDataFile,
+  downloadBinaryFile,
+  ensureWaypointFolder,
+  loadDataFile,
+  saveDataFile,
+  uploadBinaryFile,
+} from "./driveClient";
 import type { GoogleDriveSession } from "./googleAuth";
 import { buildNoteContext, newNote, newestFirst } from "./localNotes";
 import { computeTopicProgress, computeTrackProgress, rankFocusTasks, topicStatusChanges } from "./localRanking";
 import {
+  type Attachment,
+  type AttachmentKind,
   type Backend,
   type CreateTaskInput,
   type FocusTask,
@@ -58,6 +67,11 @@ export class DriveBackend implements Backend {
   // same headRevisionId and race to save — the second one always waits
   // for the first to finish and update it first.
   private writeChain: Promise<void> = Promise.resolve();
+  // Downloading an attachment needs an authenticated request every time
+  // (Drive never hands back a URL that works without one) — cached so a
+  // note re-rendering doesn't re-download and re-leak an object URL on
+  // every mount.
+  private readonly attachmentUrls = new Map<string, string>();
 
   constructor(session: GoogleDriveSession) {
     this.session = session;
@@ -326,6 +340,27 @@ export class DriveBackend implements Backend {
     await this.ensureLoaded();
     for (const n of notes) this.data.notes.push(newNote(newId(), this.session.email, nowIso(), n));
     if (notes.length > 0) await this.persist();
+  }
+
+  async uploadAttachment(file: File, kind: AttachmentKind): Promise<Attachment> {
+    await this.ensureLoaded();
+    const fileId = await uploadBinaryFile(
+      this.session,
+      this.folderId!,
+      file.name,
+      file.type || (kind === "image" ? "image/*" : "audio/*"),
+      file,
+    );
+    return { id: fileId, kind, name: file.name, contentType: file.type };
+  }
+
+  async resolveAttachmentUrl(id: string): Promise<string> {
+    const cached = this.attachmentUrls.get(id);
+    if (cached) return cached;
+    const blob = await downloadBinaryFile(this.session, id);
+    const url = URL.createObjectURL(blob);
+    this.attachmentUrls.set(id, url);
+    return url;
   }
 
   async trackProgress(): Promise<Map<string, TrackProgress>> {

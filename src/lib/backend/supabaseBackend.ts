@@ -3,6 +3,8 @@ import type { Note, Task, Topic, Track, TrackStatus, TopicStatus } from "../data
 import type { ParsedImport } from "../markdownImport";
 import { topicStatusChanges } from "./localRanking";
 import {
+  type Attachment,
+  type AttachmentKind,
   type Backend,
   type CreateTaskInput,
   type FocusTask,
@@ -12,6 +14,13 @@ import {
   type UpdateTaskInput,
   type UpdateTaskScheduleInput,
 } from "./types";
+
+// Everything a user uploads lives at <userId>/<file>, in the public
+// "attachments" bucket setup.sql creates. Storage RLS still restricts
+// writes to a user's own folder — see setup.sql — but reads go straight
+// through the bucket's public URL rather than the authenticated API, so
+// an <img>/<audio> tag can load one without carrying a session token.
+const ATTACHMENTS_BUCKET = "attachments";
 
 // Bounds a sidebar listing to something a runaway account can't turn into
 // a thousand-row response on every page load. See setup.sql's matching
@@ -317,6 +326,25 @@ export class SupabaseBackend implements Backend {
       .from("notes")
       .insert(notes.map((n) => ({ user_id: this.userId, title: n.title, content: n.content })));
     if (error) throw error;
+  }
+
+  async uploadAttachment(file: File, kind: AttachmentKind): Promise<Attachment> {
+    const id = crypto.randomUUID();
+    const dot = file.name.lastIndexOf(".");
+    const ext = dot >= 0 ? file.name.slice(dot) : "";
+    const path = `${this.userId}/${id}${ext}`;
+    const { error } = await this.client.storage
+      .from(ATTACHMENTS_BUCKET)
+      .upload(path, file, { contentType: file.type || undefined });
+    if (error) throw error;
+    return { id: path, kind, name: file.name, contentType: file.type };
+  }
+
+  // getPublicUrl only builds a URL string client-side — no request, so
+  // nothing to cache.
+  async resolveAttachmentUrl(id: string): Promise<string> {
+    const { data } = this.client.storage.from(ATTACHMENTS_BUCKET).getPublicUrl(id);
+    return data.publicUrl;
   }
 
   async trackProgress(): Promise<Map<string, TrackProgress>> {

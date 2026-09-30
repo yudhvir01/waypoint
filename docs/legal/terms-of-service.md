@@ -33,9 +33,11 @@ Don't use Waypoint to:
 - store or transmit unlawful content,
 - attempt to access another person's data without authorization,
 - interfere with the service's operation (including any Supabase project or
-  Edge Function we operate), or
+  Edge Function we operate),
 - use the Google sign-in integration for anything beyond its intended
-  purpose (storing your own Waypoint data in your own Drive).
+  purpose (storing your own Waypoint data in your own Drive), or
+- use the link-preview function to probe, scan, or send requests toward
+  addresses or services it isn't meant to reach.
 
 ## Service availability and data loss
 

@@ -50,6 +50,20 @@ export interface UpdateTaskScheduleInput {
   dueDate?: string | null;
 }
 
+export type AttachmentKind = "image" | "audio";
+
+// What uploading a file hands back to the note editor: enough to embed
+// it right away (kind, name for a label) plus the opaque `id` it needs
+// to ask for the file again later. What that id actually looks like
+// (an IndexedDB key, a Storage path, a Drive file id) is each backend's
+// own business — the editor never parses it, only round-trips it.
+export interface Attachment {
+  id: string;
+  kind: AttachmentKind;
+  name: string;
+  contentType: string;
+}
+
 // Every place data can currently live. A Backend is the one seam every
 // page and hook talks through — pages never touch Supabase, IndexedDB, or
 // (eventually) Drive directly, so adding a fourth place to keep notes
@@ -93,6 +107,15 @@ export interface Backend {
   // time the task is opened. Returns null if the task no longer exists.
   getOrCreateTaskNote(taskId: string): Promise<Note | null>;
   importNotes(notes: ImportedNote[]): Promise<void>;
+
+  // Attachments — images and audio clips embedded in a note's body.
+  // uploadAttachment stores the file and returns its id; resolveAttachmentUrl
+  // turns that id back into something a browser can actually load into an
+  // <img>/<audio> tag (a public URL, an object URL, whatever fits the
+  // backend), called each time a note renders since none of the backends
+  // are guaranteed to hand back a URL that's valid forever.
+  uploadAttachment(file: File, kind: AttachmentKind): Promise<Attachment>;
+  resolveAttachmentUrl(id: string): Promise<string>;
 
   // Aggregates
   trackProgress(): Promise<Map<string, TrackProgress>>;

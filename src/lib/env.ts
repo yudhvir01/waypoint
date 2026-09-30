@@ -28,3 +28,19 @@ export const GOOGLE_TOKEN_RELAY_URL: string | null =
 // leaves these unset just doesn't show the option (same pattern as the
 // Supabase default project).
 export const GOOGLE_SIGNIN_ENABLED = GOOGLE_CLIENT_ID !== null && GOOGLE_TOKEN_RELAY_URL !== null;
+
+// Link previews need the same kind of decoupling from "whichever backend
+// this person happens to be on" that Google sign-in's token relay has:
+// a guest or Google Drive user has no connected Supabase project at all,
+// so tying the preview fetch to "the active project" would mean only
+// Supabase-mode users (with their own project, and the function deployed
+// to it) ever see one. Set explicitly via VITE_LINK_PREVIEW_URL to point
+// every user at one shared deployment regardless of their storage
+// backend; falling back to the baked-in default project's own function
+// (if there is one) covers the common case without needing a second
+// deployment target just for this. A Supabase-mode user with neither of
+// those configured still gets previews if they deploy the function to
+// their own project — see noteAttachments.tsx's fallback.
+export const LINK_PREVIEW_URL: string | null =
+  import.meta.env.VITE_LINK_PREVIEW_URL ||
+  (DEFAULT_SUPABASE_CONFIG ? `${DEFAULT_SUPABASE_CONFIG.url.replace(/\/$/, "")}/functions/v1/link-preview` : null);

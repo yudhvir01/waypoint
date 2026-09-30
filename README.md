@@ -20,10 +20,12 @@ Everything rolls up into one **Focus Now** list on the dashboard: the tasks that
 
 - **Three ways in** — try it as a guest with no account (data lives in this browser's IndexedDB only), connect your own Supabase project (paste a project ID and anon key, or bake one in via `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` so a deployment just works on every device), or sign in with Google (data lives as one file in a "Waypoint" folder in your own Drive — `drive.file` scope, so the app can never see anything else in your Drive). See [`docs/writebook/02-connecting-your-supabase-project.md`](docs/writebook/02-connecting-your-supabase-project.md).
 - **Google sign-in needs one-time setup of your own**: a Google Cloud OAuth client, and a tiny stateless Supabase Edge Function (`supabase/functions/google-token`) that holds the OAuth client secret so it never reaches the browser — see that function's header comment for the exact steps and required secrets.
-- **Guest → Supabase migration** — Settings offers a one-click "Move to Supabase" for guest data: connect a project, sign in, and every guest track is imported into the new account. Nothing local is touched unless you ask.
+- **Guest → Supabase or Google Drive migration** — Settings offers a one-click "Move to Supabase"/"Move to Google Drive" for guest data: connect (or sign in), and every guest track is imported into the new account. Nothing local is touched unless you ask.
 - **Tracks / Topics / Tasks** with row-level security — every row is scoped to `auth.uid()`, so a user can only ever see their own data.
 - **Focus Now** — overdue tasks first, then due-within-2-days, then by priority, sorted by due date within each tier.
 - **Markdown import** — write a whole track as `# Track / ## Topic / - [ ] Task #priority:high #due:2026-09-10` and import it in one shot, with a preview and non-fatal warnings for anything it can't parse. See [`docs/writebook/03-the-markdown-import-format.md`](docs/writebook/03-the-markdown-import-format.md).
+- **Image & audio attachments in notes** — insert a photo or a voice clip inline; each backend stores the file its own way (a Supabase Storage bucket, an IndexedDB blob for guest, a file in the Drive "Waypoint" folder) behind the same `uploadAttachment`/`resolveAttachmentUrl` pair on `Backend`.
+- **Link previews on paste** — pasting a bare URL into a note swaps it for a Signal-style card (title, description, image), fetched server-side by `supabase/functions/link-preview` since most sites block a browser from reading their own `<head>` cross-origin. Works the same on every backend (guest, Drive, Supabase) once that function is deployed and reachable — see `VITE_LINK_PREVIEW_URL` below. Without a reachable deployment, pasted links still work, just as plain links.
 - **In-app guide** at `/guide` — a sidebar-nav walkthrough of setup and every feature, so the docs ship with the app.
 - **Installable PWA** with light/dark theming.
 
@@ -38,10 +40,11 @@ npm install
 ### 2. Create a Supabase project and run the setup script
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor**, paste in the contents of [`supabase/setup.sql`](./supabase/setup.sql), and run it. This creates every table the app needs (`tracks`, `topics`, `tasks`, `topic_counts`), the indexes and helper functions the app's queries rely on, and locks it all down with row-level security so only you can read or write your own data.
+2. Open **SQL Editor**, paste in the contents of [`supabase/setup.sql`](./supabase/setup.sql), and run it. This creates every table the app needs (`tracks`, `topics`, `tasks`, `topic_counts`), the indexes and helper functions the app's queries rely on, a public `attachments` Storage bucket for note images/audio, and locks it all down with row-level security so only you can read or write your own data.
 
    The script is safe to re-run. **Already running an older Waypoint?** Re-run it after pulling — it migrates an existing database in place (adding ownership columns, indexes, and maintained progress counters) without touching your rows.
 3. Grab your **Project ID** (Settings → General) and **anon key** (Settings → API Keys).
+4. **(Optional) Deploy the link-preview function** so pasted links show a preview card: `supabase functions deploy link-preview --no-verify-jwt`. Nothing to configure — it's stateless and needs no secrets. Deploying it to the project behind `VITE_SUPABASE_URL` (the baked-in default, if you set one) makes it work for every visitor regardless of which backend they pick, guest and Google Drive included — those have no "connected project" of their own to reach a function through otherwise. Skip it and pasted links just stay plain links.
 
 The full walkthrough — including how to skip Supabase's email confirmation for a personal, single-user setup — lives in [`docs/writebook/02-connecting-your-supabase-project.md`](./docs/writebook/02-connecting-your-supabase-project.md), also served in-app at `/guide`.
 
@@ -82,7 +85,9 @@ src/
     ThemeToggle.tsx           Light/dark/system theme switcher
     RouteGuards.tsx           RequireAuth / RedirectIfAuthed, keyed off Backend presence
     SupabaseAuthPanel.tsx     Shared "pick a project, then log in" panel (Login + migration)
-    GuestMigrationDialog.tsx  Guest → Supabase one-click import
+    GuestMigrationDialog.tsx  Guest → Supabase/Drive one-click import
+    NoteEditor.tsx            TipTap rich text editor: formatting, attachments, link previews
+    noteAttachments.tsx       Custom TipTap nodes: image/audio attachments, link preview cards
   context/
     BackendProvider.tsx       Picks guest vs. Supabase, exposes the active Backend + session
     ThemeProvider.tsx         Light/dark theme state
@@ -96,8 +101,9 @@ src/
     backend/guestBackend.ts    Backend implementation over IndexedDB (via `idb`)
     backend/guestStore.ts      IndexedDB schema + persistence request
     supabaseClient.ts / supabaseConfig.ts   Client creation + localStorage config
-    env.ts                     Optional baked-in default Supabase project (VITE_ env vars)
+    env.ts                     Optional baked-in default Supabase project + LINK_PREVIEW_URL resolution (VITE_ env vars)
     markdownImport.ts          Markdown → track/topic/task parser
+    linkPreview.ts             Client for the link-preview Edge Function
     database.types.ts          Track/Topic/Task types
   pages/
     Login.tsx      Landing screen: guest / Supabase / Google
@@ -109,6 +115,9 @@ src/
   sw.ts            Custom service worker (precaches app assets)
 supabase/
   setup.sql              One-time schema + RLS setup for your Supabase project
+  functions/
+    google-token/        Relay for the Drive OAuth token exchange
+    link-preview/         Stateless URL-metadata fetcher for note link previews
 docs/
   writebook/       In-app guide content, served at /guide
 ```
@@ -117,6 +126,7 @@ docs/
 
 Core phases are built and verified against a live Supabase project, plus a local guest backend:
 
-1. **Storage backends** — guest mode (IndexedDB, no account), Supabase (bring-your-own project or a baked-in default), and Google Drive (one JSON file in a "Waypoint" folder, via a stateless OAuth token-relay Edge Function), all behind one `Backend` interface. A "Move to Supabase" flow migrates guest data in.
+1. **Storage backends** — guest mode (IndexedDB, no account), Supabase (bring-your-own project or a baked-in default), and Google Drive (one JSON file in a "Waypoint" folder, via a stateless OAuth token-relay Edge Function), all behind one `Backend` interface. A "Move to Supabase"/"Move to Google Drive" flow migrates guest data in.
 2. **Tracks, Topics, Tasks & Focus Now** — the core tracking model, on either backend.
 3. **Markdown import** — bulk-create a track from a `.md` file.
+4. **Note attachments & link previews** — images/audio embedded in a note's body on all three backends, and Signal-style link preview cards on paste (needs the `link-preview` Edge Function deployed; degrades to a plain link without it).

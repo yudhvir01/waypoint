@@ -109,6 +109,42 @@ export async function createDataFile(
   return { fileId: created.id, headRevisionId: created.headRevisionId, content };
 }
 
+// Uploads an attachment (image/audio) as its own file in the Waypoint
+// folder, alongside the data file — unlike the data file, each one is
+// created fresh and never overwritten, so there's no revision to track.
+export async function uploadBinaryFile(
+  session: GoogleDriveSession,
+  folderId: string,
+  name: string,
+  mimeType: string,
+  data: Blob,
+): Promise<string> {
+  const boundary = crypto.randomUUID();
+  const metadata = { name, mimeType, parents: [folderId] };
+  const head = new TextEncoder().encode(
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+      `--${boundary}\r\nContent-Type: ${mimeType || "application/octet-stream"}\r\n\r\n`,
+  );
+  const tail = new TextEncoder().encode(`\r\n--${boundary}--`);
+  const body = new Blob([head, data, tail]);
+
+  const res = await driveFetch(session, `${DRIVE_UPLOAD_API}?uploadType=multipart&fields=id`, {
+    method: "POST",
+    headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
+    body,
+  });
+  const created = (await res.json()) as { id: string };
+  return created.id;
+}
+
+// Downloads an attachment's raw bytes so the caller can turn it into an
+// object URL — Drive never hands back a URL that's loadable without an
+// access token, so there's no way around fetching the content itself.
+export async function downloadBinaryFile(session: GoogleDriveSession, fileId: string): Promise<Blob> {
+  const res = await driveFetch(session, `${DRIVE_API}/${fileId}?alt=media`);
+  return await res.blob();
+}
+
 // Overwrites the data file's content. `expectedRevisionId` is the
 // revision this write's caller last read — if the file has moved on
 // since (another tab or device saved), the update is rejected with

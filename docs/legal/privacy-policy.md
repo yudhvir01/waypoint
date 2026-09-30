@@ -52,6 +52,25 @@ authentication (email and password).
   is enabled so that, through the app itself, you can only ever see your own
   rows — no other user's data is ever exposed to you, or to another user.
 
+Images and audio you attach to a note are stored the same way as the rest of
+your data for whichever backend you're on: in a Supabase Storage bucket (a
+public bucket, so the app can load them without a session — the file path
+includes a random id, so it's only reachable by someone who already has the
+link), as a file in your Drive "Waypoint" folder, or as a blob in this
+browser's IndexedDB for guest mode.
+
+### Link previews
+
+Pasting a bare link into a note fetches that page's title, description, and
+image so it can show a preview card, the same way messaging apps do. That
+fetch happens server-side, in `supabase/functions/link-preview` — deployed
+independently of which backend you're on (guest, Drive, or Supabase), so
+this doesn't depend on you personally having a Supabase project — the URL
+you pasted is sent to that function, which requests it and returns only the
+page's metadata. No history of what you've pasted is kept by that function.
+If this deployment hasn't set one up, pasted links are left as plain links
+and nothing is fetched.
+
 ### Google Drive
 
 Signing in with Google uses the `drive.file` scope, not full Drive access —

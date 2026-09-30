@@ -7,19 +7,30 @@ import type { Note, Task, Topic, Track } from "../database.types";
 // don't need an optional field just for this backend.
 export const GUEST_USER_ID = "guest";
 
+export interface GuestAttachment {
+  id: string;
+  blob: Blob;
+  name: string;
+  contentType: string;
+}
+
 interface GuestDB extends DBSchema {
   tracks: { key: string; value: Track; indexes: { status: string } };
   topics: { key: string; value: Topic; indexes: { trackId: string } };
   tasks: { key: string; value: Task; indexes: { topicId: string; trackId: string } };
   notes: { key: string; value: Note; indexes: { taskId: string } };
+  attachments: { key: string; value: GuestAttachment };
 }
 
 let dbPromise: Promise<IDBPDatabase<GuestDB>> | null = null;
 
 export function getGuestDB(): Promise<IDBPDatabase<GuestDB>> {
   if (!dbPromise) {
-    dbPromise = openDB<GuestDB>("waypoint-guest", 2, {
+    dbPromise = openDB<GuestDB>("waypoint-guest", 3, {
       upgrade(db, oldVersion) {
+        // v2 -> v3 only adds attachments; existing stores are untouched.
+        if (oldVersion < 3) db.createObjectStore("attachments", { keyPath: "id" });
+        if (oldVersion >= 2) return;
         const notes = db.createObjectStore("notes", { keyPath: "id" });
         notes.createIndex("taskId", "task_id");
         // v1 -> v2 only adds notes; existing stores are untouched.
@@ -70,12 +81,13 @@ export async function hasAnyGuestData(): Promise<boolean> {
 // backend after migrating their data, or explicitly asks to start over.
 export async function clearGuestData(): Promise<void> {
   const db = await getGuestDB();
-  const tx = db.transaction(["tracks", "topics", "tasks", "notes"], "readwrite");
+  const tx = db.transaction(["tracks", "topics", "tasks", "notes", "attachments"], "readwrite");
   await Promise.all([
     tx.objectStore("tracks").clear(),
     tx.objectStore("topics").clear(),
     tx.objectStore("tasks").clear(),
     tx.objectStore("notes").clear(),
+    tx.objectStore("attachments").clear(),
   ]);
   await tx.done;
 }

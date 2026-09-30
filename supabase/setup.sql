@@ -92,6 +92,42 @@ drop table if exists public.push_subscriptions;
 drop table if exists public.reminder_prefs;
 
 -- ---------------------------------------------------------------------
+-- Attachments — images and audio clips embedded in a note's body.
+--
+-- Public bucket: an <img>/<audio> tag needs a URL it can just load, and
+-- the app never has a session to spare for signing one on every render.
+-- Every object still lives under a path stamped with its owner's user
+-- id, and the write-side policies below only let you write under your
+-- own — the public flag only affects *reads*, and the path segment is an
+-- unguessable uuid, not a browsable listing.
+-- ---------------------------------------------------------------------
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'attachments',
+  'attachments',
+  true,
+  26214400, -- 25 MiB
+  array[
+    'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml',
+    'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/webm', 'audio/x-m4a'
+  ]
+)
+on conflict (id) do update
+  set public = excluded.public,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "attachments_owner_write" on storage.objects;
+create policy "attachments_owner_write" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'attachments' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+drop policy if exists "attachments_owner_delete" on storage.objects;
+create policy "attachments_owner_delete" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'attachments' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+-- ---------------------------------------------------------------------
 -- Denormalized ownership
 --
 -- topics and tasks each carry their owner's user_id. It is redundant with

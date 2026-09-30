@@ -4,6 +4,8 @@ import { GUEST_USER_ID, getGuestDB, newGuestId, nowIso } from "./guestStore";
 import { buildNoteContext, newNote, newestFirst } from "./localNotes";
 import { computeTopicProgress, computeTrackProgress, rankFocusTasks, topicStatusChanges } from "./localRanking";
 import {
+  type Attachment,
+  type AttachmentKind,
   type Backend,
   type CreateTaskInput,
   type FocusTask,
@@ -19,6 +21,13 @@ import {
 // server, so nothing here ever leaves the device.
 export class GuestBackend implements Backend {
   readonly kind = "guest" as const;
+
+  // resolveAttachmentUrl hands the note editor an object URL, which is
+  // only ever valid for this tab's lifetime — recreating one on every
+  // re-render would leak a blob URL each time, so each id's URL is made
+  // once and reused for as long as this backend instance lives (which is
+  // the whole session — see BackendProvider's useMemo).
+  private readonly attachmentUrls = new Map<string, string>();
 
   async listTracks(status: TrackStatus): Promise<Track[]> {
     const db = await getGuestDB();
@@ -232,6 +241,24 @@ export class GuestBackend implements Backend {
     for (const n of notes) await this.createNote(n);
   }
 
+  async uploadAttachment(file: File, kind: AttachmentKind): Promise<Attachment> {
+    const db = await getGuestDB();
+    const id = newGuestId();
+    await db.put("attachments", { id, blob: file, name: file.name, contentType: file.type });
+    return { id, kind, name: file.name, contentType: file.type };
+  }
+
+  async resolveAttachmentUrl(id: string): Promise<string> {
+    const cached = this.attachmentUrls.get(id);
+    if (cached) return cached;
+    const db = await getGuestDB();
+    const row = await db.get("attachments", id);
+    if (!row) throw new Error("That attachment no longer exists.");
+    const url = URL.createObjectURL(row.blob);
+    this.attachmentUrls.set(id, url);
+    return url;
+  }
+
   async trackProgress(): Promise<Map<string, TrackProgress>> {
     const db = await getGuestDB();
     const [tracks, tasks] = await Promise.all([db.getAll("tracks"), db.getAll("tasks")]);
@@ -297,10 +324,18 @@ export class GuestBackend implements Backend {
     return track.id;
   }
 
-  // Used by the "move to Supabase" migration in Settings — every guest
-  // track, restated as the shape importTrack() already knows how to
-  // consume, so migrating is "read these, import_track() each one" rather
-  // than a second data-shuffling path to maintain.
+  // Used by the "move to Supabase"/"move to Google Drive" migration in
+  // Settings — every guest track, restated as the shape importTrack()
+  // already knows how to consume, so migrating is "read these,
+  // import_track() each one" rather than a second data-shuffling path to
+  // maintain.
+  //
+  // Known gap: a note's HTML can reference attachment ids that only
+  // exist in this guest's IndexedDB (see uploadAttachment/
+  // resolveAttachmentUrl). Those ids carry over verbatim into the new
+  // backend's copy of the note, where they don't resolve to anything —
+  // the attachment node just shows "couldn't load" after migrating. Text
+  // content migrates cleanly either way; only embedded files are lost.
   async exportAllNotes(): Promise<ImportedNote[]> {
     const db = await getGuestDB();
     const notes = await db.getAll("notes");

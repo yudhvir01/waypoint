@@ -36,12 +36,30 @@ needs and locks them down so only you can read or write your own data.
 
 You should see a success message. If you ever want to double-check it worked, open
 **Table Editor** — you should see `tracks`, `topics`, `tasks`, and `topic_counts`
-listed.
+listed. It also creates a public `attachments` bucket (for images/audio you attach
+to a note), which shows up under **Storage**, not Table Editor.
 
 The script is safe to run more than once, so if you update Waypoint later, just
 paste the newest version of the file in and run it again. It brings an existing
 database up to date — adding columns, indexes and helper functions — without
 touching the tracks and tasks you've already written.
+
+**Optional — link previews on paste:** pasting a bare URL into a note only turns
+into a preview card (title, description, image) if `supabase/functions/link-preview`
+is deployed. From the repository, with the [Supabase CLI](https://supabase.com/docs/guides/cli)
+linked to your project: `supabase functions deploy link-preview --no-verify-jwt`.
+It's stateless and needs no secrets. Skipping this just leaves pasted links as
+plain links — nothing else in the app depends on it.
+
+This function isn't tied to whoever's connected project it lives on — the app
+calls it the same way regardless of which backend someone's using. If you're
+running your own deployment of Waypoint (not just using it against your own
+data), deploy it to the project behind `VITE_SUPABASE_URL` (or set
+`VITE_LINK_PREVIEW_URL` to point at wherever you deployed it) so link previews
+work for every visitor, including guest and Google Drive users, who have no
+Supabase project of their own to deploy it to. Deploying it only to *your own*
+bring-your-own project makes it work for you, in Supabase mode, and no one
+else.
 
 ## 3. Get your project ID and anon key
 
