@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useBackend } from "../context/BackendProvider";
+import { BinIcon } from "./BinIcon";
+import { useCreateNote, useDeleteNote, useNotes } from "../hooks/useNotes";
 import { useTracks } from "../hooks/useTracks";
 import { useTrackProgress } from "../hooks/useTrackProgress";
 import { LogoMark } from "./Logo";
@@ -34,6 +36,14 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
   const { mode, ownerLabel, signOut } = useBackend();
   const { data: tracks } = useTracks();
   const { data: progress } = useTrackProgress();
+  const { data: notes } = useNotes();
+  const createNote = useCreateNote();
+  const deleteNote = useDeleteNote();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  // Notes attached to a task live on that task; the sidebar lists only
+  // free-standing ones.
+  const standaloneNotes = notes?.filter((n) => !n.task_id);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [guestBannerDismissed, setGuestBannerDismissed] = useState(
@@ -94,8 +104,8 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
 
       <div className="mx-auto flex w-full max-w-6xl flex-1">
         <aside
-          className={`fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 -translate-x-full flex-col overflow-y-auto border-r border-border bg-card px-5 py-7 transition-transform duration-200 md:static md:z-auto md:w-64 md:translate-x-0 ${
-            mobileNavOpen ? "translate-x-0" : ""
+          className={`fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 flex-col overflow-y-auto border-r border-border bg-card px-5 py-7 transition-transform duration-200 md:static md:z-auto md:w-64 md:translate-x-0 ${
+            mobileNavOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
           <div className="flex items-center justify-between">
@@ -140,6 +150,57 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
             })}
             {tracks?.length === 0 && (
               <p className="px-3 text-sm text-muted-foreground">No tracks yet</p>
+            )}
+          </div>
+
+          <div className="mt-8 flex flex-col gap-0.5">
+            <div className="flex items-center justify-between px-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Notes
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  const note = await createNote.mutateAsync();
+                  setMobileNavOpen(false);
+                  navigate(`/notes/${note.id}`);
+                }}
+                disabled={createNote.isPending}
+                aria-label="New note"
+                title="New note"
+                className="rounded p-0.5 text-lg leading-none text-muted-foreground transition-colors hover:text-primary disabled:opacity-60"
+              >
+                +
+              </button>
+            </div>
+            {standaloneNotes?.map((note) => (
+              <div
+                key={note.id}
+                className="group flex items-center rounded-md transition-colors hover:bg-accent"
+              >
+                <Link
+                  to={`/notes/${note.id}`}
+                  onClick={() => setMobileNavOpen(false)}
+                  className="min-w-0 flex-1 truncate px-3 py-1.5 text-[15px] text-muted-foreground group-hover:text-foreground"
+                >
+                  {note.title || "Untitled"}
+                </Link>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await deleteNote.mutateAsync(note.id);
+                    if (pathname === `/notes/${note.id}`) navigate("/", { replace: true });
+                  }}
+                  aria-label={`Delete note ${note.title || "Untitled"}`}
+                  title="Delete note"
+                  className="mr-2 shrink-0 rounded p-1 text-muted-foreground/60 transition-colors hover:text-destructive"
+                >
+                  <BinIcon size={14} />
+                </button>
+              </div>
+            ))}
+            {standaloneNotes?.length === 0 && (
+              <p className="px-3 text-sm text-muted-foreground">No notes yet</p>
             )}
           </div>
 

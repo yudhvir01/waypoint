@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { SchedulePopover } from "../components/SchedulePopover";
 import { ActionMenu } from "../components/ActionMenu";
@@ -321,11 +321,13 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
           instead of forcing the whole row wider than the screen — the
           default flex behavior is to protect a text node's full
           unwrapped width. */}
-      <span
-        className={`min-w-0 flex-1 truncate text-[15px] ${task.done ? "text-muted-foreground line-through" : ""}`}
+      <Link
+        to={`/tasks/${task.id}/note`}
+        title="Open notes for this task"
+        className={`min-w-0 flex-1 truncate text-[15px] hover:text-primary hover:underline ${task.done ? "text-muted-foreground line-through" : ""}`}
       >
         {task.title}
-      </span>
+      </Link>
       {task.due_date && (
         <span className="shrink-0 text-xs text-muted-foreground">
           {new Date(task.due_date).toLocaleDateString()}

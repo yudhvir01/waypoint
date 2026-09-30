@@ -17,6 +17,12 @@ import { Archived } from "./pages/Archived";
 // Loading it lazily keeps roughly half a megabyte out of the entry chunk
 // that every signed-in page has to download first.
 const Guide = lazy(() => import("./pages/Guide").then((m) => ({ default: m.Guide })));
+// The note editor (ProseMirror) is the heaviest dependency in the app, so
+// notes load on demand rather than with the dashboard.
+const NotePage = lazy(() => import("./pages/NotePage").then((m) => ({ default: m.NotePage })));
+const TaskNoteRedirect = lazy(() =>
+  import("./pages/NotePage").then((m) => ({ default: m.TaskNoteRedirect })),
+);
 const PrivacyPolicy = lazy(() =>
   import("./pages/PrivacyPolicy").then((m) => ({ default: m.PrivacyPolicy })),
 );
@@ -101,6 +107,22 @@ function App() {
                   <Route path="/tracks/:trackId" element={<TrackDetail />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/archived" element={<Archived />} />
+                  <Route
+                    path="/notes/:noteId"
+                    element={
+                      <Suspense fallback={null}>
+                        <NotePage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/tasks/:taskId/note"
+                    element={
+                      <Suspense fallback={null}>
+                        <TaskNoteRedirect />
+                      </Suspense>
+                    }
+                  />
                 </Route>
                 {/* Anything else — a typo'd URL, an old bookmark, a
                     removed page — lands on the dashboard if signed in,

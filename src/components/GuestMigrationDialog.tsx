@@ -4,6 +4,7 @@ import { useBackend } from "../context/BackendProvider";
 import { SupabaseAuthPanel } from "./SupabaseAuthPanel";
 import { GuestBackend } from "../lib/backend/guestBackend";
 import { clearGuestData } from "../lib/backend/guestStore";
+import type { ImportedNote } from "../lib/backend/types";
 import type { ParsedImport } from "../lib/markdownImport";
 
 // Guest data and the newly-connected Supabase account are two different
@@ -16,6 +17,7 @@ export function GuestMigrationDialog({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const [step, setStep] = useState<"connect" | "import" | "done">("connect");
   const [pending, setPending] = useState<ParsedImport[] | null>(null);
+  const [pendingNotes, setPendingNotes] = useState<ImportedNote[]>([]);
   const [imported, setImported] = useState(0);
   const [failed, setFailed] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
@@ -23,7 +25,9 @@ export function GuestMigrationDialog({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     if (step !== "import" || pending) return;
-    new GuestBackend().exportAllAsImports().then(setPending);
+    const guest = new GuestBackend();
+    guest.exportAllNotes().then(setPendingNotes);
+    guest.exportAllAsImports().then(setPending);
   }, [step, pending]);
 
   async function runImport() {
@@ -39,6 +43,13 @@ export function GuestMigrationDialog({ onClose }: { onClose: () => void }) {
       } catch {
         failures.push(parsed.trackName);
       }
+    }
+    // Task notes come across as standalone notes titled with their task —
+    // the tasks get new ids on the other side, so the link can't survive.
+    try {
+      await backend.importNotes(pendingNotes);
+    } catch {
+      failures.push("Notes");
     }
     setFailed(failures);
     if (failures.length === 0 && clearAfter) {
@@ -67,10 +78,10 @@ export function GuestMigrationDialog({ onClose }: { onClose: () => void }) {
             <h2 className="text-lg font-semibold">Move your guest tracks</h2>
             {!pending ? (
               <p className="mt-3 text-sm text-muted-foreground">Reading your guest data…</p>
-            ) : pending.length === 0 ? (
+            ) : pending.length === 0 && pendingNotes.length === 0 ? (
               <>
                 <p className="mt-3 text-sm text-muted-foreground">
-                  No guest tracks found — you're all set on Supabase already.
+                  No guest tracks or notes found — you're all set on Supabase already.
                 </p>
                 <button
                   type="button"
@@ -83,8 +94,10 @@ export function GuestMigrationDialog({ onClose }: { onClose: () => void }) {
             ) : (
               <>
                 <p className="mt-3 text-sm text-muted-foreground">
-                  Found {pending.length} guest track{pending.length === 1 ? "" : "s"} in this
-                  browser. Importing copies them into your Supabase account — nothing here is
+                  Found {pending.length} guest track{pending.length === 1 ? "" : "s"}
+                  {pendingNotes.length > 0 &&
+                    ` and ${pendingNotes.length} note${pendingNotes.length === 1 ? "" : "s"}`}{" "}
+                  in this browser. Importing copies them into your Supabase account — nothing here is
                   touched until you confirm.
                 </p>
                 <label className="mt-4 flex items-center gap-2 text-sm">
@@ -116,7 +129,7 @@ export function GuestMigrationDialog({ onClose }: { onClose: () => void }) {
                     disabled={importing}
                     className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
                   >
-                    {importing ? "Importing…" : `Import ${pending.length} track${pending.length === 1 ? "" : "s"}`}
+                    {importing ? "Importing…" : "Import"}
                   </button>
                 </div>
               </>
