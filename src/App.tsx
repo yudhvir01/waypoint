@@ -6,6 +6,7 @@ import { BackendProvider } from "./context/BackendProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ThemeProvider } from "./context/ThemeProvider";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { NativeAppLifecycle } from "./components/NativeAppLifecycle";
 import { RequireAuth, RedirectIfAuthed, NotFoundRedirect } from "./components/RouteGuards";
 import { Login } from "./pages/Login";
 import { GoogleCallback } from "./pages/GoogleCallback";
@@ -58,7 +59,14 @@ function App() {
         <QueryClientProvider client={queryClient}>
           <BackendProvider>
             <BrowserRouter>
-              <div className="fixed right-4 top-4 z-50">
+              <NativeAppLifecycle />
+              <div
+                className="fixed z-50"
+                style={{
+                  right: "calc(1rem + env(safe-area-inset-right))",
+                  top: "calc(1rem + env(safe-area-inset-top))",
+                }}
+              >
                 <ThemeToggle />
               </div>
               <Routes>

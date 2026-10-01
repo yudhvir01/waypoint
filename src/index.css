@@ -98,6 +98,26 @@ body {
   font-family: 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
+/* Capacitor renders edge-to-edge on modern phones. These variables keep
+   fixed controls and page content clear of notches and home indicators,
+   while resolving to zero in ordinary browsers. */
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+}
+
+/* Tailwind's min-h-screen is viewport-sized without accounting for the
+   safe-area padding above. Subtract it so full-screen pages do not gain
+   a permanent extra strip of scroll on notched devices. */
+#root .min-h-screen {
+  min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+
 /* Light/dark toggle transition: a circle wipe expanding from the clicked
    toggle button, driven by the View Transitions API (see ThemeToggle).
    Browsers without support just swap instantly — no animation, no error. */

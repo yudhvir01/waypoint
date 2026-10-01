@@ -4,7 +4,11 @@ import { AppShell } from "../components/AppShell";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { GuestMigrationDialog } from "../components/GuestMigrationDialog";
 import { useBackend } from "../context/BackendProvider";
-import { buildGoogleAuthUrl, GOOGLE_MIGRATION_KEY } from "../lib/backend/googleAuth";
+import {
+  clearGoogleMigration,
+  markGoogleMigration,
+  startGoogleSignIn,
+} from "../lib/backend/googleAuth";
 import { GOOGLE_SIGNIN_ENABLED } from "../lib/env";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -136,6 +140,7 @@ export function Settings() {
   const location = useLocation();
   const navigate = useNavigate();
   const [migrating, setMigrating] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
 
   // Google sign-in is a full-page redirect, so a "Move to Google Drive"
   // click can't stay inside GuestMigrationDialog the way Supabase's
@@ -153,9 +158,15 @@ export function Settings() {
     }
   }, [resumeMigration, mode, navigate, location.pathname]);
 
-  function handleMigrateGoogle() {
-    sessionStorage.setItem(GOOGLE_MIGRATION_KEY, "1");
-    window.location.href = buildGoogleAuthUrl();
+  async function handleMigrateGoogle() {
+    markGoogleMigration();
+    setGoogleError(null);
+    try {
+      await startGoogleSignIn();
+    } catch (error) {
+      clearGoogleMigration();
+      setGoogleError(error instanceof Error ? error.message : "Couldn't start Google sign-in.");
+    }
   }
 
   return (
@@ -168,6 +179,7 @@ export function Settings() {
         </Section>
 
         <DatabaseSection onMigrate={() => setMigrating(true)} onMigrateGoogle={handleMigrateGoogle} />
+        {googleError && <p className="mt-3 text-sm text-destructive">{googleError}</p>}
       </div>
 
       {migrating && <GuestMigrationDialog onClose={() => setMigrating(false)} />}

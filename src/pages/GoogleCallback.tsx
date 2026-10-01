@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Logo } from "../components/Logo";
 import { useBackend } from "../context/BackendProvider";
-import { completeGoogleSignIn, consumeGoogleOAuthState, GOOGLE_MIGRATION_KEY } from "../lib/backend/googleAuth";
+import {
+  clearGoogleMigration,
+  completeGoogleSignIn,
+  consumeGoogleMigration,
+  consumeGoogleOAuthState,
+} from "../lib/backend/googleAuth";
 
 // Where Google sends the browser back to after the consent screen (see
 // googleRedirectUri() — this path has to match what's registered as an
@@ -20,6 +25,7 @@ export function GoogleCallback() {
   useEffect(() => {
     const oauthError = params.get("error");
     if (oauthError) {
+      clearGoogleMigration();
       setError(
         oauthError === "access_denied"
           ? "Sign-in was cancelled."
@@ -30,6 +36,7 @@ export function GoogleCallback() {
 
     const code = params.get("code");
     if (!code || !consumeGoogleOAuthState(params.get("state"))) {
+      clearGoogleMigration();
       setError("Couldn't verify this sign-in request — please try again.");
       return;
     }
@@ -41,8 +48,7 @@ export function GoogleCallback() {
         adoptSession(session);
         // One-time flag: cleared as soon as it's read, whether or not it
         // was set, so a replayed callback URL can't re-trigger it.
-        const resumeMigration = sessionStorage.getItem(GOOGLE_MIGRATION_KEY) === "1";
-        sessionStorage.removeItem(GOOGLE_MIGRATION_KEY);
+        const resumeMigration = consumeGoogleMigration();
         if (resumeMigration) {
           navigate("/settings", { replace: true, state: { resumeMigration: true } });
         } else {
@@ -51,6 +57,7 @@ export function GoogleCallback() {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
+        clearGoogleMigration();
         setError(err instanceof Error ? err.message : "Google sign-in failed.");
       });
     return () => {

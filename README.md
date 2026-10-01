@@ -28,6 +28,7 @@ Everything rolls up into one **Focus Now** list on the dashboard: the tasks that
 - **Link previews on paste** — pasting a bare URL into a note swaps it for a Signal-style card (title, description, image), fetched server-side by `supabase/functions/link-preview` since most sites block a browser from reading their own `<head>` cross-origin. Works the same on every backend (guest, Drive, Supabase) once that function is deployed and reachable — see `VITE_LINK_PREVIEW_URL` below. Without a reachable deployment, pasted links still work, just as plain links.
 - **In-app guide** at `/guide` — a sidebar-nav walkthrough of setup and every feature, so the docs ship with the app.
 - **Installable PWA** with light/dark theming.
+- **Native Android and iOS shells** through Capacitor 8, using the same React app and storage backends. See [`docs/mobile.md`](docs/mobile.md).
 
 ## Getting started
 
@@ -62,6 +63,10 @@ Open the app — the login screen lets you try it as a guest immediately, or con
 | ------------------ | ----------------------------------- |
 | `npm run dev`       | Start the Vite dev server            |
 | `npm run build`     | Type-check and build for production  |
+| `npm run build:native` | Type-check and build native web assets without the PWA service worker |
+| `npm run cap:sync` | Build and sync web assets/plugins into Android and iOS |
+| `npm run cap:android` / `cap:ios` | Sync and open the corresponding native project |
+| `npm run cap:run:android` / `cap:run:ios` | Sync, build, and run on a selected device or simulator |
 | `npm run preview`   | Preview the production build locally |
 | `npm run lint`      | Run Oxlint                           |
 
@@ -74,6 +79,7 @@ Open the app — the login screen lets you try it as a guest immediately, or con
 - [React Router](https://reactrouter.com)
 - [Google Drive API](https://developers.google.com/drive) (`drive.file` scope) + [Google Identity](https://developers.google.com/identity) OAuth for the Drive backend
 - Installable as a PWA via [vite-plugin-pwa](https://vite-pwa-org.netlify.app) (`injectManifest` strategy, via a custom service worker built with [Workbox](https://developer.chrome.com/docs/workbox))
+- [Capacitor 8](https://capacitorjs.com) for the Android and iOS application shells
 
 ## Project structure
 

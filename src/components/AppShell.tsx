@@ -89,7 +89,11 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
         type="button"
         onClick={() => setMobileNavOpen(true)}
         aria-label="Open menu"
-        className="fixed left-4 top-4 z-30 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm md:hidden"
+        className="fixed z-30 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm md:hidden"
+        style={{
+          left: "calc(1rem + env(safe-area-inset-left))",
+          top: "calc(1rem + env(safe-area-inset-top))",
+        }}
       >
         <MenuIcon />
       </button>

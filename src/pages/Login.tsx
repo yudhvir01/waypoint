@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useBackend } from "../context/BackendProvider";
 import { SupabaseAuthPanel } from "../components/SupabaseAuthPanel";
 import { Logo } from "../components/Logo";
-import { buildGoogleAuthUrl } from "../lib/backend/googleAuth";
+import { startGoogleSignIn } from "../lib/backend/googleAuth";
 import { GOOGLE_SIGNIN_ENABLED } from "../lib/env";
 
 function GoogleIcon() {
@@ -53,18 +53,24 @@ export function Login() {
   const { loginAsGuest } = useBackend();
   const navigate = useNavigate();
   const [view, setView] = useState<View>("landing");
+  const [googleError, setGoogleError] = useState<string | null>(null);
 
   function handleGuest() {
     loginAsGuest();
     navigate("/", { replace: true });
   }
 
-  function handleGoogle() {
+  async function handleGoogle() {
     // A full-page redirect, not a popup — Google's OAuth code flow
     // (needed to get a refresh_token back through the relay) redirects
     // back to /auth/google/callback with the result rather than posting
     // a message to an opener window.
-    window.location.href = buildGoogleAuthUrl();
+    setGoogleError(null);
+    try {
+      await startGoogleSignIn();
+    } catch (error) {
+      setGoogleError(error instanceof Error ? error.message : "Couldn't start Google sign-in.");
+    }
   }
 
   return (
@@ -95,6 +101,8 @@ export function Login() {
                 </span>
               </span>
             </button>
+
+            {googleError && <p className="text-sm text-destructive">{googleError}</p>}
 
             <button
               type="button"

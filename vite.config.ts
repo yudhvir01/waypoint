@@ -4,11 +4,14 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     tailwindcss(),
-    VitePWA({
+    // A native bundle is copied into the app and does not need a service
+    // worker. Keeping it web-only avoids a second cache layer that can
+    // serve stale assets after a native app update.
+    mode !== 'capacitor' && VitePWA({
       registerType: 'autoUpdate',
       strategies: 'injectManifest',
       srcDir: 'src',
@@ -32,5 +35,5 @@ export default defineConfig({
         ],
       },
     }),
-  ],
-})
+  ].filter(Boolean),
+}))

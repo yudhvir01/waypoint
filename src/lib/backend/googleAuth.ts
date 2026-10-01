@@ -1,4 +1,6 @@
-import { GOOGLE_CLIENT_ID, GOOGLE_TOKEN_RELAY_URL } from "../env";
+import { Browser } from "@capacitor/browser";
+import { Capacitor } from "@capacitor/core";
+import { GOOGLE_CLIENT_ID, GOOGLE_REDIRECT_URI, GOOGLE_TOKEN_RELAY_URL } from "../env";
 import { clearDriveSession, loadDriveSession, saveDriveSession } from "./driveAuthStore";
 
 // drive.file: the app can only see/create files it makes itself (or that
@@ -12,9 +14,38 @@ const STATE_KEY = "waypoint.googleOAuthState";
 // (rather than signing in fresh) — checked by GoogleCallback once the
 // redirect comes back, so it can send the browser to Settings' import
 // dialog instead of the dashboard. One-time use, like STATE_KEY.
-export const GOOGLE_MIGRATION_KEY = "waypoint.googleMigration";
+const GOOGLE_MIGRATION_KEY = "waypoint.googleMigration";
+
+// A native app can be evicted from memory while the system browser owns
+// the screen. localStorage survives that cold start; sessionStorage is
+// preferable on the web because it keeps simultaneous tabs isolated.
+function oauthStorage(): Storage {
+  return Capacitor.isNativePlatform() ? localStorage : sessionStorage;
+}
+
+export function markGoogleMigration(): void {
+  oauthStorage().setItem(GOOGLE_MIGRATION_KEY, "1");
+}
+
+export function clearGoogleMigration(): void {
+  oauthStorage().removeItem(GOOGLE_MIGRATION_KEY);
+}
+
+export function consumeGoogleMigration(): boolean {
+  const shouldResume = oauthStorage().getItem(GOOGLE_MIGRATION_KEY) === "1";
+  clearGoogleMigration();
+  return shouldResume;
+}
 
 export function googleRedirectUri(): string {
+  if (Capacitor.isNativePlatform()) {
+    if (!GOOGLE_REDIRECT_URI?.startsWith("https://")) {
+      throw new Error(
+        "Google sign-in on mobile needs VITE_GOOGLE_REDIRECT_URI set to an HTTPS App Link.",
+      );
+    }
+    return GOOGLE_REDIRECT_URI;
+  }
   return `${window.location.origin}/auth/google/callback`;
 }
 
@@ -28,7 +59,7 @@ export function googleRedirectUri(): string {
 export function buildGoogleAuthUrl(): string {
   if (!GOOGLE_CLIENT_ID) throw new Error("Google sign-in is not configured.");
   const state = crypto.randomUUID();
-  sessionStorage.setItem(STATE_KEY, state);
+  oauthStorage().setItem(STATE_KEY, state);
 
   const params = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
@@ -42,11 +73,22 @@ export function buildGoogleAuthUrl(): string {
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
 }
 
+export async function startGoogleSignIn(): Promise<void> {
+  const url = buildGoogleAuthUrl();
+  if (Capacitor.isNativePlatform()) {
+    // Google forbids OAuth in embedded WebViews. Capacitor Browser uses a
+    // secure system browser surface (Custom Tabs / SFSafariViewController).
+    await Browser.open({ url });
+    return;
+  }
+  window.location.assign(url);
+}
+
 // One-time use: cleared as soon as it's checked, whether or not it
 // matched, so a replayed callback URL can't be verified twice.
 export function consumeGoogleOAuthState(receivedState: string | null): boolean {
-  const expected = sessionStorage.getItem(STATE_KEY);
-  sessionStorage.removeItem(STATE_KEY);
+  const expected = oauthStorage().getItem(STATE_KEY);
+  oauthStorage().removeItem(STATE_KEY);
   return !!expected && !!receivedState && expected === receivedState;
 }
 

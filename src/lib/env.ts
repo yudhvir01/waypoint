@@ -24,6 +24,12 @@ export const GOOGLE_CLIENT_ID: string | null = import.meta.env.VITE_GOOGLE_CLIEN
 export const GOOGLE_TOKEN_RELAY_URL: string | null =
   import.meta.env.VITE_GOOGLE_TOKEN_RELAY_URL || null;
 
+// Native OAuth returns through an HTTPS Universal Link / Android App
+// Link owned by this deployment. It must also be registered as an
+// authorized redirect URI on the Google OAuth client. Web builds can
+// continue deriving the callback from window.location.origin.
+export const GOOGLE_REDIRECT_URI: string | null = import.meta.env.VITE_GOOGLE_REDIRECT_URI || null;
+
 // Google sign-in is only offered when both are configured — a build that
 // leaves these unset just doesn't show the option (same pattern as the
 // Supabase default project).

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Waypoint</string>
+    <string name="title_activity_main">Waypoint</string>
+    <string name="package_name">com.yudhvirsingh.waypoint</string>
+    <string name="custom_url_scheme">com.yudhvirsingh.waypoint</string>
+</resources>
