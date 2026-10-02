@@ -135,6 +135,58 @@ function ImageAttachmentView({ node, deleteNode, updateAttributes }: NodeViewPro
     window.addEventListener("pointerup", onUp);
   }
 
+  // Two-finger pinch on touch screens, where the hover-only drag handle
+  // above never shows. touch-action on the <img> (below) opts it out of
+  // the browser's own page-zoom gesture so these events arrive intact,
+  // while one-finger scrolling still works.
+  const updateRef = useRef(updateAttributes);
+  useEffect(() => {
+    updateRef.current = updateAttributes;
+  }, [updateAttributes]);
+
+  useEffect(() => {
+    const img = imgRef.current;
+    if (!img) return;
+    let startDist = 0;
+    let startWidth = 0;
+    let maxWidth = 0;
+    let current = 0;
+
+    const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+
+    function onStart(e: TouchEvent) {
+      if (e.touches.length !== 2 || !img) return;
+      startDist = dist(e.touches);
+      startWidth = img.getBoundingClientRect().width;
+      const container = img.closest(".ProseMirror") as HTMLElement | null;
+      maxWidth = container ? container.getBoundingClientRect().width : startWidth * 3;
+      current = startWidth;
+    }
+    function onMove(e: TouchEvent) {
+      if (e.touches.length !== 2 || !startDist) return;
+      e.preventDefault();
+      current = Math.round(Math.min(maxWidth, Math.max(MIN_IMAGE_WIDTH, (startWidth * dist(e.touches)) / startDist)));
+      setLiveWidth(current);
+    }
+    function onEnd(e: TouchEvent) {
+      if (!startDist || e.touches.length >= 2) return;
+      startDist = 0;
+      setLiveWidth(null);
+      updateRef.current({ width: `${current}px` });
+    }
+
+    img.addEventListener("touchstart", onStart, { passive: true });
+    img.addEventListener("touchmove", onMove, { passive: false });
+    img.addEventListener("touchend", onEnd);
+    img.addEventListener("touchcancel", onEnd);
+    return () => {
+      img.removeEventListener("touchstart", onStart);
+      img.removeEventListener("touchmove", onMove);
+      img.removeEventListener("touchend", onEnd);
+      img.removeEventListener("touchcancel", onEnd);
+    };
+  }, [url]);
+
   const width = liveWidth ? `${liveWidth}px` : storedWidth;
 
   return (
@@ -153,7 +205,7 @@ function ImageAttachmentView({ node, deleteNode, updateAttributes }: NodeViewPro
             ref={imgRef}
             src={url}
             alt={(node.attrs.name as string | null) ?? ""}
-            style={width ? { width, maxWidth: liveWidth ? "none" : "100%" } : undefined}
+            style={{ touchAction: "pan-x pan-y", ...(width ? { width, maxWidth: liveWidth ? "none" : "100%" } : {}) }}
             className={`rounded-md border border-border ${width ? "" : "max-h-[70vh] max-w-full"}`}
           />
           <span

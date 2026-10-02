@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.yudhvirsingh.waypoint",
+      "sha256_cert_fingerprints": [
+        "C0:96:E2:B9:11:99:CF:B1:D9:B7:11:3C:70:06:82:BE:BE:8A:B2:BE:CF:95:49:ED:5D:5C:6A:AB:C6:7D:F8:EA"
+      ]
+    }
+  }
+]
