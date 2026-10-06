@@ -243,6 +243,41 @@ export function Landing() {
         </div>
       </section>
 
+      {/* Download */}
+      <section id="download" className="mx-auto max-w-6xl scroll-mt-6 px-6 py-16">
+        <h2 className="text-center text-3xl font-extrabold tracking-tight sm:text-4xl">Get the app</h2>
+        <p className="mx-auto mt-4 max-w-xl text-center text-muted-foreground">
+          Download Waypoint straight from here — no store account needed.
+        </p>
+        <div className="mx-auto mt-10 grid max-w-3xl gap-5 sm:grid-cols-2">
+          <div className="flex flex-col rounded-3xl border border-border bg-card p-8">
+            <h3 className="text-xl font-bold">Android</h3>
+            <p className="mt-2 flex-1 text-sm text-muted-foreground">
+              Download the APK and open it. If asked, allow installs from your browser for this one
+              file.
+            </p>
+            <a
+              href="/downloads/waypoint.apk"
+              download="Waypoint.apk"
+              className="mt-6 rounded-lg bg-primary px-5 py-3 text-center text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.02]"
+            >
+              Download for Android
+            </a>
+          </div>
+          <div className="flex flex-col rounded-3xl border border-border bg-card p-8">
+            <h3 className="text-xl font-bold">iPhone &amp; iPad</h3>
+            <p className="mt-2 flex-1 text-sm text-muted-foreground">
+              Apple only allows apps to be installed through its own channels, so on iOS install
+              Waypoint from Safari: open this page, tap Share, then <strong>Add to Home Screen</strong>.
+              It opens full-screen like a regular app.
+            </p>
+            <span className="mt-6 rounded-lg border border-border px-5 py-3 text-center text-sm font-medium text-muted-foreground">
+              Safari → Share → Add to Home Screen
+            </span>
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
       <section style={{ background: "var(--lp-hero)" }} className="px-6 py-16 text-center">
         <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Ready when you are</h2>

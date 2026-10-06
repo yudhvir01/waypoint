@@ -1,7 +1,11 @@
 // A ready-made prompt the user can hand to any AI chat (ChatGPT, Claude,
 // etc.) alongside their own messy notes, so the AI does the restructuring
 // into Waypoint's import format instead of the user doing it by hand.
-export const IMPORT_AI_PROMPT = `You're helping me convert my notes into a specific Markdown format for an app called Waypoint, which turns Markdown into Track → Topic → Task data. Output ONLY the converted Markdown — no commentary before or after, and don't wrap the whole thing in a code fence.
+export const IMPORT_AI_PROMPT = `You're helping me convert my notes into a specific Markdown format for an app called Waypoint, which turns Markdown into Track → Topic → Task data.
+
+FIRST, check what I actually gave you at the bottom of this message. If I pasted real notes, a roadmap, or a plan, skip straight to converting them. But if there's nothing there — or I just pasted this prompt on its own without any notes — don't output anything yet and don't make up content. Instead, guide me: say something like "Okay, to prepare a roadmap I'll need a plan, or something you want to learn or achieve." Then ask me a few short questions, one or two at a time: what the goal is, what I already know, how much time I have each week, and any deadline. Once I've answered, build a practical roadmap from my answers and then convert it into the format below.
+
+When you do produce the final result, output ONLY the converted Markdown — no commentary before or after, and don't wrap the whole thing in a code fence.
 
 The format:
 
@@ -25,6 +29,6 @@ The format:
 - Do not create due dates or priorities unless they are explicitly or clearly implied by the source.
 - The final output must contain exactly one "#" Track heading and one or more "##" Topic headings. Do not output any other heading levels.
 
-Here's what I'm working with — restructure all of it into the format above. Don't summarize the content; reorganize it while preserving its meaningful actionable information:
+Here's what I'm working with — restructure all of it into the format above. Don't summarize the content; reorganize it while preserving its meaningful actionable information. (If nothing follows this line, ask me what I want to plan or learn, as described at the top.)
 
 `;

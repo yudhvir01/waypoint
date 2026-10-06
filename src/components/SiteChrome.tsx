@@ -11,6 +11,7 @@ export function SiteHeader() {
       </Link>
       <nav className="flex items-center gap-1 text-sm sm:gap-3">
         <Link to="/guide" className="hidden rounded-md px-3 py-2 hover:text-primary sm:block">Guide</Link>
+        <a href="/#download" className="hidden rounded-md px-3 py-2 hover:text-primary sm:block">Download</a>
         <Link to="/privacy" className="hidden rounded-md px-3 py-2 hover:text-primary md:block">Privacy</Link>
         <Link to="/terms" className="hidden rounded-md px-3 py-2 hover:text-primary md:block">Terms</Link>
         <Link to="/login" className="rounded-md px-3 py-2 font-semibold text-primary hover:underline">
