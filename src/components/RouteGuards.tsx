@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { useBackend } from "../context/BackendProvider";
 
@@ -26,7 +27,16 @@ export function RedirectIfAuthed() {
 // lowest-priority in React Router regardless of where it's declared, so
 // this only ever matches when nothing more specific did.
 export function NotFoundRedirect() {
+  const { ready } = useBackend();
+  if (!ready) return null;
+  return <Navigate to="/" replace />;
+}
+
+// "/" is the dashboard for a signed-in user and the public landing page for
+// everyone else, so visiting the bare URL never dumps a visitor straight
+// onto a login form.
+export function HomeRoute({ signedIn, signedOut }: { signedIn: ReactNode; signedOut: ReactNode }) {
   const { ready, backend } = useBackend();
   if (!ready) return null;
-  return <Navigate to={backend ? "/" : "/login"} replace />;
+  return <>{backend ? signedIn : signedOut}</>;
 }

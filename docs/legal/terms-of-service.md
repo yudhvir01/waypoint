@@ -90,7 +90,7 @@ relay function) for conduct that violates the acceptable use section above.
 These terms are governed by the laws of India, without regard to its
 conflict-of-law principles. Any dispute arising from these terms or your use
 of Waypoint is subject to the exclusive jurisdiction of the courts of
-**[your city], India**.
+**Bathinda, India**.
 
 ## Contact
 

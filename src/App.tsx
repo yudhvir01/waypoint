@@ -7,8 +7,9 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ThemeProvider } from "./context/ThemeProvider";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { NativeAppLifecycle } from "./components/NativeAppLifecycle";
-import { RequireAuth, RedirectIfAuthed, NotFoundRedirect } from "./components/RouteGuards";
+import { RequireAuth, RedirectIfAuthed, NotFoundRedirect, HomeRoute } from "./components/RouteGuards";
 import { Login } from "./pages/Login";
+import { Landing } from "./pages/Landing";
 import { GoogleCallback } from "./pages/GoogleCallback";
 import { Dashboard } from "./pages/Dashboard";
 import { TrackDetail } from "./pages/TrackDetail";
@@ -107,11 +108,11 @@ function App() {
                     the app hasn't adopted a session yet — so this sits
                     outside both guards. */}
                 <Route path="/auth/google/callback" element={<GoogleCallback />} />
+                <Route path="/" element={<HomeRoute signedIn={<Dashboard />} signedOut={<Landing />} />} />
                 <Route element={<RedirectIfAuthed />}>
                   <Route path="/login" element={<Login />} />
                 </Route>
                 <Route element={<RequireAuth />}>
-                  <Route path="/" element={<Dashboard />} />
                   <Route path="/tracks/:trackId" element={<TrackDetail />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/archived" element={<Archived />} />

@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { marked } from "marked";
 import { stripFrontMatter } from "../lib/frontMatter";
 import { useBackend } from "../context/BackendProvider";
+import { GuideApp } from "./GuideApp";
+import { SiteFooter, SiteHeader } from "../components/SiteChrome";
 
 import welcomeRaw from "../../docs/writebook/01-welcome.md?raw";
 import connectRaw from "../../docs/writebook/02-connecting-your-supabase-project.md?raw";
@@ -16,108 +18,118 @@ const CHAPTERS = [
   { slug: "google-drive-setup", raw: googleDriveRaw },
 ].map(({ slug, raw }) => {
   const { title, body } = stripFrontMatter(raw);
-  return { slug, title, html: marked.parse(body, { async: false }) };
+  const html = marked.parse(body, { async: false });
+  // First paragraph, tags stripped, doubles as the index blurb.
+  const first = /<p>([\s\S]*?)<\/p>/.exec(html)?.[1] ?? "";
+  const summary = new DOMParser().parseFromString(first, "text/html").body.textContent?.trim() ?? "";
+  return { slug, title, html, summary };
 });
 
-function MenuIcon() {
+function Illustration() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <line x1="9" y1="4" x2="9" y2="20" />
-    </svg>
+    <div
+      aria-hidden="true"
+      className="relative hidden h-72 items-center justify-center rounded-2xl bg-[#3a63c8] shadow-lg md:flex"
+    >
+      <svg viewBox="0 0 400 240" className="h-full w-full p-6" fill="none" stroke="white" strokeOpacity="0.85" strokeWidth="1.5">
+        <path d="M70 40h120v160H70z" />
+        <path d="M70 70h120M70 100h120M70 130h80" strokeOpacity="0.5" />
+        <path d="M210 60h110v130H210z" />
+        <path d="M225 85h80M225 110h80M225 135h50" strokeOpacity="0.5" />
+        <circle cx="330" cy="50" r="22" fill="white" fillOpacity="0.9" stroke="none" />
+        <path d="M190 120h20" strokeDasharray="3 4" />
+        <path d="m60 215 20-20 20 20" />
+      </svg>
+    </div>
   );
 }
 
+// Signed-out visitors read the guide as part of the public website;
+// signed-in users get the original in-app layout.
 export function Guide() {
-  const { hash } = useLocation();
-  const { backend } = useBackend();
-  const backTo = backend ? "/" : "/login";
-  // Open by default on a screen wide enough to show it inline; closed by
-  // default on a phone, where it would otherwise squeeze the actual
-  // chapter content into a sliver — see the drawer treatment below.
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
+  const { ready, backend } = useBackend();
+  if (!ready) return null;
+  return backend ? <GuideApp /> : <PublicGuide />;
+}
 
-  const activeSlug = hash ? hash.slice(1) : CHAPTERS[0].slug;
-  const chapter = CHAPTERS.find((c) => c.slug === activeSlug) ?? CHAPTERS[0];
+function PublicGuide() {
+  const { hash } = useLocation();
+  const activeSlug = hash ? hash.slice(1) : "";
+  const chapter = CHAPTERS.find((c) => c.slug === activeSlug);
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
-  }, [activeSlug]);
+    document.title = chapter ? `${chapter.title} — Waypoint Guide` : "Guide — Waypoint";
+  }, [chapter]);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-5xl">
-      {/* Below md this becomes an overlay drawer (fixed, off-canvas by
-          default) instead of an inline column — at phone widths, an
-          always-present 256px sidebar would leave almost nothing for the
-          actual chapter text. At md+ it's the original inline column that
-          the hamburger below just widens/collapses in place. */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 overflow-hidden border-r border-border bg-card transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:transition-[width] ${
-          sidebarOpen ? "translate-x-0 md:w-64" : "-translate-x-full md:w-0 md:translate-x-0 md:border-r-0"
-        }`}
-      >
-        <div className="w-72 px-5 py-8 md:w-64">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Guide
+    <div className="min-h-screen bg-background">
+      <SiteHeader />
+
+      {/* Hero band, mirroring the docs landing: big title left, art right. */}
+      <section className="bg-[#f4f4f5] dark:bg-[#0b0b0b]">
+        <div className="mx-auto grid max-w-6xl items-center gap-8 px-6 py-12 md:grid-cols-2 md:py-14">
+          <div>
+            <h1 className="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
+              {chapter ? chapter.title : "Guide"}
+            </h1>
+            <p className="mt-5 text-lg">
+              {chapter ? "Waypoint guide" : "Learn how to set up and get the most out of Waypoint"}
             </p>
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(false)}
-              aria-label="Close chapter list"
-              className="rounded-md p-1 text-muted-foreground hover:text-foreground md:hidden"
-            >
-              ✕
-            </button>
           </div>
-          <nav className="mt-4 flex flex-col gap-0.5 text-sm">
-            {CHAPTERS.map((c) => (
-              <Link
-                key={c.slug}
-                to={`/guide#${c.slug}`}
-                onClick={() => setSidebarOpen(window.innerWidth >= 768)}
-                className={`rounded-md px-2 py-1.5 transition-colors ${
-                  c.slug === activeSlug
-                    ? "bg-accent font-medium text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                }`}
-              >
-                {c.title}
+          <Illustration />
+        </div>
+      </section>
+
+      <main className="mx-auto max-w-6xl px-6 py-14">
+        {chapter ? (
+          <div className="grid gap-10 md:grid-cols-[14rem_1fr]">
+            <nav className="flex flex-col gap-1 text-sm md:sticky md:top-6 md:self-start">
+              <Link to="/guide" className="mb-2 font-semibold text-primary hover:underline">
+                ← All chapters
               </Link>
-            ))}
-          </nav>
-        </div>
-      </aside>
+              {CHAPTERS.map((c) => (
+                <Link
+                  key={c.slug}
+                  to={`/guide#${c.slug}`}
+                  className={`rounded-md px-2 py-1.5 ${
+                    c.slug === chapter.slug
+                      ? "bg-accent font-medium text-accent-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {c.title}
+                </Link>
+              ))}
+            </nav>
+            <article
+              key={chapter.slug}
+              className="prose max-w-3xl dark:prose-invert prose-a:text-primary"
+              dangerouslySetInnerHTML={{ __html: chapter.html }}
+            />
+          </div>
+        ) : (
+          <>
+            <h2 className="text-4xl font-extrabold tracking-tight">Chapters</h2>
+            <p className="mt-6 max-w-2xl text-xl leading-relaxed">
+              Everything you need, from connecting your storage to importing existing notes. Each chapter
+              stands on its own, so start wherever makes sense.
+            </p>
+            <div className="mt-10 grid gap-x-16 gap-y-10 md:grid-cols-2">
+              {CHAPTERS.map((c) => (
+                <div key={c.slug}>
+                  <Link to={`/guide#${c.slug}`} className="text-base font-bold text-primary hover:underline">
+                    {c.title}
+                  </Link>
+                  <p className="mt-3 text-sm leading-relaxed">{c.summary}</p>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </main>
 
-      <div className="min-w-0 flex-1 px-4 py-8 sm:px-8">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setSidebarOpen((v) => !v)}
-            aria-label={sidebarOpen ? "Hide chapter list" : "Show chapter list"}
-            aria-pressed={sidebarOpen}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-          >
-            <MenuIcon />
-          </button>
-          <Link to={backTo} className="text-sm text-muted-foreground hover:underline">
-            ← Back to Waypoint
-          </Link>
-        </div>
-
-        <div
-          key={chapter.slug}
-          className="prose prose-sm mt-8 max-w-none dark:prose-invert"
-          dangerouslySetInnerHTML={{ __html: chapter.html }}
-        />
-      </div>
+      <SiteFooter />
     </div>
   );
 }
