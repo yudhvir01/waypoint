@@ -236,8 +236,13 @@ export class GuestBackend implements Backend {
     if (!current) return;
     const done = !current.done;
     await db.put("tasks", { ...current, done, completed_at: done ? nowIso() : null });
+    await this.syncTopicStatus(current.topic_id);
+  }
 
-    const topic = await db.get("topics", current.topic_id);
+  // Keeps a topic's status (and the next one's) in step with its tasks.
+  private async syncTopicStatus(topicId: string): Promise<void> {
+    const db = await getGuestDB();
+    const topic = await db.get("topics", topicId);
     if (!topic) return;
     const [topics, tasks] = await Promise.all([
       db.getAllFromIndex("topics", "trackId", topic.track_id),
@@ -247,6 +252,18 @@ export class GuestBackend implements Backend {
       const row = topics.find((t) => t.id === change.id);
       if (row) await db.put("topics", { ...row, status: change.status });
     }
+  }
+
+  async moveTask(taskId: string, topicId: string): Promise<void> {
+    const db = await getGuestDB();
+    const [task, target] = await Promise.all([db.get("tasks", taskId), db.get("topics", topicId)]);
+    if (!task || !target || task.topic_id === topicId) return;
+    const siblings = await db.getAllFromIndex("tasks", "topicId", topicId);
+    const sortOrder = siblings.reduce((max, t) => Math.max(max, t.sort_order), -1) + 1;
+    const from = task.topic_id;
+    await db.put("tasks", { ...task, topic_id: topicId, track_id: target.track_id, sort_order: sortOrder });
+    await this.syncTopicStatus(from);
+    await this.syncTopicStatus(topicId);
   }
 
   async listNotes(): Promise<Note[]> {

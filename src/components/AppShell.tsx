@@ -8,6 +8,7 @@ import { useTrackProgress } from "../hooks/useTrackProgress";
 import { useCards } from "../hooks/useCards";
 import { isDue } from "../lib/cards";
 import { LogoMark } from "./Logo";
+import { QuickAddDialog } from "./QuickAddDialog";
 
 function NavLink({ to, children }: { to: string; children: ReactNode }) {
   const { pathname } = useLocation();
@@ -59,6 +60,21 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [navigate]);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  // "c" from anywhere (outside a text field) opens quick add.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key.toLowerCase() !== "c" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)) {
+        return;
+      }
+      e.preventDefault();
+      setQuickAddOpen(true);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [guestBannerDismissed, setGuestBannerDismissed] = useState(
@@ -142,7 +158,19 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
             </button>
           </div>
 
-          <nav className="mt-9 flex flex-col gap-0.5">
+          <button
+            type="button"
+            onClick={() => {
+              setMobileNavOpen(false);
+              setQuickAddOpen(true);
+            }}
+            className="mt-7 flex items-center justify-between rounded-md border border-border px-3 py-1.5 text-left text-[15px] text-foreground transition-colors hover:border-primary hover:bg-accent"
+          >
+            <span>+ Quick add</span>
+            <kbd className="rounded border border-border px-1 font-mono text-[11px] text-muted-foreground">C</kbd>
+          </button>
+
+          <nav className="mt-5 flex flex-col gap-0.5">
             <NavLink to="/">Focus Now</NavLink>
             <NavLink to="/review">Review</NavLink>
             <NavLink to="/cards">
@@ -277,6 +305,8 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
           <div className={`mx-auto ${wide ? "max-w-3xl" : "max-w-2xl"}`}>{children}</div>
         </div>
       </div>
+
+      {quickAddOpen && <QuickAddDialog onClose={() => setQuickAddOpen(false)} />}
 
       {confirmSignOut && (
         <div

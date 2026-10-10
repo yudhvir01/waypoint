@@ -342,6 +342,42 @@ export class SupabaseBackend implements Backend {
     await this.syncTopicStatus(task.topic_id, task.track_id);
   }
 
+  async moveTask(taskId: string, topicId: string): Promise<void> {
+    const { data: task, error: taskError } = await this.client
+      .from("tasks")
+      .select("topic_id, track_id")
+      .eq("id", taskId)
+      .maybeSingle();
+    if (taskError) throw taskError;
+    const { data: target, error: targetError } = await this.client
+      .from("topics")
+      .select("track_id")
+      .eq("id", topicId)
+      .maybeSingle();
+    if (targetError) throw targetError;
+    const from = task as { topic_id: string; track_id: string } | null;
+    const to = target as { track_id: string } | null;
+    if (!from || !to || from.topic_id === topicId) return;
+
+    const { data: last } = await this.client
+      .from("tasks")
+      .select("sort_order")
+      .eq("topic_id", topicId)
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const sortOrder = ((last as { sort_order: number } | null)?.sort_order ?? -1) + 1;
+
+    // The database re-derives the task's track from its new topic.
+    const { error } = await this.client
+      .from("tasks")
+      .update({ topic_id: topicId, sort_order: sortOrder })
+      .eq("id", taskId);
+    if (error) throw error;
+    await this.syncTopicStatus(from.topic_id, from.track_id);
+    await this.syncTopicStatus(topicId, to.track_id);
+  }
+
   // Keeps topic status in step with its tasks (see topicStatusChanges).
   // Reads the trigger-maintained counts rather than every task row, so it
   // stays cheap on a topic with thousands of tasks.

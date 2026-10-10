@@ -153,3 +153,18 @@ export function useRescheduleTasks() {
     },
   });
 }
+
+export function useMoveTask() {
+  const { backend } = useBackend();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ taskId, topicId }: { taskId: string; topicId: string }) =>
+      backend!.moveTask(taskId, topicId),
+    onSuccess: () => {
+      for (const key of ["tasks", "topics", "focusNow", "trackProgress", "topicProgress", "snapshot"]) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    },
+  });
+}

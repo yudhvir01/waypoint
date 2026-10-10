@@ -324,13 +324,34 @@ export class DriveBackend implements Backend {
     if (!current) return;
     current.done = !current.done;
     current.completed_at = current.done ? nowIso() : null;
+    this.syncTopicStatus(current.topic_id);
+    await this.persist();
+  }
 
-    const topics = this.data.topics.filter((t) => t.track_id === current.track_id);
-    const tasks = this.data.tasks.filter((t) => t.topic_id === current.topic_id);
-    for (const change of topicStatusChanges(topics, tasks, current.topic_id)) {
+  private syncTopicStatus(topicId: string): void {
+    const topic = this.data.topics.find((t) => t.id === topicId);
+    if (!topic) return;
+    const topics = this.data.topics.filter((t) => t.track_id === topic.track_id);
+    const tasks = this.data.tasks.filter((t) => t.topic_id === topicId);
+    for (const change of topicStatusChanges(topics, tasks, topicId)) {
       const row = topics.find((t) => t.id === change.id);
       if (row) row.status = change.status;
     }
+  }
+
+  async moveTask(taskId: string, topicId: string): Promise<void> {
+    await this.ensureLoaded();
+    const task = this.data.tasks.find((t) => t.id === taskId);
+    const target = this.data.topics.find((t) => t.id === topicId);
+    if (!task || !target || task.topic_id === topicId) return;
+    const sortOrder =
+      this.data.tasks.filter((t) => t.topic_id === topicId).reduce((max, t) => Math.max(max, t.sort_order), -1) + 1;
+    const from = task.topic_id;
+    task.topic_id = topicId;
+    task.track_id = target.track_id;
+    task.sort_order = sortOrder;
+    this.syncTopicStatus(from);
+    this.syncTopicStatus(topicId);
     await this.persist();
   }
 

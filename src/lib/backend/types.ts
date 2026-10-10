@@ -136,6 +136,9 @@ export interface Backend {
   updateTaskSchedule(taskId: string, input: UpdateTaskScheduleInput): Promise<void>;
   deleteTask(taskId: string): Promise<void>;
   toggleTask(task: Task): Promise<void>;
+  // Moves a task into another topic (possibly in another track), to the
+  // end of it, and keeps both topics' statuses in step.
+  moveTask(taskId: string, topicId: string): Promise<void>;
   // Sets (or clears, with null) the deadline of many tasks in one go.
   rescheduleTasks(taskIds: string[], dueDate: string | null): Promise<void>;
   // Rewrites the manual order of tasks within a topic.

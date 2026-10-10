@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { AppShell } from "../components/AppShell";
 import { SchedulePopover } from "../components/SchedulePopover";
 import { ActionMenu } from "../components/ActionMenu";
+import { MoveTaskDialog } from "../components/MoveTaskDialog";
 import { useTrack, useUpdateTrackStatus } from "../hooks/useTracks";
 import { useTopicProgress, useTrackProgress, type TrackProgress } from "../hooks/useTrackProgress";
 import {
@@ -302,6 +303,7 @@ function TaskRow({
   const deleteTask = useDeleteTask(topicId);
   const [popover, setPopover] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [moving, setMoving] = useState(false);
 
   if (editing) {
     return (
@@ -389,12 +391,15 @@ function TaskRow({
               label: task.done ? "Mark incomplete" : "Mark complete",
               onClick: () => toggleTask.mutate(task),
             },
+            { label: "Move to…", onClick: () => setMoving(true) },
             ...(onMoveUp ? [{ label: "Move up", onClick: onMoveUp }] : []),
             ...(onMoveDown ? [{ label: "Move down", onClick: onMoveDown }] : []),
             { label: "Delete", onClick: () => deleteTask.mutate(task.id), danger: true },
           ]}
         />
       </div>
+
+      {moving && <MoveTaskDialog task={task} onClose={() => setMoving(false)} />}
 
       {popover && (
         <SchedulePopover
