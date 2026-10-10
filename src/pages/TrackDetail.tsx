@@ -17,6 +17,7 @@ import {
   useCreateTask,
   useDeleteTask,
   useTasks,
+  useReorderTasks,
   useUpdateTask,
   useUpdateTaskSchedule,
   useToggleTask,
@@ -267,7 +268,17 @@ function NewTaskForm({ topicId }: { topicId: string }) {
   );
 }
 
-function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
+function TaskRow({
+  task,
+  topicId,
+  onMoveUp,
+  onMoveDown,
+}: {
+  task: Task;
+  topicId: string;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+}) {
   const toggleTask = useToggleTask(topicId);
   const updateSchedule = useUpdateTaskSchedule(topicId);
   const updateTask = useUpdateTask(topicId);
@@ -361,6 +372,8 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
               label: task.done ? "Mark incomplete" : "Mark complete",
               onClick: () => toggleTask.mutate(task),
             },
+            ...(onMoveUp ? [{ label: "Move up", onClick: onMoveUp }] : []),
+            ...(onMoveDown ? [{ label: "Move down", onClick: onMoveDown }] : []),
             { label: "Delete", onClick: () => deleteTask.mutate(task.id), danger: true },
           ]}
         />
@@ -403,12 +416,21 @@ function TopicItem({
   const updateStatus = useUpdateTopicStatus(trackId);
   const updateTitle = useUpdateTopicTitle(trackId);
   const deleteTopic = useDeleteTopic(trackId);
+  const reorderTasks = useReorderTasks(topic.id);
   const [editing, setEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState(topic.title);
   const tasks = taskPages?.pages.flat();
   const tasksCount = progress?.total;
   const doneCount = progress?.done ?? 0;
   const allDone = !!tasksCount && doneCount === tasksCount;
+
+  function move(from: number, to: number) {
+    if (!tasks || to < 0 || to >= tasks.length) return;
+    const next = [...tasks];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    reorderTasks.mutate(next);
+  }
 
   async function saveTitle(e: FormEvent) {
     e.preventDefault();
@@ -502,8 +524,14 @@ function TopicItem({
 
       {expanded && tasks && tasks.length > 0 && (
         <ul className="mt-2.5 flex flex-col">
-          {tasks.map((task) => (
-            <TaskRow key={task.id} task={task} topicId={topic.id} />
+          {tasks.map((task, i) => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              topicId={topic.id}
+              onMoveUp={i > 0 ? () => move(i, i - 1) : undefined}
+              onMoveDown={i < tasks.length - 1 ? () => move(i, i + 1) : undefined}
+            />
           ))}
         </ul>
       )}
