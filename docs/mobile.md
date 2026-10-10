@@ -152,6 +152,20 @@ The manifest's `apk.sha256` is computed by `release:web` from
 `public/downloads/waypoint.apk`, so **sign and place the APK before running it**.
 The app declares `REQUEST_INSTALL_PACKAGES` for this.
 
+### Focus timer notifications
+
+When a focus block or break ends while the app is in the background, a system
+notification tells the person (`src/lib/timerNotifications.ts`, using
+`@capacitor/local-notifications`). It is scheduled with Android's alarm manager
+when the app leaves the foreground and cancelled when it returns, so it fires
+even if the app is closed and never doubles up with the on-screen pop-up.
+
+The app declares `POST_NOTIFICATIONS` (asked for the first time a timer is
+started) and `USE_EXACT_ALARM`, which Android grants automatically to timer
+apps so the notification fires on the minute. The status-bar icon is
+`res/drawable/ic_stat_waypoint.xml`. A browser cannot schedule anything once its
+tab is closed, so this is Android-only.
+
 ### Publishing a web update
 
 ```bash

@@ -31,7 +31,8 @@ Everything rolls up into one **Focus Now** list on the dashboard: the tasks that
 - **Self-updating Android app** — new web bundles are fetched in the background and used on the next launch, with automatic rollback. A new APK downloads by itself with a progress bar and is handed to Android's installer, whose "update this app?" screen is the one confirmation Android requires. The file is checked against a published SHA-256 first. See [`docs/mobile.md`](docs/mobile.md).
 - **Install from the browser** — the landing page offers Install on Android (the web app, no download), the APK as the other option, and Add to Home Screen steps for iOS.
 - **Swipeable sidebar** — on a phone, swipe right to open the drawer and left to close it; it follows the finger and ignores text fields, the editor and sideways-scrolling areas.
-- **Focus timer** — a Pomodoro-style timer tied to a task, kept running across pages; time is logged per task and shown on the Review page.
+- **Task panel** — tap a task in Focus Now and it opens in place: the full title (editable), priority, deadline, repeat, its notes, and a Focus on this button. No trip to the track.
+- **Focus timer** — a Pomodoro-style timer tied to a task, kept running across pages; time is logged per task and shown on the Review page. A finished block waits for you (a pop-up, or a system notification in the Android app even when it is closed) and the break only starts when you tap it.
 - **Note links & backlinks** — `[[Title]]` links to a note, task, topic or track (Ctrl/Cmd+click to open); each note lists what it links to and what links back.
 - **Quick add** — press `C` anywhere and write a line like `read ch 4 friday !high #cpp`; dates, repeats, priority and track are picked out of the text, and unsorted tasks land in an Inbox. Tasks can be moved between topics and tracks.
 - **Flashcards from notes** — write `question :: answer` on a line of a note and it becomes a card; spaced review with a 20-card session cap.
@@ -135,6 +136,7 @@ src/
     cards.ts                   Cards from note text, diffing, scheduler, daily session
     links.ts                   [[Title]] parsing, resolution and backlinks
     focusTimer.ts              The focus timer as pure functions over timestamps
+    timerNotifications.ts      System notification for the end of a block or break (native)
     appUpdate.ts / otaUpdater.ts   Update manifest parsing and decisions; the native updater
     apkUpdate.ts               In-app APK update as a state machine (download, permission, install)
     apkInstaller.ts / apkUpdater.ts / updateFlow.ts   The native plugin binding, the app-wide instance, one update check

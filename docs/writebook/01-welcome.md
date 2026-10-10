@@ -24,6 +24,11 @@ Everything rolls up into one **Focus Now** list on the dashboard: the tasks that
 most need your attention right now, blended from what's overdue, what's due soon,
 and what you've manually flagged as high priority.
 
+**Tap any task** in Focus Now and it opens right there, without taking you to its
+track: the whole title (which you can edit, so a long one is never a problem),
+its priority, deadline and repeat, its notes to write in, and a **Focus on
+this** button that starts the timer on it.
+
 ## Your data is yours
 
 Waypoint doesn't have a database of its own. The login screen offers three ways to
