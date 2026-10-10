@@ -1,6 +1,9 @@
 export type TrackStatus = "active" | "paused" | "archived";
 export type TopicStatus = "not_started" | "in_progress" | "done";
 export type TaskPriority = "none" | "low" | "medium" | "high";
+// How well you feel you know a topic — your own call, not a quiz score.
+export type Confidence = "shaky" | "okay" | "solid";
+export type Recurrence = "daily" | "weekdays" | "weekly" | "monthly";
 
 export interface Track {
   id: string;
@@ -18,6 +21,8 @@ export interface Topic {
   user_id: string;
   title: string;
   status: TopicStatus;
+  // Absent on rows written before confidence existed; read as `?? null`.
+  confidence?: Confidence | null;
   sort_order: number;
   created_at: string;
 }
@@ -33,6 +38,9 @@ export interface Task {
   priority: TaskPriority;
   due_date: string | null;
   completed_at: string | null;
+  // How the task repeats once it's ticked off. Rows written before
+  // recurrence existed simply lack the field, so read it as `?? null`.
+  recurrence?: Recurrence | null;
   sort_order: number;
   created_at: string;
 }

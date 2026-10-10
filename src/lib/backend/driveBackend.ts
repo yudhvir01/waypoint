@@ -1,4 +1,4 @@
-import type { Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
+import type { Confidence, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
 import {
   createDataFile,
@@ -10,6 +10,7 @@ import {
 } from "./driveClient";
 import type { GoogleDriveSession } from "./googleAuth";
 import { buildNoteContext, newNote, newestFirst } from "./localNotes";
+import { remapSnapshot } from "./localRestore";
 import { computeTopicProgress, computeTrackProgress, rankFocusTasks, topicStatusChanges } from "./localRanking";
 import {
   type Attachment,
@@ -19,6 +20,9 @@ import {
   type FocusTask,
   type ImportedNote,
   type NoteWithContext,
+  type RestoreCounts,
+  type Snapshot,
+  type TaskOrderUpdate,
   type TrackProgress,
   type UpdateTaskInput,
   type UpdateTaskScheduleInput,
@@ -200,6 +204,14 @@ export class DriveBackend implements Backend {
     await this.persist();
   }
 
+  async updateTopicConfidence(id: string, confidence: Confidence | null): Promise<void> {
+    await this.ensureLoaded();
+    const topic = this.data.topics.find((t) => t.id === id);
+    if (!topic) return;
+    topic.confidence = confidence;
+    await this.persist();
+  }
+
   async deleteTopic(id: string): Promise<void> {
     await this.ensureLoaded();
     this.data.topics = this.data.topics.filter((t) => t.id !== id);
@@ -231,6 +243,7 @@ export class DriveBackend implements Backend {
       priority: input.priority ?? "none",
       due_date: input.dueDate || null,
       completed_at: null,
+      recurrence: input.recurrence ?? null,
       sort_order: existing.length,
       created_at: nowIso(),
     };
@@ -246,6 +259,7 @@ export class DriveBackend implements Backend {
     task.title = input.title;
     task.priority = input.priority;
     task.due_date = input.dueDate;
+    if ("recurrence" in input) task.recurrence = input.recurrence ?? null;
     await this.persist();
   }
 
@@ -254,6 +268,40 @@ export class DriveBackend implements Backend {
     const task = this.data.tasks.find((t) => t.id === taskId);
     if (!task) return;
     if ("dueDate" in input) task.due_date = input.dueDate || null;
+    if ("recurrence" in input) task.recurrence = input.recurrence ?? null;
+    await this.persist();
+  }
+
+  async rescheduleTasks(taskIds: string[], dueDate: string | null): Promise<void> {
+    await this.ensureLoaded();
+    const wanted = new Set(taskIds);
+    for (const task of this.data.tasks) if (wanted.has(task.id)) task.due_date = dueDate;
+    await this.persist();
+  }
+
+  async importSnapshot(data: Snapshot): Promise<RestoreCounts> {
+    await this.ensureLoaded();
+    const fresh = remapSnapshot(data, this.session.email, newId);
+    this.data.tracks.push(...fresh.tracks);
+    this.data.topics.push(...fresh.topics);
+    this.data.tasks.push(...fresh.tasks);
+    this.data.notes.push(...fresh.notes);
+    await this.persist();
+    return {
+      tracks: fresh.tracks.length,
+      topics: fresh.topics.length,
+      tasks: fresh.tasks.length,
+      notes: fresh.notes.length,
+    };
+  }
+
+  async reorderTasks(updates: TaskOrderUpdate[]): Promise<void> {
+    await this.ensureLoaded();
+    const byId = new Map(this.data.tasks.map((t) => [t.id, t]));
+    for (const { id, sort_order } of updates) {
+      const task = byId.get(id);
+      if (task) task.sort_order = sort_order;
+    }
     await this.persist();
   }
 
@@ -378,6 +426,16 @@ export class DriveBackend implements Backend {
     return rankFocusTasks(this.data.tracks, this.data.topics, this.data.tasks, limit);
   }
 
+  async snapshot(options: { notes?: boolean } = {}): Promise<Snapshot> {
+    await this.ensureLoaded();
+    return {
+      tracks: [...this.data.tracks],
+      topics: [...this.data.topics],
+      tasks: [...this.data.tasks],
+      notes: options.notes === false ? [] : [...this.data.notes],
+    };
+  }
+
   async importTrack(parsed: ParsedImport): Promise<string> {
     await this.ensureLoaded();
     const track = await this.buildTrack(parsed);
@@ -419,6 +477,7 @@ export class DriveBackend implements Backend {
           priority: task.priority as TaskPriority,
           due_date: task.dueDate,
           completed_at: task.done ? nowIso() : null,
+          recurrence: task.recurrence ?? null,
           sort_order: taskIndex,
           created_at: nowIso(),
         });

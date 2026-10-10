@@ -1,10 +1,12 @@
-import type { TaskPriority } from "./database.types";
+import type { Recurrence, TaskPriority } from "./database.types";
+import { isRecurrence } from "./recurrence";
 
 export interface ParsedTask {
   title: string;
   done: boolean;
   priority: TaskPriority;
   dueDate: string | null;
+  recurrence?: Recurrence | null;
 }
 
 export interface ParsedTopic {
@@ -36,9 +38,10 @@ function extractTags(
   rawTitle: string,
   warnings: string[],
   context: string,
-): { title: string; priority: TaskPriority; dueDate: string | null } {
+): { title: string; priority: TaskPriority; dueDate: string | null; recurrence: Recurrence | null } {
   let priority: TaskPriority = "none";
   let dueDate: string | null = null;
+  let recurrence: Recurrence | null = null;
   let title = rawTitle;
 
   title = title.replace(TAG, (match, key: string, value: string) => {
@@ -64,11 +67,21 @@ function extractTags(
       return match;
     }
 
+    if (lowerKey === "repeat") {
+      const lowerValue = value.toLowerCase();
+      if (isRecurrence(lowerValue)) {
+        recurrence = lowerValue;
+        return "";
+      }
+      warnings.push(`Unrecognized repeat "${value}" on "${context}" — left as-is.`);
+      return match;
+    }
+
     warnings.push(`Unrecognized tag "#${key}:${value}" on "${context}" — left as-is.`);
     return match;
   });
 
-  return { title: title.replace(/\s+/g, " ").trim(), priority, dueDate };
+  return { title: title.replace(/\s+/g, " ").trim(), priority, dueDate, recurrence };
 }
 
 interface TopicCandidate extends ParsedTopic {
@@ -153,12 +166,12 @@ export function parseImportMarkdown(input: string): ParsedImport {
         warnings.push(`Task "${rawText}" found before any topic heading — skipped.`);
         continue;
       }
-      const { title, priority, dueDate } = extractTags(rawText, warnings, rawText);
+      const { title, priority, dueDate, recurrence } = extractTags(rawText, warnings, rawText);
       if (!title) {
         warnings.push(`A task line under "${currentTopic.title}" had no text — skipped.`);
         continue;
       }
-      currentTopic.tasks.push({ title, done, priority, dueDate });
+      currentTopic.tasks.push({ title, done, priority, dueDate, recurrence });
       continue;
     }
 

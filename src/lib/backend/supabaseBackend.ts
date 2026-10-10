@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Note, Task, Topic, Track, TrackStatus, TopicStatus } from "../database.types";
+import type { Confidence, Note, Task, Topic, Track, TrackStatus, TopicStatus } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
+import { remapSnapshot } from "./localRestore";
 import { topicStatusChanges } from "./localRanking";
 import {
   type Attachment,
@@ -10,6 +11,9 @@ import {
   type FocusTask,
   type ImportedNote,
   type NoteWithContext,
+  type RestoreCounts,
+  type Snapshot,
+  type TaskOrderUpdate,
   type TrackProgress,
   type UpdateTaskInput,
   type UpdateTaskScheduleInput,
@@ -44,6 +48,7 @@ interface FocusRow {
   priority: Task["priority"];
   due_date: string | null;
   completed_at: string | null;
+  recurrence: Task["recurrence"];
   sort_order: number;
   created_at: string;
   topic_title: string;
@@ -134,6 +139,11 @@ export class SupabaseBackend implements Backend {
     if (error) throw error;
   }
 
+  async updateTopicConfidence(id: string, confidence: Confidence | null): Promise<void> {
+    const { error } = await this.client.from("topics").update({ confidence }).eq("id", id);
+    if (error) throw error;
+  }
+
   async deleteTopic(id: string): Promise<void> {
     const { error } = await this.client.from("topics").delete().eq("id", id);
     if (error) throw error;
@@ -160,6 +170,7 @@ export class SupabaseBackend implements Backend {
         title: input.title,
         priority: input.priority ?? "none",
         due_date: input.dueDate || null,
+        recurrence: input.recurrence ?? null,
         // sort_order is left to the database, which appends to the end
         // of the topic.
       })
@@ -176,6 +187,7 @@ export class SupabaseBackend implements Backend {
         title: input.title,
         priority: input.priority,
         due_date: input.dueDate,
+        ...("recurrence" in input ? { recurrence: input.recurrence ?? null } : {}),
       })
       .eq("id", taskId);
     if (error) throw error;
@@ -184,8 +196,115 @@ export class SupabaseBackend implements Backend {
   async updateTaskSchedule(taskId: string, input: UpdateTaskScheduleInput): Promise<void> {
     const patch: Record<string, unknown> = {};
     if ("dueDate" in input) patch.due_date = input.dueDate || null;
+    if ("recurrence" in input) patch.recurrence = input.recurrence ?? null;
     const { error } = await this.client.from("tasks").update(patch).eq("id", taskId);
     if (error) throw error;
+  }
+
+  async rescheduleTasks(taskIds: string[], dueDate: string | null): Promise<void> {
+    // Chunked: the ids travel in the URL, which has a length limit.
+    const CHUNK = 100;
+    for (let i = 0; i < taskIds.length; i += CHUNK) {
+      const { error } = await this.client
+        .from("tasks")
+        .update({ due_date: dueDate })
+        .in("id", taskIds.slice(i, i + CHUNK));
+      if (error) throw error;
+    }
+  }
+
+  // Not one transaction (PostgREST has no multi-statement transactions),
+  // so a failure part-way deletes the tracks it already created — topics
+  // and tasks go with them by cascade — and the notes it added.
+  async importSnapshot(data: Snapshot): Promise<RestoreCounts> {
+    const fresh = remapSnapshot(data, this.userId, () => crypto.randomUUID());
+    const CHUNK = 500;
+    const createdTracks = fresh.tracks.map((t) => t.id);
+    const createdNotes = fresh.notes.map((n) => n.id);
+
+    const insertAll = async (table: string, rows: Record<string, unknown>[]) => {
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const { error } = await this.client.from(table).insert(rows.slice(i, i + CHUNK));
+        if (error) throw error;
+      }
+    };
+
+    try {
+      await insertAll(
+        "tracks",
+        fresh.tracks.map((t) => ({
+          id: t.id,
+          user_id: this.userId,
+          name: t.name,
+          description: t.description,
+          color: t.color,
+          status: t.status,
+          created_at: t.created_at,
+        })),
+      );
+      await insertAll(
+        "topics",
+        fresh.topics.map((t) => ({
+          id: t.id,
+          track_id: t.track_id,
+          title: t.title,
+          status: t.status,
+          confidence: t.confidence ?? null,
+          sort_order: t.sort_order,
+          created_at: t.created_at,
+        })),
+      );
+      await insertAll(
+        "tasks",
+        fresh.tasks.map((t) => ({
+          id: t.id,
+          topic_id: t.topic_id,
+          title: t.title,
+          done: t.done,
+          priority: t.priority,
+          due_date: t.due_date,
+          completed_at: t.completed_at,
+          recurrence: t.recurrence ?? null,
+          sort_order: t.sort_order,
+          created_at: t.created_at,
+        })),
+      );
+      await insertAll(
+        "notes",
+        fresh.notes.map((n) => ({
+          id: n.id,
+          user_id: this.userId,
+          task_id: n.task_id,
+          title: n.title,
+          content: n.content,
+          created_at: n.created_at,
+          updated_at: n.updated_at,
+        })),
+      );
+    } catch (error) {
+      for (let i = 0; i < createdTracks.length; i += 100) {
+        await this.client.from("tracks").delete().in("id", createdTracks.slice(i, i + 100));
+      }
+      for (let i = 0; i < createdNotes.length; i += 100) {
+        await this.client.from("notes").delete().in("id", createdNotes.slice(i, i + 100));
+      }
+      throw error;
+    }
+
+    return {
+      tracks: fresh.tracks.length,
+      topics: fresh.topics.length,
+      tasks: fresh.tasks.length,
+      notes: fresh.notes.length,
+    };
+  }
+
+  async reorderTasks(updates: TaskOrderUpdate[]): Promise<void> {
+    const results = await Promise.all(
+      updates.map(({ id, sort_order }) => this.client.from("tasks").update({ sort_order }).eq("id", id)),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed?.error) throw failed.error;
   }
 
   async deleteTask(taskId: string): Promise<void> {
@@ -379,6 +498,7 @@ export class SupabaseBackend implements Backend {
       priority: row.priority,
       due_date: row.due_date,
       completed_at: row.completed_at,
+      recurrence: row.recurrence ?? null,
       sort_order: row.sort_order,
       created_at: row.created_at,
       topic: {
@@ -387,6 +507,38 @@ export class SupabaseBackend implements Backend {
         track: { id: row.track_id, name: row.track_name },
       },
     }));
+  }
+
+  // PostgREST caps a response at 1000 rows, so a whole table is read in
+  // pages. The ceiling keeps a runaway account from turning one search
+  // into thousands of requests.
+  private async fetchAll<T>(table: string, orderBy: string): Promise<T[]> {
+    const PAGE = 1000;
+    const MAX_ROWS = 50_000;
+    const rows: T[] = [];
+    for (let from = 0; from < MAX_ROWS; from += PAGE) {
+      const { data, error } = await this.client
+        .from(table)
+        .select("*")
+        .order(orderBy, { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      const page = (data ?? []) as T[];
+      rows.push(...page);
+      if (page.length < PAGE) break;
+    }
+    return rows;
+  }
+
+  async snapshot(options: { notes?: boolean } = {}): Promise<Snapshot> {
+    const [tracks, topics, tasks, notes] = await Promise.all([
+      this.fetchAll<Track>("tracks", "created_at"),
+      this.fetchAll<Topic>("topics", "created_at"),
+      this.fetchAll<Task>("tasks", "created_at"),
+      options.notes === false ? Promise.resolve([] as Note[]) : this.fetchAll<Note>("notes", "created_at"),
+    ]);
+    return { tracks, topics, tasks, notes };
   }
 
   async importTrack(parsed: ParsedImport): Promise<string> {
@@ -401,6 +553,7 @@ export class SupabaseBackend implements Backend {
             done: task.done,
             priority: task.priority,
             dueDate: task.dueDate,
+            recurrence: task.recurrence ?? null,
           })),
         })),
       },

@@ -1,4 +1,4 @@
-import type { Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
+import type { Confidence, Note, Recurrence, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
 
 export interface TrackProgress {
@@ -38,16 +38,43 @@ export interface CreateTaskInput {
   title: string;
   priority?: TaskPriority;
   dueDate?: string | null;
+  recurrence?: Recurrence | null;
 }
 
 export interface UpdateTaskInput {
   title: string;
   priority: TaskPriority;
   dueDate: string | null;
+  recurrence?: Recurrence | null;
 }
 
 export interface UpdateTaskScheduleInput {
   dueDate?: string | null;
+  recurrence?: Recurrence | null;
+}
+
+// Everything the account holds, in one piece. Search, the weekly review
+// and export are all questions about the whole dataset, so they are
+// answered by pure functions over this rather than by a new query on each
+// backend — adding one is a client-side change, not three.
+export interface Snapshot {
+  tracks: Track[];
+  topics: Topic[];
+  tasks: Task[];
+  // Empty unless the caller asked for notes (they carry full HTML bodies).
+  notes: Note[];
+}
+
+export interface RestoreCounts {
+  tracks: number;
+  topics: number;
+  tasks: number;
+  notes: number;
+}
+
+export interface TaskOrderUpdate {
+  id: string;
+  sort_order: number;
 }
 
 export type AttachmentKind = "image" | "audio";
@@ -87,6 +114,7 @@ export interface Backend {
   createTopic(trackId: string, title: string): Promise<Topic>;
   updateTopicStatus(id: string, status: TopicStatus): Promise<void>;
   updateTopicTitle(id: string, title: string): Promise<void>;
+  updateTopicConfidence(id: string, confidence: Confidence | null): Promise<void>;
   deleteTopic(id: string): Promise<void>;
 
   // Tasks — paginated, page is 0-based.
@@ -96,6 +124,10 @@ export interface Backend {
   updateTaskSchedule(taskId: string, input: UpdateTaskScheduleInput): Promise<void>;
   deleteTask(taskId: string): Promise<void>;
   toggleTask(task: Task): Promise<void>;
+  // Sets (or clears, with null) the deadline of many tasks in one go.
+  rescheduleTasks(taskIds: string[], dueDate: string | null): Promise<void>;
+  // Rewrites the manual order of tasks within a topic.
+  reorderTasks(updates: TaskOrderUpdate[]): Promise<void>;
 
   // Notes
   listNotes(): Promise<Note[]>;
@@ -121,6 +153,13 @@ export interface Backend {
   trackProgress(): Promise<Map<string, TrackProgress>>;
   topicProgress(trackId: string): Promise<Map<string, TrackProgress>>;
   focusTasks(limit: number): Promise<FocusTask[]>;
+
+  // The whole account's rows. Pass `notes: false` to skip note bodies.
+  snapshot(options?: { notes?: boolean }): Promise<Snapshot>;
+
+  // Adds everything in a backup file as new rows (fresh ids, so it never
+  // overwrites or collides with what's already there).
+  importSnapshot(data: Snapshot): Promise<RestoreCounts>;
 
   // Markdown import — one call, one unit of work, regardless of backend.
   importTrack(parsed: ParsedImport): Promise<string>;

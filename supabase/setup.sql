@@ -46,9 +46,23 @@ create table if not exists public.tasks (
   priority text not null default 'none' check (priority in ('none', 'low', 'medium', 'high')),
   due_date date,
   completed_at timestamptz,
+  recurrence text check (recurrence in ('daily', 'weekdays', 'weekly', 'monthly')),
   sort_order integer not null default 0,
   created_at timestamptz not null default now()
 );
+
+-- How well you know a topic (shaky / okay / solid). Safe to re-run.
+alter table public.topics add column if not exists confidence text;
+alter table public.topics drop constraint if exists topics_confidence_check;
+alter table public.topics add constraint topics_confidence_check
+  check (confidence is null or confidence in ('shaky', 'okay', 'solid'));
+
+-- Repeating tasks. Safe to re-run: older databases gain the column in
+-- place and every existing task simply doesn't repeat.
+alter table public.tasks add column if not exists recurrence text;
+alter table public.tasks drop constraint if exists tasks_recurrence_check;
+alter table public.tasks add constraint tasks_recurrence_check
+  check (recurrence is null or recurrence in ('daily', 'weekdays', 'weekly', 'monthly'));
 
 -- Safe to re-run against an existing database created before these
 -- reminder-related columns were removed.
@@ -589,6 +603,9 @@ $$;
 -- index-ordered query with its own LIMIT, so the work is proportional to
 -- how many rows get returned rather than how many exist.
 -- ---------------------------------------------------------------------
+-- The result gained a column (recurrence), and Postgres won't change a
+-- function's return type in place, hence the drop.
+drop function if exists public.focus_tasks(integer);
 create or replace function public.focus_tasks(p_limit integer default 50)
 returns table (
   id uuid,
@@ -598,6 +615,7 @@ returns table (
   priority text,
   due_date date,
   completed_at timestamptz,
+  recurrence text,
   sort_order integer,
   created_at timestamptz,
   topic_title text,
@@ -670,7 +688,7 @@ with
     select * from tier2 union all select * from tier3 union all select * from tier4
   )
 select c.id, c.topic_id, c.title, c.done, c.priority, c.due_date,
-       c.completed_at, c.sort_order, c.created_at,
+       c.completed_at, c.recurrence, c.sort_order, c.created_at,
        tp.title as topic_title, c.track_id, t.name as track_name
   from candidates c
   join public.topics tp on tp.id = c.topic_id
@@ -743,12 +761,13 @@ begin
     )
     returning id into v_topic_id;
 
-    insert into public.tasks (topic_id, title, done, priority, due_date, sort_order)
+    insert into public.tasks (topic_id, title, done, priority, due_date, recurrence, sort_order)
     select v_topic_id,
            tk ->> 'title',
            coalesce((tk ->> 'done')::boolean, false),
            coalesce(nullif(tk ->> 'priority', ''), 'none'),
            nullif(tk ->> 'dueDate', '')::date,
+           nullif(tk ->> 'recurrence', ''),
            (ordinality - 1)::integer
       from jsonb_array_elements(coalesce(v_topic -> 'tasks', '[]'::jsonb)) with ordinality as t(tk, ordinality);
 

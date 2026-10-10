@@ -1,7 +1,8 @@
-import type { Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
+import type { Confidence, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
 import type { ParsedImport, ParsedTopic } from "../markdownImport";
 import { GUEST_USER_ID, getGuestDB, newGuestId, nowIso } from "./guestStore";
 import { buildNoteContext, newNote, newestFirst } from "./localNotes";
+import { remapSnapshot } from "./localRestore";
 import { computeTopicProgress, computeTrackProgress, rankFocusTasks, topicStatusChanges } from "./localRanking";
 import {
   type Attachment,
@@ -11,6 +12,9 @@ import {
   type FocusTask,
   type ImportedNote,
   type NoteWithContext,
+  type RestoreCounts,
+  type Snapshot,
+  type TaskOrderUpdate,
   type TrackProgress,
   type UpdateTaskInput,
   type UpdateTaskScheduleInput,
@@ -100,6 +104,13 @@ export class GuestBackend implements Backend {
     await db.put("topics", { ...topic, title });
   }
 
+  async updateTopicConfidence(id: string, confidence: Confidence | null): Promise<void> {
+    const db = await getGuestDB();
+    const topic = await db.get("topics", id);
+    if (!topic) return;
+    await db.put("topics", { ...topic, confidence });
+  }
+
   async deleteTopic(id: string): Promise<void> {
     const db = await getGuestDB();
     const tasks = await db.getAllFromIndex("tasks", "topicId", id);
@@ -136,6 +147,7 @@ export class GuestBackend implements Backend {
       priority: input.priority ?? "none",
       due_date: input.dueDate || null,
       completed_at: null,
+      recurrence: input.recurrence ?? null,
       sort_order: existing.length,
       created_at: nowIso(),
     };
@@ -152,6 +164,8 @@ export class GuestBackend implements Backend {
       title: input.title,
       priority: input.priority,
       due_date: input.dueDate,
+      // Left alone unless the caller says something about it.
+      ...("recurrence" in input ? { recurrence: input.recurrence ?? null } : {}),
     });
   }
 
@@ -161,7 +175,46 @@ export class GuestBackend implements Backend {
     if (!task) return;
     const patch: Partial<Task> = {};
     if ("dueDate" in input) patch.due_date = input.dueDate || null;
+    if ("recurrence" in input) patch.recurrence = input.recurrence ?? null;
     await db.put("tasks", { ...task, ...patch });
+  }
+
+  async rescheduleTasks(taskIds: string[], dueDate: string | null): Promise<void> {
+    const db = await getGuestDB();
+    const tx = db.transaction("tasks", "readwrite");
+    for (const id of taskIds) {
+      const task = await tx.store.get(id);
+      if (task) await tx.store.put({ ...task, due_date: dueDate });
+    }
+    await tx.done;
+  }
+
+  async importSnapshot(data: Snapshot): Promise<RestoreCounts> {
+    const db = await getGuestDB();
+    const fresh = remapSnapshot(data, GUEST_USER_ID, newGuestId);
+    const tx = db.transaction(["tracks", "topics", "tasks", "notes"], "readwrite");
+    for (const row of fresh.tracks) tx.objectStore("tracks").put(row);
+    for (const row of fresh.topics) tx.objectStore("topics").put(row);
+    for (const row of fresh.tasks) tx.objectStore("tasks").put(row);
+    for (const row of fresh.notes) tx.objectStore("notes").put(row);
+    // One transaction: it all lands, or none of it does.
+    await tx.done;
+    return {
+      tracks: fresh.tracks.length,
+      topics: fresh.topics.length,
+      tasks: fresh.tasks.length,
+      notes: fresh.notes.length,
+    };
+  }
+
+  async reorderTasks(updates: TaskOrderUpdate[]): Promise<void> {
+    const db = await getGuestDB();
+    const tx = db.transaction("tasks", "readwrite");
+    for (const { id, sort_order } of updates) {
+      const task = await tx.store.get(id);
+      if (task) await tx.store.put({ ...task, sort_order });
+    }
+    await tx.done;
   }
 
   async deleteTask(taskId: string): Promise<void> {
@@ -288,6 +341,17 @@ export class GuestBackend implements Backend {
     return rankFocusTasks(tracks, topics, tasks, limit);
   }
 
+  async snapshot(options: { notes?: boolean } = {}): Promise<Snapshot> {
+    const db = await getGuestDB();
+    const [tracks, topics, tasks, notes] = await Promise.all([
+      db.getAll("tracks"),
+      db.getAll("topics"),
+      db.getAll("tasks"),
+      options.notes === false ? Promise.resolve([] as Note[]) : db.getAll("notes"),
+    ]);
+    return { tracks, topics, tasks, notes };
+  }
+
   async importTrack(parsed: ParsedImport): Promise<string> {
     const db = await getGuestDB();
     const track = await this.createTrack({ name: parsed.trackName, description: parsed.description });
@@ -314,6 +378,7 @@ export class GuestBackend implements Backend {
           priority: task.priority as TaskPriority,
           due_date: task.dueDate,
           completed_at: task.done ? nowIso() : null,
+          recurrence: task.recurrence ?? null,
           sort_order: taskIndex,
           created_at: nowIso(),
         };
@@ -373,6 +438,7 @@ export class GuestBackend implements Backend {
             done: task.done,
             priority: task.priority,
             dueDate: task.due_date,
+            recurrence: task.recurrence ?? null,
           })),
       }));
       return {
