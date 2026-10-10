@@ -4,6 +4,29 @@ Waypoint uses Capacitor 8 to package the existing React/Vite application as
 native Android and iOS apps. The native application ID is
 `com.yudhvirsingh.waypoint`.
 
+## Configuration baked into native builds
+
+A native build (and every over-the-air bundle) is compiled on your machine,
+not on Vercel, so it does not see the website's environment variables. Without
+them the app has no default Supabase project and shows **Google sign-in as
+"coming soon"**, because that option only appears when its client ID and token
+relay URL are present at build time.
+
+Put the same public values the website uses in `.env.capacitor.local` (it is
+git-ignored; Vite reads it for native builds and for `release:web`):
+
+```bash
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<the project's anon key>
+VITE_GOOGLE_CLIENT_ID=<client id>.apps.googleusercontent.com
+VITE_GOOGLE_TOKEN_RELAY_URL=https://<project-ref>.supabase.co/functions/v1/google-token
+VITE_GOOGLE_REDIRECT_URI=https://waypoint.yudhvir.in/auth/google/callback
+VITE_UPDATE_BASE_URL=https://waypoint.yudhvir.in
+```
+
+All of these are public by design (see `.env.example`). To check a build has
+them, search its JavaScript for `googleusercontent.com`.
+
 ## Build and sync
 
 ```bash
