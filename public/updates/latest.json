@@ -1,16 +1,17 @@
 {
   "schema": 1,
-  "builtAt": 1791648515596,
-  "version": "2.0.1",
+  "builtAt": 1791653121634,
+  "version": "2.1.0",
   "bundle": {
-    "url": "/updates/waypoint-1791648515596.zip",
-    "checksum": "9726df9c69beca4a700808370d35e6235e66baf6f282317fcb559847ed814932"
+    "url": "/updates/waypoint-1791653121634.zip",
+    "checksum": "afd223740ff3a1b1887efa2d79685fcaa606d6f602c65a04e951a004a3deb9d0"
   },
   "minNativeVersion": 2,
   "apk": {
-    "versionCode": 3,
-    "versionName": "2.0.1",
-    "url": "/downloads/waypoint.apk"
+    "versionCode": 4,
+    "versionName": "2.1.0",
+    "url": "/downloads/waypoint.apk",
+    "sha256": "4e306921678d6e8c5f513dadca1cb54edd6231decadc6050829bcc09676a3581"
   },
-  "notes": "Fix Google sign-in and default project in the app"
+  "notes": "Swipe to open the sidebar, in-app updates with a progress bar"
 }
