@@ -1,4 +1,4 @@
-import type { Confidence, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
+import type { Card, Confidence, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
 import {
   createDataFile,
@@ -9,6 +9,7 @@ import {
   uploadBinaryFile,
 } from "./driveClient";
 import type { GoogleDriveSession } from "./googleAuth";
+import { diffCards, newCardSchedule } from "../cards";
 import { buildNoteContext, newNote, newestFirst } from "./localNotes";
 import { remapSnapshot } from "./localRestore";
 import { computeTopicProgress, computeTrackProgress, rankFocusTasks, topicStatusChanges } from "./localRanking";
@@ -16,6 +17,7 @@ import {
   type Attachment,
   type AttachmentKind,
   type Backend,
+  type CardSchedule,
   type CreateTaskInput,
   type FocusTask,
   type ImportedNote,
@@ -36,6 +38,7 @@ interface DriveData {
   topics: Topic[];
   tasks: Task[];
   notes: Note[];
+  cards: Card[];
 }
 
 function newId(): string {
@@ -47,7 +50,7 @@ function nowIso(): string {
 }
 
 function emptyData(): DriveData {
-  return { version: DATA_VERSION, tracks: [], topics: [], tasks: [], notes: [] };
+  return { version: DATA_VERSION, tracks: [], topics: [], tasks: [], notes: [], cards: [] };
 }
 
 // The whole account's data is one JSON file in a "Waypoint" folder in the
@@ -97,6 +100,7 @@ export class DriveBackend implements Backend {
               topics: parsed.topics ?? [],
               tasks: parsed.tasks ?? [],
               notes: parsed.notes ?? [],
+              cards: parsed.cards ?? [],
             };
           } catch {
             throw new Error(
@@ -286,12 +290,14 @@ export class DriveBackend implements Backend {
     this.data.topics.push(...fresh.topics);
     this.data.tasks.push(...fresh.tasks);
     this.data.notes.push(...fresh.notes);
+    this.data.cards.push(...fresh.cards);
     await this.persist();
     return {
       tracks: fresh.tracks.length,
       topics: fresh.topics.length,
       tasks: fresh.tasks.length,
       notes: fresh.notes.length,
+      cards: fresh.cards.length,
     };
   }
 
@@ -369,6 +375,45 @@ export class DriveBackend implements Backend {
   async deleteNote(id: string): Promise<void> {
     await this.ensureLoaded();
     this.data.notes = this.data.notes.filter((n) => n.id !== id);
+    this.data.cards = this.data.cards.filter((c) => c.note_id !== id);
+    await this.persist();
+  }
+
+  async listCards(): Promise<Card[]> {
+    await this.ensureLoaded();
+    return [...this.data.cards];
+  }
+
+  async syncNoteCards(noteId: string, wanted: { front: string; back: string }[]): Promise<void> {
+    await this.ensureLoaded();
+    const existing = this.data.cards.filter((c) => c.note_id === noteId);
+    const diff = diffCards(existing, wanted);
+    if (diff.create.length + diff.updateBack.length + diff.remove.length === 0) return;
+    const gone = new Set(diff.remove);
+    this.data.cards = this.data.cards.filter((c) => !gone.has(c.id));
+    for (const u of diff.updateBack) {
+      const card = this.data.cards.find((c) => c.id === u.id);
+      if (card) card.back = u.back;
+    }
+    for (const w of diff.create) {
+      this.data.cards.push({
+        id: newId(),
+        user_id: this.session.email,
+        note_id: noteId,
+        front: w.front,
+        back: w.back,
+        ...newCardSchedule(),
+        created_at: nowIso(),
+      });
+    }
+    await this.persist();
+  }
+
+  async reviewCard(id: string, schedule: CardSchedule): Promise<void> {
+    await this.ensureLoaded();
+    const card = this.data.cards.find((c) => c.id === id);
+    if (!card) return;
+    Object.assign(card, schedule);
     await this.persist();
   }
 
@@ -433,6 +478,7 @@ export class DriveBackend implements Backend {
       topics: [...this.data.topics],
       tasks: [...this.data.tasks],
       notes: options.notes === false ? [] : [...this.data.notes],
+      cards: [...this.data.cards],
     };
   }
 

@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { Note, Task, Topic, Track } from "../database.types";
+import type { Card, Note, Task, Topic, Track } from "../database.types";
 
 // The single local user id stamped onto every row a guest creates. There
 // is exactly one guest per browser profile, so this exists only so
@@ -20,14 +20,21 @@ interface GuestDB extends DBSchema {
   tasks: { key: string; value: Task; indexes: { topicId: string; trackId: string } };
   notes: { key: string; value: Note; indexes: { taskId: string } };
   attachments: { key: string; value: GuestAttachment };
+  cards: { key: string; value: Card; indexes: { noteId: string } };
 }
 
 let dbPromise: Promise<IDBPDatabase<GuestDB>> | null = null;
 
 export function getGuestDB(): Promise<IDBPDatabase<GuestDB>> {
   if (!dbPromise) {
-    dbPromise = openDB<GuestDB>("waypoint-guest", 3, {
+    dbPromise = openDB<GuestDB>("waypoint-guest", 4, {
       upgrade(db, oldVersion) {
+        // v3 -> v4 only adds cards; existing stores are untouched.
+        if (oldVersion < 4) {
+          const cards = db.createObjectStore("cards", { keyPath: "id" });
+          cards.createIndex("noteId", "note_id");
+        }
+        if (oldVersion >= 3) return;
         // v2 -> v3 only adds attachments; existing stores are untouched.
         if (oldVersion < 3) db.createObjectStore("attachments", { keyPath: "id" });
         if (oldVersion >= 2) return;
@@ -81,13 +88,14 @@ export async function hasAnyGuestData(): Promise<boolean> {
 // backend after migrating their data, or explicitly asks to start over.
 export async function clearGuestData(): Promise<void> {
   const db = await getGuestDB();
-  const tx = db.transaction(["tracks", "topics", "tasks", "notes", "attachments"], "readwrite");
+  const tx = db.transaction(["tracks", "topics", "tasks", "notes", "attachments", "cards"], "readwrite");
   await Promise.all([
     tx.objectStore("tracks").clear(),
     tx.objectStore("topics").clear(),
     tx.objectStore("tasks").clear(),
     tx.objectStore("notes").clear(),
     tx.objectStore("attachments").clear(),
+    tx.objectStore("cards").clear(),
   ]);
   await tx.done;
 }

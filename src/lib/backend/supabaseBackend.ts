@@ -1,12 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Confidence, Note, Task, Topic, Track, TrackStatus, TopicStatus } from "../database.types";
+import type { Card, Confidence, Note, Task, Topic, Track, TrackStatus, TopicStatus } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
+import { diffCards, newCardSchedule } from "../cards";
 import { remapSnapshot } from "./localRestore";
 import { topicStatusChanges } from "./localRanking";
 import {
   type Attachment,
   type AttachmentKind,
   type Backend,
+  type CardSchedule,
   type CreateTaskInput,
   type FocusTask,
   type ImportedNote,
@@ -32,6 +34,8 @@ const ATTACHMENTS_BUCKET = "attachments";
 const TRACK_LIMIT = 500;
 // Same idea for the sidebar's notes list.
 const NOTE_LIMIT = 500;
+// Every card is loaded to work out what's due today.
+const CARD_LIMIT = 5000;
 
 interface TrackProgressRow {
   track_id: string;
@@ -281,6 +285,23 @@ export class SupabaseBackend implements Backend {
           updated_at: n.updated_at,
         })),
       );
+      await insertAll(
+        "cards",
+        fresh.cards.map((c) => ({
+          id: c.id,
+          user_id: this.userId,
+          note_id: c.note_id,
+          front: c.front,
+          back: c.back,
+          due: c.due,
+          interval_days: c.interval_days,
+          ease: c.ease,
+          reps: c.reps,
+          lapses: c.lapses,
+          last_reviewed_at: c.last_reviewed_at,
+          created_at: c.created_at,
+        })),
+      );
     } catch (error) {
       for (let i = 0; i < createdTracks.length; i += 100) {
         await this.client.from("tracks").delete().in("id", createdTracks.slice(i, i + 100));
@@ -296,6 +317,7 @@ export class SupabaseBackend implements Backend {
       topics: fresh.topics.length,
       tasks: fresh.tasks.length,
       notes: fresh.notes.length,
+      cards: fresh.cards.length,
     };
   }
 
@@ -400,6 +422,44 @@ export class SupabaseBackend implements Backend {
 
   async deleteNote(id: string): Promise<void> {
     const { error } = await this.client.from("notes").delete().eq("id", id);
+    if (error) throw error;
+  }
+
+  async listCards(): Promise<Card[]> {
+    const { data, error } = await this.client
+      .from("cards")
+      .select("*")
+      .eq("user_id", this.userId)
+      .order("due", { ascending: true })
+      .limit(CARD_LIMIT);
+    if (error) throw error;
+    return (data ?? []) as Card[];
+  }
+
+  async syncNoteCards(noteId: string, wanted: { front: string; back: string }[]): Promise<void> {
+    const { data, error } = await this.client.from("cards").select("id, front, back").eq("note_id", noteId);
+    if (error) throw error;
+    const diff = diffCards((data ?? []) as Pick<Card, "id" | "front" | "back">[], wanted);
+
+    if (diff.remove.length > 0) {
+      const { error: delError } = await this.client.from("cards").delete().in("id", diff.remove);
+      if (delError) throw delError;
+    }
+    for (const u of diff.updateBack) {
+      const { error: updError } = await this.client.from("cards").update({ back: u.back }).eq("id", u.id);
+      if (updError) throw updError;
+    }
+    if (diff.create.length > 0) {
+      const schedule = newCardSchedule();
+      const { error: insError } = await this.client.from("cards").insert(
+        diff.create.map((w) => ({ user_id: this.userId, note_id: noteId, front: w.front, back: w.back, ...schedule })),
+      );
+      if (insError) throw insError;
+    }
+  }
+
+  async reviewCard(id: string, schedule: CardSchedule): Promise<void> {
+    const { error } = await this.client.from("cards").update(schedule).eq("id", id);
     if (error) throw error;
   }
 
@@ -532,13 +592,14 @@ export class SupabaseBackend implements Backend {
   }
 
   async snapshot(options: { notes?: boolean } = {}): Promise<Snapshot> {
-    const [tracks, topics, tasks, notes] = await Promise.all([
+    const [tracks, topics, tasks, notes, cards] = await Promise.all([
       this.fetchAll<Track>("tracks", "created_at"),
       this.fetchAll<Topic>("topics", "created_at"),
       this.fetchAll<Task>("tasks", "created_at"),
       options.notes === false ? Promise.resolve([] as Note[]) : this.fetchAll<Note>("notes", "created_at"),
+      this.fetchAll<Card>("cards", "created_at"),
     ]);
-    return { tracks, topics, tasks, notes };
+    return { tracks, topics, tasks, notes, cards };
   }
 
   async importTrack(parsed: ParsedImport): Promise<string> {

@@ -273,6 +273,8 @@ function DataSection() {
             {pending.snapshot.topics.length} topic{pending.snapshot.topics.length === 1 ? "" : "s"},{" "}
             {pending.snapshot.tasks.length} task{pending.snapshot.tasks.length === 1 ? "" : "s"},{" "}
             {pending.snapshot.notes.length} note{pending.snapshot.notes.length === 1 ? "" : "s"}
+            {pending.snapshot.cards.length > 0 &&
+              `, ${pending.snapshot.cards.length} card${pending.snapshot.cards.length === 1 ? "" : "s"}`}
             {pending.exportedAt && ` · exported ${new Date(pending.exportedAt).toLocaleString()}`}
             {pending.skipped > 0 && ` · ${pending.skipped} unreadable row${pending.skipped === 1 ? "" : "s"} skipped`}
           </p>

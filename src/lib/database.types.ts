@@ -57,3 +57,22 @@ export interface Note {
   created_at: string;
   updated_at: string;
 }
+
+// A flashcard. Cards are derived from notes: a line written as
+// "question :: answer" becomes one, and the scheduling fields below track
+// when it is next due.
+export interface Card {
+  id: string;
+  user_id: string;
+  note_id: string | null;
+  front: string;
+  back: string;
+  // YYYY-MM-DD, local calendar day.
+  due: string;
+  interval_days: number;
+  ease: number;
+  reps: number;
+  lapses: number;
+  last_reviewed_at: string | null;
+  created_at: string;
+}

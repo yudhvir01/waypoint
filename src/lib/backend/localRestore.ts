@@ -47,5 +47,12 @@ export function remapSnapshot(data: Snapshot, userId: string, newId: () => strin
     task_id: n.task_id ? (taskIds.get(n.task_id) ?? null) : null,
   }));
 
-  return { tracks, topics, tasks, notes };
+  // A card follows its note; one whose note isn't in the file is dropped.
+  const noteIds = new Map(data.notes.map((n, i) => [n.id, notes[i].id]));
+  const cards = data.cards.flatMap((c) => {
+    const noteId = c.note_id ? noteIds.get(c.note_id) : undefined;
+    return noteId ? [{ ...c, id: newId(), user_id: userId, note_id: noteId }] : [];
+  });
+
+  return { tracks, topics, tasks, notes, cards };
 }

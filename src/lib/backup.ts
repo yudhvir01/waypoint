@@ -1,5 +1,5 @@
 import type { Snapshot } from "./backend/types";
-import type { Confidence, Note, Recurrence, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "./database.types";
+import type { Card, Confidence, Note, Recurrence, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "./database.types";
 import { isRecurrence } from "./recurrence";
 
 // Reading a backup file back in. The file is untrusted input (edited by
@@ -61,7 +61,8 @@ export function parseBackup(text: string): ParsedBackup {
   const rawTopics = list("topics");
   const rawTasks = list("tasks");
   const rawNotes = list("notes");
-  if (rawTracks.length + rawTopics.length + rawTasks.length + rawNotes.length > MAX_ROWS) {
+  const rawCards = list("cards");
+  if (rawTracks.length + rawTopics.length + rawTasks.length + rawNotes.length + rawCards.length > MAX_ROWS) {
     throw new Error("That backup has too many rows to restore in one go.");
   }
 
@@ -155,12 +156,39 @@ export function parseBackup(text: string): ParsedBackup {
     });
   }
 
+  const cards: Card[] = [];
+  for (const r of rawCards) {
+    const o = obj(r);
+    const id = o && str(o.id);
+    const front = o && str(o.front)?.trim();
+    const back = o && str(o.back)?.trim();
+    if (!o || !id || !front || !back) {
+      skipped++;
+      continue;
+    }
+    const ease = typeof o.ease === "number" && Number.isFinite(o.ease) ? o.ease : 2.5;
+    cards.push({
+      id,
+      user_id: "",
+      note_id: str(o.note_id),
+      front,
+      back,
+      due: dateKeyOrNull(o.due) ?? epoch.slice(0, 10),
+      interval_days: Math.max(0, int(o.interval_days)),
+      ease: Math.min(4, Math.max(1.3, ease)),
+      reps: Math.max(0, int(o.reps)),
+      lapses: Math.max(0, int(o.lapses)),
+      last_reviewed_at: typeof o.last_reviewed_at === "string" ? isoOr(o.last_reviewed_at, epoch) : null,
+      created_at: isoOr(o.created_at, epoch),
+    });
+  }
+
   if (tracks.length + notes.length === 0) {
     throw new Error("That backup has no tracks or notes in it.");
   }
 
   return {
-    snapshot: { tracks, topics, tasks, notes },
+    snapshot: { tracks, topics, tasks, notes, cards },
     exportedAt: typeof root.exportedAt === "string" ? root.exportedAt : null,
     skipped,
   };

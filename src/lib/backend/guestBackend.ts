@@ -1,6 +1,7 @@
-import type { Confidence, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
+import type { Card, Confidence, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
 import type { ParsedImport, ParsedTopic } from "../markdownImport";
 import { GUEST_USER_ID, getGuestDB, newGuestId, nowIso } from "./guestStore";
+import { diffCards, newCardSchedule } from "../cards";
 import { buildNoteContext, newNote, newestFirst } from "./localNotes";
 import { remapSnapshot } from "./localRestore";
 import { computeTopicProgress, computeTrackProgress, rankFocusTasks, topicStatusChanges } from "./localRanking";
@@ -8,6 +9,7 @@ import {
   type Attachment,
   type AttachmentKind,
   type Backend,
+  type CardSchedule,
   type CreateTaskInput,
   type FocusTask,
   type ImportedNote,
@@ -192,7 +194,8 @@ export class GuestBackend implements Backend {
   async importSnapshot(data: Snapshot): Promise<RestoreCounts> {
     const db = await getGuestDB();
     const fresh = remapSnapshot(data, GUEST_USER_ID, newGuestId);
-    const tx = db.transaction(["tracks", "topics", "tasks", "notes"], "readwrite");
+    const tx = db.transaction(["tracks", "topics", "tasks", "notes", "cards"], "readwrite");
+    for (const row of fresh.cards) tx.objectStore("cards").put(row);
     for (const row of fresh.tracks) tx.objectStore("tracks").put(row);
     for (const row of fresh.topics) tx.objectStore("topics").put(row);
     for (const row of fresh.tasks) tx.objectStore("tasks").put(row);
@@ -204,6 +207,7 @@ export class GuestBackend implements Backend {
       topics: fresh.topics.length,
       tasks: fresh.tasks.length,
       notes: fresh.notes.length,
+      cards: fresh.cards.length,
     };
   }
 
@@ -276,7 +280,48 @@ export class GuestBackend implements Backend {
 
   async deleteNote(id: string): Promise<void> {
     const db = await getGuestDB();
-    await db.delete("notes", id);
+    const cardIds = await db.getAllKeysFromIndex("cards", "noteId", id);
+    const tx = db.transaction(["notes", "cards"], "readwrite");
+    await tx.objectStore("notes").delete(id);
+    for (const cardId of cardIds) await tx.objectStore("cards").delete(cardId);
+    await tx.done;
+  }
+
+  async listCards(): Promise<Card[]> {
+    const db = await getGuestDB();
+    return db.getAll("cards");
+  }
+
+  async syncNoteCards(noteId: string, wanted: { front: string; back: string }[]): Promise<void> {
+    const db = await getGuestDB();
+    const existing = await db.getAllFromIndex("cards", "noteId", noteId);
+    const diff = diffCards(existing, wanted);
+    if (diff.create.length + diff.updateBack.length + diff.remove.length === 0) return;
+    const tx = db.transaction("cards", "readwrite");
+    const now = nowIso();
+    for (const w of diff.create) {
+      tx.store.put({
+        id: newGuestId(),
+        user_id: GUEST_USER_ID,
+        note_id: noteId,
+        front: w.front,
+        back: w.back,
+        ...newCardSchedule(),
+        created_at: now,
+      });
+    }
+    for (const u of diff.updateBack) {
+      const card = existing.find((c) => c.id === u.id);
+      if (card) tx.store.put({ ...card, back: u.back });
+    }
+    for (const id of diff.remove) tx.store.delete(id);
+    await tx.done;
+  }
+
+  async reviewCard(id: string, schedule: CardSchedule): Promise<void> {
+    const db = await getGuestDB();
+    const card = await db.get("cards", id);
+    if (card) await db.put("cards", { ...card, ...schedule });
   }
 
   async getOrCreateTaskNote(taskId: string): Promise<Note | null> {
@@ -343,13 +388,14 @@ export class GuestBackend implements Backend {
 
   async snapshot(options: { notes?: boolean } = {}): Promise<Snapshot> {
     const db = await getGuestDB();
-    const [tracks, topics, tasks, notes] = await Promise.all([
+    const [tracks, topics, tasks, notes, cards] = await Promise.all([
       db.getAll("tracks"),
       db.getAll("topics"),
       db.getAll("tasks"),
       options.notes === false ? Promise.resolve([] as Note[]) : db.getAll("notes"),
+      db.getAll("cards"),
     ]);
-    return { tracks, topics, tasks, notes };
+    return { tracks, topics, tasks, notes, cards };
   }
 
   async importTrack(parsed: ParsedImport): Promise<string> {

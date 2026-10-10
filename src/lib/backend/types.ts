@@ -1,4 +1,4 @@
-import type { Confidence, Note, Recurrence, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
+import type { Card, Confidence, Note, Recurrence, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
 
 export interface TrackProgress {
@@ -63,6 +63,17 @@ export interface Snapshot {
   tasks: Task[];
   // Empty unless the caller asked for notes (they carry full HTML bodies).
   notes: Note[];
+  cards: Card[];
+}
+
+// What a card's schedule is rewritten to after it's reviewed.
+export interface CardSchedule {
+  due: string;
+  interval_days: number;
+  ease: number;
+  reps: number;
+  lapses: number;
+  last_reviewed_at: string | null;
 }
 
 export interface RestoreCounts {
@@ -70,6 +81,7 @@ export interface RestoreCounts {
   topics: number;
   tasks: number;
   notes: number;
+  cards: number;
 }
 
 export interface TaskOrderUpdate {
@@ -139,6 +151,13 @@ export interface Backend {
   // time the task is opened. Returns null if the task no longer exists.
   getOrCreateTaskNote(taskId: string): Promise<Note | null>;
   importNotes(notes: ImportedNote[]): Promise<void>;
+
+  // Flashcards. They belong to the note they were written in: syncNoteCards
+  // makes that note's cards match exactly the question/answer pairs it
+  // currently contains, keeping the schedule of any card that survives.
+  listCards(): Promise<Card[]>;
+  syncNoteCards(noteId: string, wanted: { front: string; back: string }[]): Promise<void>;
+  reviewCard(id: string, schedule: CardSchedule): Promise<void>;
 
   // Attachments — images and audio clips embedded in a note's body.
   // uploadAttachment stores the file and returns its id; resolveAttachmentUrl

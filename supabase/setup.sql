@@ -83,6 +83,26 @@ create table if not exists public.notes (
   updated_at timestamptz not null default now()
 );
 
+-- Flashcards, written into notes as "question :: answer" lines. Deleting a
+-- note deletes the cards that came from it.
+create table if not exists public.cards (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  note_id uuid references public.notes (id) on delete cascade,
+  front text not null,
+  back text not null,
+  due date not null default current_date,
+  interval_days integer not null default 0,
+  ease real not null default 2.5,
+  reps integer not null default 0,
+  lapses integer not null default 0,
+  last_reviewed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists cards_user_due_idx on public.cards (user_id, due);
+create index if not exists cards_note_idx on public.cards (note_id);
+
 create unique index if not exists notes_task_id_key on public.notes (task_id) where task_id is not null;
 create index if not exists notes_user_updated_idx on public.notes (user_id, updated_at desc);
 
@@ -340,6 +360,7 @@ alter table public.tracks enable row level security;
 alter table public.topics enable row level security;
 alter table public.tasks enable row level security;
 alter table public.notes enable row level security;
+alter table public.cards enable row level security;
 
 drop policy if exists "tracks_owner_all" on public.tracks;
 create policy "tracks_owner_all" on public.tracks
@@ -359,6 +380,10 @@ create policy "tasks_owner_all" on public.tasks
 
 drop policy if exists "notes_owner_all" on public.notes;
 create policy "notes_owner_all" on public.notes
+  for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+
+drop policy if exists "cards_owner_all" on public.cards;
+create policy "cards_owner_all" on public.cards
   for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
 -- ---------------------------------------------------------------------
