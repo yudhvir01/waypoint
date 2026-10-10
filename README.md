@@ -28,7 +28,9 @@ Everything rolls up into one **Focus Now** list on the dashboard: the tasks that
 - **Repeating tasks** — daily, weekdays, weekly or monthly; ticking one creates the next occurrence (never in the past). `#repeat:` in Markdown.
 - **Spaced revisit** — finishing a topic schedules review tasks at +3, +7 and +21 days in a per-track "Reviews" topic (toggle in Settings).
 - **Manual task order** — Move up / Move down in a task's menu.
-- **Quiet app updates** — installed Android apps fetch new web bundles in the background and use them on next launch, with automatic rollback; a new APK is only offered, never forced. See [`docs/mobile.md`](docs/mobile.md).
+- **Self-updating Android app** — new web bundles are fetched in the background and used on the next launch, with automatic rollback. A new APK downloads by itself with a progress bar and is handed to Android's installer, whose "update this app?" screen is the one confirmation Android requires. The file is checked against a published SHA-256 first. See [`docs/mobile.md`](docs/mobile.md).
+- **Install from the browser** — the landing page offers Install on Android (the web app, no download), the APK as the other option, and Add to Home Screen steps for iOS.
+- **Swipeable sidebar** — on a phone, swipe right to open the drawer and left to close it; it follows the finger and ignores text fields, the editor and sideways-scrolling areas.
 - **Focus timer** — a Pomodoro-style timer tied to a task, kept running across pages; time is logged per task and shown on the Review page.
 - **Note links & backlinks** — `[[Title]]` links to a note, task, topic or track (Ctrl/Cmd+click to open); each note lists what it links to and what links back.
 - **Quick add** — press `C` anywhere and write a line like `read ch 4 friday !high #cpp`; dates, repeats, priority and track are picked out of the text, and unsorted tasks land in an Inbox. Tasks can be moved between topics and tracks.
@@ -82,6 +84,7 @@ Open the app — the login screen lets you try it as a guest immediately, or con
 | `npm run cap:run:android` / `cap:run:ios` | Sync, build, and run on a selected device or simulator |
 | `npm run preview`   | Preview the production build locally |
 | `npm run release:web` | Build and publish an over-the-air web update for installed apps |
+| `scripts/sign-apk.sh` | Sign the unsigned release APK and place it at `public/downloads/waypoint.apk` |
 | `npm run lint`      | Run Oxlint                           |
 
 ## Tech stack
@@ -116,6 +119,7 @@ src/
     useFocusNow.ts             Focus Now ranking query
     useImportTrack.ts          Bulk insert for Markdown import
     useSnapshot.ts             Whole-account read behind search, review and export
+    useDrawerSwipe.ts          Finger-following open/close for the phone sidebar
   lib/
     backend/types.ts           The Backend interface every page talks through
     backend/supabaseBackend.ts Backend implementation over Postgres/PostgREST
@@ -132,6 +136,8 @@ src/
     links.ts                   [[Title]] parsing, resolution and backlinks
     focusTimer.ts              The focus timer as pure functions over timestamps
     appUpdate.ts / otaUpdater.ts   Update manifest parsing and decisions; the native updater
+    apkUpdate.ts               In-app APK update as a state machine (download, permission, install)
+    apkInstaller.ts / apkUpdater.ts / updateFlow.ts   The native plugin binding, the app-wide instance, one update check
     quickAdd.ts / inbox.ts     Parse one line into a task; where it lands (a track or the Inbox)
     exportData.ts              Track → Markdown, full JSON backup, file download
     backup.ts                  Validating reader for backup files
@@ -147,6 +153,11 @@ src/
     Settings.tsx   Database/migration status
     Guide.tsx      In-app docs, sidebar nav
   sw.ts            Custom service worker (precaches app assets)
+android/app/src/main/java/com/yudhvirsingh/waypoint/
+  ApkInstallerPlugin.java  Native half of the in-app updater: download with progress, verify, open the installer
+scripts/
+  release-web.mjs          Build and publish an over-the-air bundle + update manifest
+  sign-apk.sh              Sign a release APK with the key kept outside the repo
 supabase/
   setup.sql              One-time schema + RLS setup for your Supabase project
   functions/
@@ -158,9 +169,13 @@ docs/
 
 ## Status
 
-Core phases are built and verified against a live Supabase project, plus a local guest backend:
+Built, and running against a live Supabase project, the local guest store and Google Drive:
 
-1. **Storage backends** — guest mode (IndexedDB, no account), Supabase (bring-your-own project or a baked-in default), and Google Drive (one JSON file in a "Waypoint" folder, via a stateless OAuth token-relay Edge Function), all behind one `Backend` interface. A "Move to Supabase"/"Move to Google Drive" flow migrates guest data in.
-2. **Tracks, Topics, Tasks & Focus Now** — the core tracking model, on either backend.
-3. **Markdown import** — bulk-create a track from a `.md` file.
-4. **Note attachments & link previews** — images/audio embedded in a note's body on all three backends, and Signal-style link preview cards on paste (needs the `link-preview` Edge Function deployed; degrades to a plain link without it).
+1. **Storage backends** — guest (IndexedDB), Supabase (bring-your-own project or a baked-in default) and Google Drive (one JSON file, via a stateless OAuth token-relay Edge Function), all behind one `Backend` interface, with guest → account migration.
+2. **Tracks, Topics, Tasks & Focus Now**, and **Markdown import and export**.
+3. **Notes** — rich text, image/audio attachments, link previews (the `link-preview` Edge Function), `[[links]]` with backlinks, and flashcards written as `question :: answer`.
+4. **Planning and review** — search, repeating tasks, spaced revisit with topic confidence, quick add with an Inbox, a focus timer, and a Review page with streaks.
+5. **Safety** — JSON backup and restore, and row-level security with the internal functions kept off the API.
+6. **Android app** — Capacitor shell, signed release APK, background bundle updates and the in-app APK installer. Releasing it is covered in [`docs/mobile.md`](docs/mobile.md).
+
+Not built: a calendar view, templates, a daily note, tags and subtasks, a web clipper, local reminders, and voice dictation (under discussion).

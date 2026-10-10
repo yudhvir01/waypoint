@@ -4,10 +4,11 @@ title: Connecting Your Supabase Project
 # Connecting Your Supabase Project
 
 Waypoint's login screen offers three ways in: try it as a guest with no setup (your
-data stays only in that browser), sign in with Google (coming soon), or connect your
-own [Supabase](https://supabase.com) project — a real Postgres database, under your
-account, that only your Waypoint app talks to, and the only option today that syncs
-across devices.
+data stays only in that browser), sign in with Google (your data lives in a
+Waypoint folder in your own Drive), or connect your own
+[Supabase](https://supabase.com) project — a real Postgres database, under your
+account, that only your Waypoint app talks to. Google and Supabase both follow you
+across devices; guest mode doesn't.
 
 This chapter covers that last option. It takes about five minutes, once. Already
 using guest mode? Settings has a "Move to Supabase" button that walks you through

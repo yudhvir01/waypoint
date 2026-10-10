@@ -36,6 +36,27 @@ use it:
   there, not on anyone else's server, and follow you to any device you sign into.
 - **Google** — saves into a "Waypoint" folder in your own Drive. Only that folder is ever touched, never the rest of your Drive.
 
+## More than a task list
+
+Around those three things, Waypoint is also a notebook and a place to look back:
+
+- **Notes** that sit inside a task or stand alone, with images, audio, link
+  previews and `[[links]]` between notes, tasks, topics and tracks.
+- **Flashcards** made by writing `question :: answer` in a note, reviewed in
+  short daily sessions.
+- **Search** across everything, **Review** (streaks, an activity grid, what
+  slipped), **repeating tasks**, **spaced revisit** and a **focus timer**.
+- **Quick add**: press **C**, write a line, and the date, repeat and priority are
+  picked out of it.
+- **Export and backup**, so nothing is stuck inside the app.
+
+Each of those has its own chapter in this guide.
+
+## Get it on your phone
+
+Waypoint installs like an app on Android and iPhone, with an Android app that
+updates itself. The chapter **On Your Phone** has the steps.
+
 Guest mode is there to try Waypoint out. The next chapter walks through the
 Supabase setup for anyone who wants their notes to actually last — and if you've
 already been using guest mode, Settings has a one-click "Move to Supabase" that

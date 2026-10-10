@@ -122,6 +122,36 @@ from your own site, and the manifest may only point at that same HTTPS origin.
 `VITE_UPDATE_BASE_URL` sets the site the app asks (default
 `https://waypoint.yudhvir.in`).
 
+### Installing a new APK from inside the app
+
+A new APK is downloaded and installed from the app itself, so nobody has to
+find a file in Downloads. `src/lib/apkUpdate.ts` is the flow (a small state
+machine, tested against a fake installer), `src/components/AppUpdater.tsx` is
+the notice with its progress bar, and
+`android/app/src/main/java/com/yudhvirsingh/waypoint/ApkInstallerPlugin.java`
+is the native half.
+
+1. A check finds a newer APK in `latest.json` and the download **starts on its
+   own**, with a progress bar and a Cancel button. "Not now" remembers that
+   version and stops asking.
+2. The plugin streams the file into the app's cache while hashing it. A SHA-256
+   that doesn't match `apk.sha256` in the manifest deletes the file.
+3. It checks the file is the same package and has a higher `versionCode` than
+   what is installed.
+4. If "Install unknown apps" isn't allowed for Waypoint yet, the notice shows
+   **Open settings**. Coming back continues by itself.
+5. The file is handed to Android's installer through the app's `FileProvider`.
+   Android's own "update this app?" screen is the confirmation. It cannot be
+   skipped for a sideloaded app, and it only accepts the APK if it is signed
+   with the same key as the installed one.
+
+If the plugin isn't present (an app from before it existed) or the manifest has
+no checksum, the notice falls back to opening the download in the browser.
+
+The manifest's `apk.sha256` is computed by `release:web` from
+`public/downloads/waypoint.apk`, so **sign and place the APK before running it**.
+The app declares `REQUEST_INSTALL_PACKAGES` for this.
+
 ### Publishing a web update
 
 ```bash
@@ -163,7 +193,18 @@ Capacitor upgrade). On a machine with the Android SDK and JDK 21:
    sign-in keeps returning to the app.
 5. Update `ota.config.json`: set `apk.versionCode` / `apk.versionName`, and
    raise `minNativeVersion` if the web bundle now needs the new shell.
-6. `npm run release:web`, commit, push.
+6. Publish the matching bundle with the **same build timestamp** the APK was
+   built with, so the freshly installed app doesn't re-download a bundle that is
+   identical to the one it shipped with:
+
+   ```bash
+   T=$(date +%s%3N)
+   WAYPOINT_BUILD_TIME=$T npm run cap:sync        # step 2, with the timestamp
+   # ... assembleRelease, scripts/sign-apk.sh ...
+   npm run release:web -- --built-at $T
+   ```
+
+   Then commit and push.
 
 Native builds and update bundles leave out `public/downloads`,
 `public/updates` and `public/.well-known`: those are things the site serves,
