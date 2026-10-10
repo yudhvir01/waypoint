@@ -38,7 +38,10 @@ if (config.apk && gradleCode && gradleCode !== config.apk.versionCode) {
   );
 }
 
-const builtAt = Date.now();
+// Normally "now". Pass the timestamp the APK was built with (see
+// docs/mobile.md) so a freshly installed app does not re-download a bundle
+// that is identical to the one it shipped with.
+const builtAt = Number(arg("built-at")) || Date.now();
 const env = { ...process.env, WAYPOINT_BUILD_TIME: String(builtAt), WAYPOINT_OUT_DIR: "dist-ota" };
 rmSync(outDir, { recursive: true, force: true });
 console.log(`Building bundle ${builtAt} (app ${pkg.version})…`);
@@ -66,13 +69,26 @@ const zipName = `waypoint-${builtAt}.zip`;
 writeFileSync(join(updatesDir, zipName), zip);
 const checksum = createHash("sha256").update(zip).digest("hex");
 
+// The app verifies the APK it downloads against this, so it must be the
+// hash of the file the site really serves.
+let apk = config.apk ?? null;
+const apkPath = join(root, "public", "downloads", "waypoint.apk");
+if (apk) {
+  try {
+    const file = readFileSync(apkPath);
+    apk = { ...apk, sha256: createHash("sha256").update(file).digest("hex") };
+  } catch {
+    console.warn("! public/downloads/waypoint.apk is missing, so the manifest has no APK checksum.");
+  }
+}
+
 const manifest = {
   schema: 1,
   builtAt,
   version: pkg.version,
   bundle: { url: `/updates/${zipName}`, checksum },
   minNativeVersion: minNative,
-  apk: config.apk ?? null,
+  apk,
   notes: arg("notes") ?? null,
 };
 writeFileSync(join(updatesDir, "latest.json"), JSON.stringify(manifest, null, 2) + "\n");

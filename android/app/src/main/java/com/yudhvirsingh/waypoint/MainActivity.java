@@ -1,6 +1,7 @@
 package com.yudhvirsingh.waypoint;
 
 import android.graphics.Rect;
+import android.os.Bundle;
 import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -8,6 +9,13 @@ import android.view.View;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+  // Local plugins are registered before the bridge starts.
+  @Override
+  public void onCreate(Bundle savedInstanceState) {
+    registerPlugin(ApkInstallerPlugin.class);
+    super.onCreate(savedInstanceState);
+  }
+
   // Android's floating Cut / Copy / Paste / Select all toolbar would cover
   // the editor's own formatting bar. Stripping its items (rather than
   // refusing to start the action mode, which makes the WebView drop the

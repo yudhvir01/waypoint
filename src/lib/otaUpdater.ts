@@ -15,7 +15,14 @@ export type UpdateResult =
   // A newer bundle is downloaded and will be in use from the next launch.
   | { kind: "bundle-ready"; version: string }
   // A newer APK exists (or a newer bundle needs one).
-  | { kind: "native"; apkUrl: string; versionName: string; versionCode: number; required: boolean }
+  | {
+      kind: "native";
+      apkUrl: string;
+      versionName: string;
+      versionCode: number;
+      sha256: string | null;
+      required: boolean;
+    }
   | { kind: "error"; message: string };
 
 export function isNative(): boolean {
@@ -110,6 +117,7 @@ export async function checkForUpdates(): Promise<UpdateResult> {
         apkUrl: decision.native.url,
         versionName: decision.native.versionName,
         versionCode: decision.native.versionCode,
+        sha256: decision.native.sha256,
         required: decision.bundleNeedsNative,
       };
     }

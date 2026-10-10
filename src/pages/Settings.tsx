@@ -16,7 +16,8 @@ import { backupFileName, downloadTextFile, snapshotToBackupJson } from "../lib/e
 import { MAX_OPEN_REVIEWS_PER_TRACK, REVIEW_OFFSETS_DAYS } from "../lib/taskActions";
 import { parseBackup, type ParsedBackup } from "../lib/backup";
 import { APP_VERSION, BUILD_TIME } from "../lib/buildInfo";
-import { checkForUpdates, installedNativeBuild, isNative, type UpdateResult } from "../lib/otaUpdater";
+import { installedNativeBuild, isNative, type UpdateResult } from "../lib/otaUpdater";
+import { runUpdateCheck } from "../lib/updateFlow";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -184,7 +185,7 @@ function AboutSection() {
   async function handleCheck() {
     setChecking(true);
     try {
-      setResult(await checkForUpdates());
+      setResult(await runUpdateCheck({ manual: true }));
     } finally {
       setChecking(false);
     }
@@ -197,7 +198,7 @@ function AboutSection() {
       : result.kind === "bundle-ready"
         ? `Version ${result.version} is downloaded and will be used the next time you open the app.`
         : result.kind === "native"
-          ? `A new app version (${result.versionName}) is available. Download it from the notice at the bottom of the screen.`
+          ? `A new app version (${result.versionName}) is available. It's downloading now; follow the progress at the bottom of the screen.`
           : result.kind === "error"
             ? `Couldn't check: ${result.message}`
             : null;

@@ -18,7 +18,9 @@ export interface UpdateManifest {
   // The lowest native build (Android versionCode) the bundle runs on.
   minNativeVersion: number;
   // The newest APK on offer, if any.
-  apk: { versionCode: number; versionName: string; url: string } | null;
+  // sha256 lets the app verify the file before handing it to Android's
+  // installer; without it the app can only open the download in a browser.
+  apk: { versionCode: number; versionName: string; url: string; sha256: string | null } | null;
   notes: string | null;
 }
 
@@ -68,6 +70,8 @@ export function parseManifest(raw: unknown, baseUrl: string): UpdateManifest | n
         versionCode: code,
         versionName: typeof rawApk.versionName === "string" ? rawApk.versionName : String(code),
         url,
+        sha256:
+          typeof rawApk.sha256 === "string" && SHA256.test(rawApk.sha256) ? rawApk.sha256.toLowerCase() : null,
       };
     }
   }
