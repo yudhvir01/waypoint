@@ -28,6 +28,7 @@ Everything rolls up into one **Focus Now** list on the dashboard: the tasks that
 - **Repeating tasks** — daily, weekdays, weekly or monthly; ticking one creates the next occurrence (never in the past). `#repeat:` in Markdown.
 - **Spaced revisit** — finishing a topic schedules review tasks at +3, +7 and +21 days in a per-track "Reviews" topic (toggle in Settings).
 - **Manual task order** — Move up / Move down in a task's menu.
+- **Note links & backlinks** — `[[Title]]` links to a note, task, topic or track (Ctrl/Cmd+click to open); each note lists what it links to and what links back.
 - **Quick add** — press `C` anywhere and write a line like `read ch 4 friday !high #cpp`; dates, repeats, priority and track are picked out of the text, and unsorted tasks land in an Inbox. Tasks can be moved between topics and tracks.
 - **Flashcards from notes** — write `question :: answer` on a line of a note and it becomes a card; spaced review with a 20-card session cap.
 - **Topic confidence** — rate a topic Shaky / Okay / Solid; it sets how soon reviews come back and feeds the Review page.
@@ -125,6 +126,7 @@ src/
     taskActions.ts             Ticking a task: repeat follow-up + spaced reviews
     search.ts / insights.ts    Pure functions over a snapshot: search, streaks, review
     cards.ts                   Cards from note text, diffing, scheduler, daily session
+    links.ts                   [[Title]] parsing, resolution and backlinks
     quickAdd.ts / inbox.ts     Parse one line into a task; where it lands (a track or the Inbox)
     exportData.ts              Track → Markdown, full JSON backup, file download
     backup.ts                  Validating reader for backup files
