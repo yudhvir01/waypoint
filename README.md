@@ -28,6 +28,7 @@ Everything rolls up into one **Focus Now** list on the dashboard: the tasks that
 - **Repeating tasks** — daily, weekdays, weekly or monthly; ticking one creates the next occurrence (never in the past). `#repeat:` in Markdown.
 - **Spaced revisit** — finishing a topic schedules review tasks at +3, +7 and +21 days in a per-track "Reviews" topic (toggle in Settings).
 - **Manual task order** — Move up / Move down in a task's menu.
+- **Focus timer** — a Pomodoro-style timer tied to a task, kept running across pages; time is logged per task and shown on the Review page.
 - **Note links & backlinks** — `[[Title]]` links to a note, task, topic or track (Ctrl/Cmd+click to open); each note lists what it links to and what links back.
 - **Quick add** — press `C` anywhere and write a line like `read ch 4 friday !high #cpp`; dates, repeats, priority and track are picked out of the text, and unsorted tasks land in an Inbox. Tasks can be moved between topics and tracks.
 - **Flashcards from notes** — write `question :: answer` on a line of a note and it becomes a card; spaced review with a 20-card session cap.
@@ -54,7 +55,7 @@ npm install
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Open **SQL Editor**, paste in the contents of [`supabase/setup.sql`](./supabase/setup.sql), and run it. This creates every table the app needs (`tracks`, `topics`, `tasks`, `topic_counts`), the indexes and helper functions the app's queries rely on, a public `attachments` Storage bucket for note images/audio, and locks it all down with row-level security so only you can read or write your own data.
 
-   The script is safe to re-run. **Already running an older Waypoint?** Re-run it after pulling — it migrates an existing database in place (adding ownership columns, indexes, maintained progress counters, and the `recurrence` and `confidence` columns and the `cards` table) without touching your rows. Repeating tasks, topic confidence, flashcards and Focus Now need this re-run.
+   The script is safe to re-run. **Already running an older Waypoint?** Re-run it after pulling — it migrates an existing database in place (adding ownership columns, indexes, maintained progress counters, and the `recurrence` and `confidence` columns and the `cards` and `focus_sessions` tables) without touching your rows. Repeating tasks, topic confidence, flashcards, the focus timer's log and Focus Now need this re-run.
 3. Grab your **Project ID** (Settings → General) and **anon key** (Settings → API Keys).
 4. **(Optional) Deploy the link-preview function** so pasted links show a preview card: `supabase functions deploy link-preview --no-verify-jwt`. Nothing to configure — it's stateless and needs no secrets. Deploying it to the project behind `VITE_SUPABASE_URL` (the baked-in default, if you set one) makes it work for every visitor regardless of which backend they pick, guest and Google Drive included — those have no "connected project" of their own to reach a function through otherwise. Skip it and pasted links just stay plain links.
 
@@ -127,6 +128,7 @@ src/
     search.ts / insights.ts    Pure functions over a snapshot: search, streaks, review
     cards.ts                   Cards from note text, diffing, scheduler, daily session
     links.ts                   [[Title]] parsing, resolution and backlinks
+    focusTimer.ts              The focus timer as pure functions over timestamps
     quickAdd.ts / inbox.ts     Parse one line into a task; where it lands (a track or the Inbox)
     exportData.ts              Track → Markdown, full JSON backup, file download
     backup.ts                  Validating reader for backup files
