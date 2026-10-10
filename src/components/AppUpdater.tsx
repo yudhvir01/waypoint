@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { App as CapacitorApp } from "@capacitor/app";
 import { apkUpdater, useApkUpdate } from "../lib/apkUpdater";
-import { isNative, markBundleReady } from "../lib/otaUpdater";
+import { isNative, markBundleReady, reviewStagedUpdate } from "../lib/otaUpdater";
 import { rememberDismissed, runUpdateCheck } from "../lib/updateFlow";
 
 // Don't ask the server more often than this, however often the app is
@@ -35,6 +35,7 @@ export function AppUpdater() {
     // This bundle started fine, so keep it. (If this never runs, the
     // plugin rolls back to the previous bundle by itself.)
     void markBundleReady();
+    reviewStagedUpdate();
 
     async function run() {
       const now = Date.now();
