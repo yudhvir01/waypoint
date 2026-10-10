@@ -6,10 +6,12 @@ import { ActionMenu } from "../components/ActionMenu";
 import { useTrack, useUpdateTrackStatus } from "../hooks/useTracks";
 import { useTopicProgress, useTrackProgress, type TrackProgress } from "../hooks/useTrackProgress";
 import {
+  nextConfidence,
   nextTopicStatus,
   useCreateTopic,
   useDeleteTopic,
   useTopics,
+  useUpdateTopicConfidence,
   useUpdateTopicStatus,
   useUpdateTopicTitle,
 } from "../hooks/useTopics";
@@ -24,6 +26,7 @@ import {
 } from "../hooks/useTasks";
 import { useBackend } from "../context/BackendProvider";
 import {
+  type Confidence,
   type Recurrence,
   type Task,
   type TaskPriority,
@@ -120,6 +123,18 @@ const TOPIC_STATUS_DOT: Record<TopicStatus, string> = {
   not_started: "bg-muted-foreground",
   in_progress: "bg-primary",
   done: "bg-success",
+};
+
+const CONFIDENCE_LABEL: Record<Confidence, string> = {
+  shaky: "Shaky",
+  okay: "Okay",
+  solid: "Solid",
+};
+
+const CONFIDENCE_CLASS: Record<Confidence, string> = {
+  shaky: "border-amber-500/40 text-amber-700 dark:text-amber-400",
+  okay: "border-border text-foreground",
+  solid: "border-success/40 text-success",
 };
 
 const PRIORITY_DOT: Record<TaskPriority, string> = {
@@ -419,6 +434,7 @@ function TopicItem({
   const updateTitle = useUpdateTopicTitle(trackId);
   const deleteTopic = useDeleteTopic(trackId);
   const reorderTasks = useReorderTasks(topic.id);
+  const updateConfidence = useUpdateTopicConfidence(trackId);
   const [editing, setEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState(topic.title);
   const tasks = taskPages?.pages.flat();
@@ -508,6 +524,24 @@ function TopicItem({
                 ]}
               />
             </div>
+            <button
+              type="button"
+              onClick={() =>
+                updateConfidence.mutate({ topic, confidence: nextConfidence(topic.confidence) })
+              }
+              title={
+                topic.confidence
+                  ? `You rated this ${CONFIDENCE_LABEL[topic.confidence].toLowerCase()}. Click to change.`
+                  : "How well do you know this? Click to rate it."
+              }
+              className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
+                topic.confidence
+                  ? CONFIDENCE_CLASS[topic.confidence]
+                  : "border-dashed border-border text-muted-foreground/70 hover:text-foreground"
+              }`}
+            >
+              {topic.confidence ? CONFIDENCE_LABEL[topic.confidence] : "Rate"}
+            </button>
             {!!tasksCount && (
               <span
                 className={`ml-2 shrink-0 font-mono tabular-nums ${

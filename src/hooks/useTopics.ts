@@ -1,6 +1,8 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useBackend } from "../context/BackendProvider";
-import type { Topic, TopicStatus } from "../lib/database.types";
+import type { Confidence, Topic, TopicStatus } from "../lib/database.types";
+import { getSpacedRevisit } from "../lib/preferences";
+import { scheduleTopicReviews } from "../lib/taskActions";
 
 // An imported roadmap can be hundreds of topics long, and PostgREST stops
 // at 1000 rows, so the track page pages through them.
@@ -50,6 +52,41 @@ export function useUpdateTopicStatus(trackId: string) {
       backend!.updateTopicStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["topics", trackId] });
+    },
+  });
+}
+
+const CONFIDENCE_CYCLE: Record<string, Confidence | null> = {
+  none: "shaky",
+  shaky: "okay",
+  okay: "solid",
+  solid: null,
+};
+
+export function nextConfidence(confidence: Confidence | null | undefined): Confidence | null {
+  return CONFIDENCE_CYCLE[confidence ?? "none"];
+}
+
+export function useUpdateTopicConfidence(trackId: string) {
+  const { backend } = useBackend();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ topic, confidence }: { topic: Topic; confidence: Confidence | null }) => {
+      await backend!.updateTopicConfidence(topic.id, confidence);
+      // Calling a finished topic shaky is a request to see it again soon.
+      if (confidence === "shaky" && topic.status === "done" && getSpacedRevisit()) {
+        try {
+          await scheduleTopicReviews(backend!, trackId, topic.title, confidence);
+        } catch {
+          // The rating is saved; the extra reviews are a bonus.
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["topics", trackId] });
+      queryClient.invalidateQueries({ queryKey: ["snapshot"] });
+      queryClient.invalidateQueries({ queryKey: ["focusNow"] });
     },
   });
 }
