@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useBackend } from "../context/BackendProvider";
 import { BinIcon } from "./BinIcon";
@@ -10,6 +10,7 @@ import { isDue } from "../lib/cards";
 import { LogoMark } from "./Logo";
 import { QuickAddDialog } from "./QuickAddDialog";
 import { FocusTimerPill } from "./FocusTimerPill";
+import { useDrawerSwipe } from "../hooks/useDrawerSwipe";
 import { useFocusTimer } from "../context/FocusTimerProvider";
 
 function NavLink({ to, children }: { to: string; children: ReactNode }) {
@@ -80,6 +81,9 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
   }, []);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const drawerRef = useRef<HTMLElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  useDrawerSwipe({ open: mobileNavOpen, setOpen: setMobileNavOpen, drawer: drawerRef, overlay: overlayRef });
   const [guestBannerDismissed, setGuestBannerDismissed] = useState(
     () => sessionStorage.getItem("waypoint.guestBannerDismissed") === "1",
   );
@@ -132,16 +136,20 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
         <MenuIcon />
       </button>
 
-      {mobileNavOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
-          onClick={() => setMobileNavOpen(false)}
-          aria-hidden="true"
-        />
-      )}
+      {/* Always rendered on phones so a swipe can fade it with the finger;
+          it only takes taps while the drawer is open. */}
+      <div
+        ref={overlayRef}
+        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 md:hidden ${
+          mobileNavOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={() => setMobileNavOpen(false)}
+        aria-hidden="true"
+      />
 
       <div className="mx-auto flex w-full max-w-6xl flex-1">
         <aside
+          ref={drawerRef}
           className={`fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 flex-col overflow-y-auto border-r border-border bg-card px-5 py-7 transition-transform duration-200 md:static md:z-auto md:w-64 md:translate-x-0 ${
             mobileNavOpen ? "translate-x-0" : "-translate-x-full"
           }`}
