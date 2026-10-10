@@ -163,8 +163,12 @@ The app declares `REQUEST_INSTALL_PACKAGES` for this.
 When a focus block or break ends while the app is in the background, a system
 notification tells the person (`src/lib/timerNotifications.ts`, using
 `@capacitor/local-notifications`). It is scheduled with Android's alarm manager
-when the app leaves the foreground and cancelled when it returns, so it fires
-even if the app is closed and never doubles up with the on-screen pop-up.
+whenever a block or break is running, so it fires even if the app is closed.
+There are two channels, because Android fixes a channel's sound when it is
+created: `focus-timer` (sound and vibration) is used while the app is out of
+sight, and `focus-timer-quiet` (no sound) while it is open, since the app plays
+its own tones and shows the pop-up. A notification that has been delivered is
+removed when the person answers the pop-up.
 
 The app declares `POST_NOTIFICATIONS` (asked for the first time a timer is
 started) and `USE_EXACT_ALARM`, which Android grants automatically to timer

@@ -22,30 +22,37 @@ you can see it from another tab. The task you're timing is marked
 
 1. **Focus**: 25 minutes by default. **Pause** and **Resume** freeze it
    exactly; **Stop** ends it early.
-2. When the block ends, **nothing starts by itself.** A pop-up says the block
-   is done and asks whether to **Start the 5-minute break** or **Skip the
-   break**. The break begins when you tap, not before, because you may have put
-   the phone down and walked away.
-3. **Break**: 5 minutes by default. **Skip** ends it. When it ends you're told,
-   and the timer goes away.
+2. When the block ends you're told **three ways at once**, so it can't be missed:
+   a **sound** (two short tones), a **notification**, and a **pop-up** on
+   screen. **Nothing starts by itself:** the pop-up asks whether to **start the
+   5-minute break** or **skip the break**, and the break begins when you tap,
+   not before, because you may have put the phone down and walked away.
+3. **Break**: 5 minutes by default. **Skip** ends it. When it ends you get the
+   same sound and notification, and the timer goes away.
 
-There is no beep. The pop-up is on screen until you answer it, and it is still
-there if you come back to the app hours later (the break is only offered if the
-block ended in the last half hour).
+The pop-up stays on screen until you answer it, and it is still there if you
+come back to the app hours later (the break is only offered if the block ended
+in the last half hour).
 
 Both lengths are in **Settings → Focus timer**. They apply to the next block
 you start, and are saved on that device.
 
 ## When the phone is on the desk
 
-- **In the Android app**, the end of a block or a break is delivered as a
-  **system notification**, even if the app is closed or the screen is off. The
-  first time you start a timer, Android asks to allow notifications; say yes.
-  Tapping the notification opens the app on the "start the break" pop-up.
-- **In the browser or the installed web app**, the pop-up appears when you
-  return. If the page is still open in the background, you also get a browser
-  notification that stays until you click it. A closed browser tab can't be
-  woken, so for a timer you'll walk away from, use the Android app.
+- **In the Android app**, the end of a block or a break arrives as a **system
+  notification with a sound and vibration**, even if the app is closed or the
+  screen is off. The first time you start a timer, Android asks to allow
+  notifications; say yes. Tapping the notification opens the app on the "start
+  the break" pop-up. If the app is open you get the app's own tones and the
+  pop-up, and the notification is posted quietly so you don't hear two sounds.
+- **In the browser or the installed web app**, you get the tones and the pop-up
+  while the page is open, and if it's in the background a browser notification
+  that stays until you click it. A closed browser tab can't be woken, so for a
+  timer you'll walk away from, use the Android app.
+
+If you've turned the sound off on your phone, Android keeps it off for the
+notification too: check **Settings → Apps → Waypoint → Notifications → Focus
+timer**.
 
 The timer is based on clock time, not a counter, so a slow background tab
 can't make it drift, and a block that ran out while the app was closed is
