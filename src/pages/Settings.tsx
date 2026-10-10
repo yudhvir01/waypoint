@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -13,6 +14,7 @@ import { GOOGLE_SIGNIN_ENABLED } from "../lib/env";
 import { getSpacedRevisit, setSpacedRevisit } from "../lib/preferences";
 import { backupFileName, downloadTextFile, snapshotToBackupJson } from "../lib/exportData";
 import { MAX_OPEN_REVIEWS_PER_TRACK, REVIEW_OFFSETS_DAYS } from "../lib/taskActions";
+import { parseBackup, type ParsedBackup } from "../lib/backup";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -169,8 +171,46 @@ function LearningSection() {
 
 function DataSection() {
   const { backend } = useBackend();
+  const queryClient = useQueryClient();
+  const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<ParsedBackup | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  async function handleFile(file: File | undefined) {
+    if (!file) return;
+    setError(null);
+    setNotice(null);
+    try {
+      setPending(parseBackup(await file.text()));
+    } catch (e) {
+      setPending(null);
+      setError(e instanceof Error ? e.message : "Couldn't read that file.");
+    } finally {
+      if (fileInput.current) fileInput.current.value = "";
+    }
+  }
+
+  async function handleRestore() {
+    if (!backend || !pending) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const counts = await backend.importSnapshot(pending.snapshot);
+      await queryClient.invalidateQueries();
+      setNotice(
+        `Restored ${counts.tracks} track${counts.tracks === 1 ? "" : "s"}, ${counts.tasks} task${
+          counts.tasks === 1 ? "" : "s"
+        } and ${counts.notes} note${counts.notes === 1 ? "" : "s"}.`,
+      );
+      setPending(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't restore the backup. Nothing was added.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function handleBackup() {
     if (!backend) return;
@@ -202,6 +242,64 @@ function DataSection() {
           </button>
         }
       />
+      <Row
+        label="Restore from a backup"
+        description="Adds everything in a backup file as new tracks and notes. Nothing you already have is changed or replaced, so restoring into an account that holds the same data gives you a second copy."
+        control={
+          <>
+            <input
+              ref={fileInput}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => handleFile(e.target.files?.[0])}
+            />
+            <button
+              type="button"
+              onClick={() => fileInput.current?.click()}
+              disabled={busy || !backend}
+              className="rounded-md border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:border-primary hover:bg-accent disabled:opacity-60"
+            >
+              Choose file…
+            </button>
+          </>
+        }
+      />
+      {pending && (
+        <div className="rounded-md border border-border bg-card px-3 py-3">
+          <p className="text-sm font-medium">Ready to restore</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {pending.snapshot.tracks.length} track{pending.snapshot.tracks.length === 1 ? "" : "s"},{" "}
+            {pending.snapshot.topics.length} topic{pending.snapshot.topics.length === 1 ? "" : "s"},{" "}
+            {pending.snapshot.tasks.length} task{pending.snapshot.tasks.length === 1 ? "" : "s"},{" "}
+            {pending.snapshot.notes.length} note{pending.snapshot.notes.length === 1 ? "" : "s"}
+            {pending.exportedAt && ` · exported ${new Date(pending.exportedAt).toLocaleString()}`}
+            {pending.skipped > 0 && ` · ${pending.skipped} unreadable row${pending.skipped === 1 ? "" : "s"} skipped`}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Images and audio inside notes aren't part of a backup, so they won't show up.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={handleRestore}
+              disabled={busy}
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
+            >
+              {busy ? "Restoring…" : "Restore"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPending(null)}
+              disabled={busy}
+              className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {notice && <p className="text-sm text-success">{notice}</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
     </Section>
   );
