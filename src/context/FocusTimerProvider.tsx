@@ -43,12 +43,34 @@ export interface FocusTimerApi {
 
 const FocusTimerContext = createContext<FocusTimerApi | null>(null);
 
-// While the page is alive but not in front (another tab, a minimised
-// window), a web notification that stays until it is clicked. When the app
-// is in front the in-app prompt does this job, and a short vibration is
-// enough. There is deliberately no beep: it is easy to miss and easy to
-// find annoying.
+// A sound, a short vibration and, while the page is alive but not in front,
+// a web notification that stays until it is clicked. The pop-up itself is
+// the third part, and the installed app adds a system notification (see
+// timerNotifications.ts). Someone who has put the phone down must not be
+// able to miss that a block ended, so these are deliberately redundant.
+function beep() {
+  try {
+    const ctx = new AudioContext();
+    void ctx.resume();
+    const gain = ctx.createGain();
+    gain.gain.value = 0.12;
+    gain.connect(ctx.destination);
+    // Two short tones: harder to mistake for a stray sound.
+    [0, 0.32].forEach((offset) => {
+      const osc = ctx.createOscillator();
+      osc.frequency.value = 880;
+      osc.connect(gain);
+      osc.start(ctx.currentTime + offset);
+      osc.stop(ctx.currentTime + offset + 0.22);
+    });
+    window.setTimeout(() => void ctx.close(), 1000);
+  } catch {
+    // No audio available; the pop-up and notification still say so.
+  }
+}
+
 function alertPhaseEnd(title: string, body: string) {
+  beep();
   try {
     navigator.vibrate?.([200, 100, 200]);
   } catch {
@@ -154,16 +176,23 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // The operating system delivers the "block is over" notification at
+  // the right minute whether or not the app is still running. It's loud
+  // when the app is out of sight; with the app open it is posted quietly,
+  // because the app plays its own sound and shows the pop-up.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     const at = endsAt(state, Date.now());
-    if (appActive || at === null) {
-      void cancelPhaseNotification();
+    if (at === null) {
+      // A finished block keeps its notification until the person answers
+      // the pop-up; anything else has nothing to announce.
+      if (state.phase !== "focus-done") void cancelPhaseNotification();
       return;
     }
     const isFocus = state.phase === "focus";
     void schedulePhaseNotification({
       at,
+      loud: !appActive,
       title: isFocus ? "Focus block done" : "Break over",
       body: isFocus
         ? `${state.taskTitle ? `${state.taskTitle} · ` : ""}${
