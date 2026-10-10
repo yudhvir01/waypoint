@@ -9,6 +9,8 @@ import { useCards } from "../hooks/useCards";
 import { isDue } from "../lib/cards";
 import { LogoMark } from "./Logo";
 import { QuickAddDialog } from "./QuickAddDialog";
+import { FocusTimerPill } from "./FocusTimerPill";
+import { useFocusTimer } from "../context/FocusTimerProvider";
 
 function NavLink({ to, children }: { to: string; children: ReactNode }) {
   const { pathname } = useLocation();
@@ -60,6 +62,7 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [navigate]);
+  const timer = useFocusTimer();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   // "c" from anywhere (outside a text field) opens quick add.
   useEffect(() => {
@@ -184,6 +187,18 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
               </span>
             </NavLink>
             <NavLink to="/search">Search</NavLink>
+            {timer.state.phase === "idle" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileNavOpen(false);
+                  timer.start(null);
+                }}
+                className="rounded-md px-3 py-1.5 text-left text-[15px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                Start focus
+              </button>
+            )}
           </nav>
 
           <div className="mt-8 flex flex-col gap-0.5">
@@ -305,6 +320,8 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
           <div className={`mx-auto ${wide ? "max-w-3xl" : "max-w-2xl"}`}>{children}</div>
         </div>
       </div>
+
+      <FocusTimerPill />
 
       {quickAddOpen && <QuickAddDialog onClose={() => setQuickAddOpen(false)} />}
 

@@ -11,7 +11,7 @@ import {
   startGoogleSignIn,
 } from "../lib/backend/googleAuth";
 import { GOOGLE_SIGNIN_ENABLED } from "../lib/env";
-import { getSpacedRevisit, setSpacedRevisit } from "../lib/preferences";
+import { getFocusSettings, getSpacedRevisit, setFocusSettings, setSpacedRevisit } from "../lib/preferences";
 import { backupFileName, downloadTextFile, snapshotToBackupJson } from "../lib/exportData";
 import { MAX_OPEN_REVIEWS_PER_TRACK, REVIEW_OFFSETS_DAYS } from "../lib/taskActions";
 import { parseBackup, type ParsedBackup } from "../lib/backup";
@@ -163,6 +163,54 @@ function LearningSection() {
             />
             {spaced ? "On" : "Off"}
           </label>
+        }
+      />
+    </Section>
+  );
+}
+
+function FocusSection() {
+  const [settings, setSettings] = useState(getFocusSettings);
+
+  function update(patch: Partial<typeof settings>) {
+    const next = { ...settings, ...patch };
+    setSettings(next);
+    setFocusSettings(next);
+  }
+
+  const field =
+    "w-16 rounded-md border border-input bg-background px-2 py-1 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring";
+
+  return (
+    <Section title="Focus timer">
+      <Row
+        label="Focus block"
+        description="Minutes of focused work in one block. Applies to the next block you start."
+        control={
+          <input
+            type="number"
+            min={1}
+            max={180}
+            value={settings.focusMinutes}
+            onChange={(e) => update({ focusMinutes: Math.min(180, Math.max(1, Math.round(Number(e.target.value) || 1))) })}
+            className={field}
+            aria-label="Focus minutes"
+          />
+        }
+      />
+      <Row
+        label="Break"
+        description="Minutes of rest after a block. 0 skips the break. Saved on this device only."
+        control={
+          <input
+            type="number"
+            min={0}
+            max={60}
+            value={settings.breakMinutes}
+            onChange={(e) => update({ breakMinutes: Math.min(60, Math.max(0, Math.round(Number(e.target.value) || 0))) })}
+            className={field}
+            aria-label="Break minutes"
+          />
         }
       />
     </Section>
@@ -351,6 +399,8 @@ export function Settings() {
         </Section>
 
         <LearningSection />
+
+        <FocusSection />
 
         <DataSection />
 

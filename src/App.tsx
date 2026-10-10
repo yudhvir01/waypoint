@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Analytics } from "@vercel/analytics/react";
 import { BackendProvider } from "./context/BackendProvider";
+import { FocusTimerProvider } from "./context/FocusTimerProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ThemeProvider } from "./context/ThemeProvider";
 import { ThemeToggle } from "./components/ThemeToggle";
@@ -62,6 +63,7 @@ function App() {
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <BackendProvider>
+            <FocusTimerProvider>
             <BrowserRouter>
               <NativeAppLifecycle />
               <div
@@ -148,6 +150,7 @@ function App() {
               </Routes>
             </BrowserRouter>
             <Analytics />
+            </FocusTimerProvider>
           </BackendProvider>
         </QueryClientProvider>
       </ErrorBoundary>

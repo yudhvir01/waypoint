@@ -40,6 +40,13 @@ export interface RatedTopic {
   track: Track;
 }
 
+export interface FocusShare {
+  taskId: string | null;
+  title: string;
+  trackName: string | null;
+  minutes: number;
+}
+
 export interface Insights {
   completionsByDay: Map<string, number>;
   totalDone: number;
@@ -50,6 +57,9 @@ export interface Insights {
   currentStreak: number;
   longestStreak: number;
   activeDays30: number;
+  focusMinutes7: number;
+  focusMinutesTotal: number;
+  focusLast7: FocusShare[];
   // Columns are weeks (oldest first), rows Monday … Sunday.
   heatmap: HeatCell[][];
   heatmapTotal: number;
@@ -196,6 +206,30 @@ export function computeInsights(snapshot: Snapshot, now = new Date()): Insights 
   }
   staleTopics.sort((a, b) => b.idleDays - a.idleDays);
 
+  // Focus time: what the last week's blocks went on.
+  const taskById = new Map(snapshot.tasks.map((t) => [t.id, t]));
+  let focusMinutesTotal = 0;
+  let focusMinutes7 = 0;
+  const byTask = new Map<string, FocusShare>();
+  for (const s of snapshot.sessions ?? []) {
+    focusMinutesTotal += s.minutes;
+    const when = new Date(s.started_at);
+    const age = Number.isNaN(when.getTime()) ? Infinity : daysBetween(today, when);
+    if (age < 0 || age >= 7) continue;
+    focusMinutes7 += s.minutes;
+    const task = s.task_id ? taskById.get(s.task_id) : undefined;
+    const key = task ? task.id : "none";
+    const share = byTask.get(key) ?? {
+      taskId: task?.id ?? null,
+      title: task?.title ?? "Not tied to a task",
+      trackName: task ? (trackById.get(task.track_id)?.name ?? null) : null,
+      minutes: 0,
+    };
+    share.minutes += s.minutes;
+    byTask.set(key, share);
+  }
+  const focusLast7 = [...byTask.values()].sort((a, b) => b.minutes - a.minutes);
+
   const shakyTopics: RatedTopic[] = [];
   const unratedDone: RatedTopic[] = [];
   for (const topic of snapshot.topics) {
@@ -224,6 +258,9 @@ export function computeInsights(snapshot: Snapshot, now = new Date()): Insights 
     currentStreak,
     longestStreak,
     activeDays30,
+    focusMinutes7,
+    focusMinutesTotal,
+    focusLast7,
     heatmap: cells,
     heatmapTotal,
     completedLast7,

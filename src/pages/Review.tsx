@@ -15,6 +15,13 @@ const LEVEL_CLASS: Record<HeatCell["level"], string> = {
   4: "bg-primary",
 };
 
+function formatMinutes(total: number): string {
+  if (total < 60) return `${total}m`;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
 function Stat({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
   return (
     <div className="rounded-lg border border-border bg-card px-4 py-3">
@@ -177,7 +184,11 @@ export function Review() {
               }
             />
             <Stat label="Active days, last 30" value={insights.activeDays30} hint="days you finished something" />
-            <Stat label="Done, all time" value={insights.totalDone} />
+            <Stat
+              label="Focus, last 7 days"
+              value={formatMinutes(insights.focusMinutes7)}
+              hint={insights.focusMinutesTotal > 0 ? `${formatMinutes(insights.focusMinutesTotal)} all time` : "start a timer on a task"}
+            />
           </div>
 
           <Section
@@ -186,6 +197,29 @@ export function Review() {
           >
             <Heatmap columns={insights.heatmap} />
           </Section>
+
+          {insights.focusLast7.length > 0 && (
+            <Section title="Where the time went" hint="Focus time over the last 7 days.">
+              <ul>
+                {insights.focusLast7.slice(0, 8).map((share) => (
+                  <li
+                    key={share.taskId ?? "none"}
+                    className="flex items-baseline justify-between gap-3 border-b border-border py-2.5 last:border-0"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-[15px]">{share.title}</span>
+                      {share.trackName && (
+                        <span className="block truncate text-xs text-muted-foreground">{share.trackName}</span>
+                      )}
+                    </span>
+                    <span className="shrink-0 font-mono text-sm tabular-nums text-muted-foreground">
+                      {formatMinutes(share.minutes)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
 
           {insights.overdue.length > 0 && (
             <Section title={`Slipped · ${insights.overdue.length}`} hint="Overdue and still open.">

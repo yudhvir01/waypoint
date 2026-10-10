@@ -26,6 +26,8 @@ import {
   useToggleTask,
 } from "../hooks/useTasks";
 import { useBackend } from "../context/BackendProvider";
+import { useFocusTimer } from "../context/FocusTimerProvider";
+import { useFocusTotals } from "../hooks/useFocusSessions";
 import {
   type Confidence,
   type Recurrence,
@@ -304,6 +306,8 @@ function TaskRow({
   const [popover, setPopover] = useState(false);
   const [editing, setEditing] = useState(false);
   const [moving, setMoving] = useState(false);
+  const timer = useFocusTimer();
+  const focusMinutes = useFocusTotals().get(task.id) ?? 0;
 
   if (editing) {
     return (
@@ -358,6 +362,11 @@ function TaskRow({
           <RepeatIcon />
         </span>
       )}
+      {focusMinutes > 0 && (
+        <span className="shrink-0 text-xs text-muted-foreground" title="Focus time logged on this task">
+          {focusMinutes >= 60 ? `${Math.floor(focusMinutes / 60)}h ${focusMinutes % 60}m` : `${focusMinutes}m`}
+        </span>
+      )}
       {task.due_date && (
         <span className="shrink-0 text-xs text-muted-foreground">
           {new Date(task.due_date).toLocaleDateString()}
@@ -391,6 +400,7 @@ function TaskRow({
               label: task.done ? "Mark incomplete" : "Mark complete",
               onClick: () => toggleTask.mutate(task),
             },
+            { label: "Start focus timer", onClick: () => timer.start({ id: task.id, title: task.title }) },
             { label: "Move to…", onClick: () => setMoving(true) },
             ...(onMoveUp ? [{ label: "Move up", onClick: onMoveUp }] : []),
             ...(onMoveDown ? [{ label: "Move down", onClick: onMoveDown }] : []),

@@ -5,6 +5,7 @@ import { useCreateTrack, useTracks } from "../hooks/useTracks";
 import { useFocusNow, useToggleFocusTask, type FocusTask } from "../hooks/useFocusNow";
 import type { Task } from "../lib/database.types";
 import { RECURRENCE_LABEL } from "../lib/recurrence";
+import { useFocusTimer } from "../context/FocusTimerProvider";
 
 function dueLabel(dueDate: string | null): { text: string; className: string } | null {
   if (!dueDate) return null;
@@ -40,6 +41,7 @@ function isUrgent(task: FocusTask): boolean {
 
 function TaskRow({ task }: { task: FocusTask }) {
   const toggleTask = useToggleFocusTask();
+  const timer = useFocusTimer();
   const due = dueLabel(task.due_date);
 
   return (
@@ -71,6 +73,15 @@ function TaskRow({ task }: { task: FocusTask }) {
         </div>
       </div>
       {due && <span className={`mt-0.5 shrink-0 text-xs ${due.className}`}>{due.text}</span>}
+      <button
+        type="button"
+        onClick={() => timer.start({ id: task.id, title: task.title })}
+        aria-label="Start focus timer"
+        title="Start a focus timer on this task"
+        className="mt-0.5 shrink-0 rounded px-1 text-xs text-muted-foreground/60 transition-colors hover:text-primary"
+      >
+        ▶
+      </button>
     </li>
   );
 }
