@@ -4,23 +4,54 @@ import { LogoMark } from "../components/Logo";
 import { SiteFooter, SiteHeader } from "../components/SiteChrome";
 
 // Page-local palette. Signal-style: a soft periwinkle hero band and pastel
-// feature panels, each with a darker twin for dark mode.
+// feature panels in light mode. Dark mode is its own design rather than a
+// darkened copy: the app's AMOLED black makes borders and cards disappear
+// on a marketing page, so the landing page sits on a deep midnight blue
+// with luminous gradient panels, and re-points the shared tokens
+// (background, card, border…) at it so every component below follows.
 const css = `
 .lp {
   --lp-hero: #9db8f8;
+  --lp-cta: #9db8f8;
   --lp-panel-a: #a7c9d6;
   --lp-panel-b: #cdb4e0;
   --lp-panel-c: #f6c9a8;
   --lp-section: #f4f4f5;
   --lp-phone: #1b1b1f;
+  --lp-panel-ring: transparent;
 }
 .dark .lp {
-  --lp-hero: #1d2b55;
-  --lp-panel-a: #17333c;
-  --lp-panel-b: #2c1f3d;
-  --lp-panel-c: #3d2a1c;
-  --lp-section: #0b0b0b;
-  --lp-phone: #0a0a0a;
+  --background: #0a0f1f;
+  --card: #111a31;
+  --muted: #18233f;
+  --accent: #18233f;
+  --border: #26345a;
+  --muted-foreground: #a3b0cc;
+
+  --lp-hero: linear-gradient(180deg, #1f3282 0%, #162456 55%, #0a0f1f 100%);
+  --lp-cta: radial-gradient(90% 140% at 50% 0%, #26409a 0%, #162456 55%, #0a0f1f 100%);
+  --lp-panel-a: linear-gradient(135deg, #14505f 0%, #0d2d45 100%);
+  --lp-panel-b: linear-gradient(135deg, #4a3590 0%, #261a52 100%);
+  --lp-panel-c: linear-gradient(135deg, #8a4a2c 0%, #4a2236 100%);
+  --lp-section: #0d1428;
+  --lp-phone: #05070f;
+  --lp-panel-ring: rgba(255, 255, 255, 0.1);
+}
+.lp .lp-panel {
+  box-shadow: inset 0 0 0 1px var(--lp-panel-ring);
+}
+.dark .lp .lp-hero-copy p {
+  color: #d3dcf2;
+}
+.dark .lp .lp-phone {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 28px 60px -16px rgba(0, 0, 0, 0.7);
+}
+.dark .lp .lp-card {
+  transition: border-color 0.2s, transform 0.2s;
+}
+.dark .lp .lp-card:hover {
+  border-color: #3b4f86;
+  transform: translateY(-2px);
 }
 `;
 
@@ -36,7 +67,7 @@ function Phone({ children, className = "", style }: { children: ReactNode; class
   return (
     <div
       aria-hidden="true"
-      className={`relative w-[210px] rounded-[2.2rem] border-[7px] bg-black p-0 shadow-2xl sm:w-[250px] ${className}`}
+      className={`lp-phone relative w-[210px] rounded-[2.2rem] border-[7px] bg-black p-0 shadow-2xl sm:w-[250px] ${className}`}
       style={{ borderColor: "var(--lp-phone)", ...style }}
     >
       <div className="absolute left-1/2 top-1.5 z-10 h-4 w-16 -translate-x-1/2 rounded-full bg-black" />
@@ -119,7 +150,7 @@ function FeatureRow({
         <p className="mt-5 text-base leading-relaxed text-muted-foreground">{body}</p>
       </div>
       <div
-        className={`flex min-h-[18rem] items-center justify-center rounded-3xl p-8 ${reverse ? "md:order-1" : ""}`}
+        className={`lp-panel flex min-h-[18rem] items-center justify-center rounded-3xl p-8 ${reverse ? "md:order-1" : ""}`}
         style={{ background: `var(${panel})` }}
       >
         {children}
@@ -149,7 +180,7 @@ export function Landing() {
       {/* Hero band */}
       <section style={{ background: "var(--lp-hero)" }} className="relative">
         <div className="mx-auto grid max-w-6xl items-center gap-4 px-6 pt-14 md:min-h-[34rem] md:grid-cols-2 md:pt-0">
-          <div className="pb-6 md:pb-0">
+          <div className="lp-hero-copy pb-6 md:pb-0">
             <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl">Plan Freely</h1>
             <p className="mt-6 max-w-md text-lg leading-relaxed">
               Say &quot;hello&quot; to a calmer way to keep notes and goals. An unexpected focus on privacy,
@@ -230,7 +261,7 @@ export function Landing() {
       <section style={{ background: "var(--lp-section)" }} className="px-6 py-16">
         <div className="mx-auto grid max-w-6xl gap-5 sm:grid-cols-2">
           {CARDS.map((c) => (
-            <div key={c.title} className="rounded-3xl border border-border bg-card p-8">
+            <div key={c.title} className="lp-card rounded-3xl border border-border bg-card p-8">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">
                   {c.icon}
@@ -250,7 +281,7 @@ export function Landing() {
           Download Waypoint straight from here — no store account needed.
         </p>
         <div className="mx-auto mt-10 grid max-w-3xl gap-5 sm:grid-cols-2">
-          <div className="flex flex-col rounded-3xl border border-border bg-card p-8">
+          <div className="lp-card flex flex-col rounded-3xl border border-border bg-card p-8">
             <h3 className="text-xl font-bold">Android</h3>
             <p className="mt-2 flex-1 text-sm text-muted-foreground">
               Download the APK and open it. If asked, allow installs from your browser for this one
@@ -264,7 +295,7 @@ export function Landing() {
               Download for Android
             </a>
           </div>
-          <div className="flex flex-col rounded-3xl border border-border bg-card p-8">
+          <div className="lp-card flex flex-col rounded-3xl border border-border bg-card p-8">
             <h3 className="text-xl font-bold">iPhone &amp; iPad</h3>
             <p className="mt-2 flex-1 text-sm text-muted-foreground">
               Apple only allows apps to be installed through its own channels, so on iOS install
@@ -279,7 +310,7 @@ export function Landing() {
       </section>
 
       {/* CTA */}
-      <section style={{ background: "var(--lp-hero)" }} className="px-6 py-16 text-center">
+      <section style={{ background: "var(--lp-cta)" }} className="px-6 py-16 text-center">
         <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Ready when you are</h2>
         <p className="mt-3">Create an account or hop in as a guest in seconds.</p>
         <Link
