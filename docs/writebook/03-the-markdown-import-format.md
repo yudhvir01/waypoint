@@ -40,6 +40,7 @@ items under it become the track description.
   title:
   - `#priority:low`, `#priority:medium`, or `#priority:high`
   - `#due:YYYY-MM-DD`
+  - `#repeat:daily`, `#repeat:weekdays`, `#repeat:weekly`, or `#repeat:monthly`
 - **Duplicate topic names are disambiguated automatically.** If your file
   reuses a heading like "Tech Stack" or "Features" under several different
   top-level sections, Waypoint tags each one with its nearest top-level

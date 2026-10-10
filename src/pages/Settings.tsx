@@ -10,6 +10,8 @@ import {
   startGoogleSignIn,
 } from "../lib/backend/googleAuth";
 import { GOOGLE_SIGNIN_ENABLED } from "../lib/env";
+import { getSpacedRevisit, setSpacedRevisit } from "../lib/preferences";
+import { MAX_OPEN_REVIEWS_PER_TRACK, REVIEW_OFFSETS_DAYS } from "../lib/taskActions";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -135,6 +137,35 @@ function DatabaseSection({
   );
 }
 
+function LearningSection() {
+  const [spaced, setSpaced] = useState(getSpacedRevisit);
+
+  return (
+    <Section title="Learning">
+      <Row
+        label="Spaced revisit"
+        description={`When you finish every task in a topic, add review tasks for it after ${REVIEW_OFFSETS_DAYS.join(
+          ", ",
+        )} days (sooner if you rated it shaky, later if solid), in a “Reviews” topic on that track. At most ${MAX_OPEN_REVIEWS_PER_TRACK} stay open per track. Saved on this device only.`}
+        control={
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={spaced}
+              onChange={(e) => {
+                setSpaced(e.target.checked);
+                setSpacedRevisit(e.target.checked);
+              }}
+              className="h-4 w-4 accent-primary"
+            />
+            {spaced ? "On" : "Off"}
+          </label>
+        }
+      />
+    </Section>
+  );
+}
+
 export function Settings() {
   const { mode } = useBackend();
   const location = useLocation();
@@ -177,6 +208,8 @@ export function Settings() {
         <Section title="Appearance">
           <Row label="Theme" control={<ThemeToggle />} />
         </Section>
+
+        <LearningSection />
 
         <DatabaseSection onMigrate={() => setMigrating(true)} onMigrateGoogle={handleMigrateGoogle} />
         {googleError && <p className="mt-3 text-sm text-destructive">{googleError}</p>}

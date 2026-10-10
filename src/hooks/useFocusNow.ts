@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBackend } from "../context/BackendProvider";
 import type { FocusTask } from "../lib/backend/types";
 import type { Task } from "../lib/database.types";
+import { toggleTaskWithFollowUps } from "../lib/taskActions";
 
 export type { FocusTask };
 
@@ -29,7 +30,7 @@ export function useToggleFocusTask() {
   const focusKey = ["focusNow"];
 
   return useMutation({
-    mutationFn: (task: Task) => backend!.toggleTask(task),
+    mutationFn: (task: Task) => toggleTaskWithFollowUps(backend!, task),
     // Ticking something off the dashboard should make it disappear at
     // once rather than after a round trip.
     onMutate: async (task: Task) => {
@@ -46,6 +47,8 @@ export function useToggleFocusTask() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["trackProgress"] });
       queryClient.invalidateQueries({ queryKey: ["topicProgress"] });
+      queryClient.invalidateQueries({ queryKey: ["topics"] });
+      queryClient.invalidateQueries({ queryKey: ["snapshot"] });
     },
   });
 }

@@ -3,6 +3,7 @@ import type { InfiniteData } from "@tanstack/react-query";
 import { useBackend } from "../context/BackendProvider";
 import type { CreateTaskInput, UpdateTaskInput, UpdateTaskScheduleInput } from "../lib/backend/types";
 import type { Task } from "../lib/database.types";
+import { toggleTaskWithFollowUps } from "../lib/taskActions";
 
 // A topic can hold an unbounded number of tasks, so they arrive a page at
 // a time. PostgREST caps responses at 1000 rows regardless, so an
@@ -28,6 +29,7 @@ export function useTasks(topicId: string | undefined, enabled = true) {
 function useTaskInvalidator(topicId: string) {
   const queryClient = useQueryClient();
   return () => {
+    queryClient.invalidateQueries({ queryKey: ["snapshot"] });
     queryClient.invalidateQueries({ queryKey: ["tasks", topicId] });
     queryClient.invalidateQueries({ queryKey: ["focusNow"] });
     queryClient.invalidateQueries({ queryKey: ["trackProgress"] });
@@ -90,7 +92,7 @@ export function useToggleTask(topicId: string) {
   const key = ["tasks", topicId];
 
   return useMutation({
-    mutationFn: (task: Task) => backend!.toggleTask(task),
+    mutationFn: (task: Task) => toggleTaskWithFollowUps(backend!, task),
     onMutate: async (task: Task) => {
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<InfiniteData<Task[]>>(key);
@@ -108,5 +110,46 @@ export function useToggleTask(topicId: string) {
       if (context?.previous) queryClient.setQueryData(key, context.previous);
     },
     onSettled: invalidate,
+  });
+}
+
+// Moves one task a step up or down among those already on screen. Only
+// the tasks whose position actually changed are written.
+export function useReorderTasks(topicId: string) {
+  const { backend } = useBackend();
+  const invalidate = useTaskInvalidator(topicId);
+
+  return useMutation({
+    mutationFn: (ordered: Task[]) => {
+      // Reuse the order values the tasks already hold (so anything not
+      // loaded yet stays below them), made strictly increasing in case
+      // older rows share a value.
+      const slots = ordered.map((t) => t.sort_order).sort((a, b) => a - b);
+      const updates: { id: string; sort_order: number }[] = [];
+      let prev = -1;
+      ordered.forEach((task, i) => {
+        const value = Math.max(slots[i], prev + 1);
+        prev = value;
+        if (value !== task.sort_order) updates.push({ id: task.id, sort_order: value });
+      });
+      return updates.length > 0 ? backend!.reorderTasks(updates) : Promise.resolve();
+    },
+    onSuccess: invalidate,
+  });
+}
+
+// Used by Review to deal with a pile of overdue tasks in one action.
+export function useRescheduleTasks() {
+  const { backend } = useBackend();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ taskIds, dueDate }: { taskIds: string[]; dueDate: string | null }) =>
+      backend!.rescheduleTasks(taskIds, dueDate),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["snapshot"] });
+      queryClient.invalidateQueries({ queryKey: ["focusNow"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
   });
 }

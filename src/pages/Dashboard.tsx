@@ -4,6 +4,7 @@ import { ImportMarkdownDialog } from "../components/ImportMarkdownDialog";
 import { useCreateTrack, useTracks } from "../hooks/useTracks";
 import { useFocusNow, useToggleFocusTask, type FocusTask } from "../hooks/useFocusNow";
 import type { Task } from "../lib/database.types";
+import { RECURRENCE_LABEL } from "../lib/recurrence";
 
 function dueLabel(dueDate: string | null): { text: string; className: string } | null {
   if (!dueDate) return null;
@@ -50,7 +51,18 @@ function TaskRow({ task }: { task: FocusTask }) {
         className="mt-0.5 h-4 w-4 shrink-0 rounded-full border border-input transition-colors hover:border-primary"
       />
       <div className="min-w-0 flex-1">
-        <p className="text-[15px] leading-snug">{task.title}</p>
+        <p className="text-[15px] leading-snug">
+          {task.title}
+          {task.recurrence && (
+            <span
+              className="ml-1.5 text-xs text-muted-foreground"
+              title={RECURRENCE_LABEL[task.recurrence]}
+              aria-label={RECURRENCE_LABEL[task.recurrence]}
+            >
+              ↻
+            </span>
+          )}
+        </p>
         <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${PRIORITY_DOT[task.priority]}`} />
           <span className="truncate">

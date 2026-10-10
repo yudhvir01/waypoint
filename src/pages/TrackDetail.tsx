@@ -21,7 +21,33 @@ import {
   useUpdateTaskSchedule,
   useToggleTask,
 } from "../hooks/useTasks";
-import { type Task, type TaskPriority, type Topic, type TopicStatus } from "../lib/database.types";
+import {
+  type Recurrence,
+  type Task,
+  type TaskPriority,
+  type Topic,
+  type TopicStatus,
+} from "../lib/database.types";
+import { RECURRENCES, RECURRENCE_LABEL } from "../lib/recurrence";
+
+function RepeatIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2.5 7V6a2 2 0 0 1 2-2h8M10.5 1.5 13 4l-2.5 2.5" />
+      <path d="M13.5 9v1a2 2 0 0 1-2 2h-8M5.5 14.5 3 12l2.5-2.5" />
+    </svg>
+  );
+}
 
 function CalendarIcon() {
   return (
@@ -104,6 +130,7 @@ interface TaskFormValues {
   title: string;
   priority: TaskPriority;
   dueDate: string | null;
+  recurrence: Recurrence | null;
 }
 
 // Shared by "Add task" and "Edit task" — same compact row, same fields,
@@ -124,12 +151,13 @@ function TaskForm({
   const [title, setTitle] = useState(initial?.title ?? "");
   const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? "none");
   const [dueDate, setDueDate] = useState<string | null>(initial?.dueDate ?? null);
+  const [recurrence, setRecurrence] = useState<Recurrence | null>(initial?.recurrence ?? null);
   const [popover, setPopover] = useState(false);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    onSubmit({ title: title.trim(), priority, dueDate });
+    onSubmit({ title: title.trim(), priority, dueDate, recurrence });
   }
 
   return (
@@ -156,6 +184,20 @@ function TaskForm({
           <option value="low">Low</option>
           <option value="medium">Medium</option>
           <option value="high">High</option>
+        </select>
+        <select
+          value={recurrence ?? ""}
+          onChange={(e) => setRecurrence((e.target.value || null) as Recurrence | null)}
+          aria-label="Repeat"
+          title="Repeat — the next one is created when you tick this off"
+          className="rounded-md border border-input bg-background px-1.5 py-1.5 text-xs text-muted-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+        >
+          <option value="">Doesn't repeat</option>
+          {RECURRENCES.map((r) => (
+            <option key={r} value={r}>
+              {RECURRENCE_LABEL[r]}
+            </option>
+          ))}
         </select>
         <button
           type="button"
@@ -243,6 +285,7 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
             title: task.title,
             priority: task.priority,
             dueDate: task.due_date,
+            recurrence: task.recurrence ?? null,
           }}
           onCancel={() => setEditing(false)}
           onSubmit={async (values) => {
@@ -276,6 +319,15 @@ function TaskRow({ task, topicId }: { task: Task; topicId: string }) {
       >
         {task.title}
       </Link>
+      {task.recurrence && (
+        <span
+          className="shrink-0 text-muted-foreground"
+          title={RECURRENCE_LABEL[task.recurrence]}
+          aria-label={RECURRENCE_LABEL[task.recurrence]}
+        >
+          <RepeatIcon />
+        </span>
+      )}
       {task.due_date && (
         <span className="shrink-0 text-xs text-muted-foreground">
           {new Date(task.due_date).toLocaleDateString()}
