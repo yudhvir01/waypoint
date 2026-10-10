@@ -82,6 +82,9 @@ export function useNoteAutosave(noteId: string) {
           old ? { ...old, ...patch } : old,
         );
         if (patch.title !== undefined) queryClient.invalidateQueries({ queryKey: ["notes"] });
+        if (patch.content !== undefined || patch.title !== undefined) {
+          queryClient.invalidateQueries({ queryKey: ["linkIndex"] });
+        }
         if (patch.content !== undefined) {
           // Cards are made from the note's text, so they follow every save.
           // A failure here (say, an older Supabase project without the

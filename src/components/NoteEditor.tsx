@@ -15,6 +15,7 @@ import {
 } from "./noteAttachments";
 import { useBackend } from "../context/BackendProvider";
 import type { Backend } from "../lib/backend/types";
+import { WikiLinks } from "./wikiLinks";
 
 function isAttachableFile(file: File): boolean {
   return file.type.startsWith("image/") || file.type.startsWith("audio/");
@@ -299,15 +300,19 @@ export function NoteEditor({
   onChange,
   focusStartRef,
   autoFocus,
+  onOpenLink,
 }: {
   initialContent: string;
   onChange: (html: string) => void;
+  // Called with the title inside a [[link]] that was Ctrl/Cmd+clicked.
+  onOpenLink?: (title: string) => void;
   // Lets the title field above hand focus down into the body on Enter.
   focusStartRef?: MutableRefObject<(() => void) | null>;
   autoFocus?: boolean;
 }) {
   const { backend } = useBackend();
   const [dropError, setDropError] = useState<string | null>(null);
+
   // handleDrop/handlePaste below close over `backend` at editor-creation
   // time — kept current across a backend switch via a ref (updated in an
   // effect, not during render, so it doesn't run afoul of concurrent
@@ -332,6 +337,7 @@ export function NoteEditor({
       AttachmentAudio,
       LinkPreviewNode,
       LinkPreviewPaste,
+      WikiLinks,
     ],
     content: initialContent,
     autofocus: autoFocus ? "end" : false,
@@ -366,6 +372,11 @@ export function NoteEditor({
     },
     onUpdate: ({ editor: e }) => onChange(e.isEmpty ? "" : e.getHTML()),
   });
+
+  useEffect(() => {
+    if (!editor) return;
+    editor.commands.setWikiLinkHandler(onOpenLink ?? null);
+  }, [editor, onOpenLink]);
 
   useEffect(() => {
     if (!editor || !focusStartRef) return;

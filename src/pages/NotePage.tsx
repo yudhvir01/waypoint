@@ -8,6 +8,8 @@ import { useDeleteNote, useNote, useNoteAutosave, type SaveStatus } from "../hoo
 import { useQuery } from "@tanstack/react-query";
 import type { NoteWithContext } from "../lib/backend/types";
 import { extractCards } from "../lib/cards";
+import { useLinkIndex } from "../hooks/useLinkIndex";
+import { findBacklinks, linkTitles, resolveLink } from "../lib/links";
 
 const STATUS_LABEL: Record<SaveStatus, string> = {
   saved: "Saved",
@@ -15,12 +17,96 @@ const STATUS_LABEL: Record<SaveStatus, string> = {
   error: "Couldn't save — check your connection",
 };
 
+const KIND_LABEL = { note: "Note", task: "Task", topic: "Topic", track: "Track" } as const;
+
+// What this note points at, what points at it, and a way to follow either.
+function NoteLinks({ noteId, title, html }: { noteId: string; title: string; html: string }) {
+  const { backend } = useBackend();
+  const navigate = useNavigate();
+  const { data: index } = useLinkIndex();
+  const [creating, setCreating] = useState<string | null>(null);
+
+  const outgoing = linkTitles(html);
+  const backlinks = index ? findBacklinks(noteId, title, index.notes) : [];
+  if (outgoing.length === 0 && backlinks.length === 0) return null;
+
+  async function createAndOpen(linkTitle: string) {
+    if (!backend) return;
+    setCreating(linkTitle);
+    try {
+      const created = await backend.createNote({ title: linkTitle });
+      navigate(`/notes/${created.id}`);
+    } finally {
+      setCreating(null);
+    }
+  }
+
+  return (
+    <div className="mt-8 grid gap-6 border-t border-border pt-5 sm:grid-cols-2">
+      {outgoing.length > 0 && (
+        <section>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Links</h2>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {outgoing.map((linkTitle) => {
+              const target = index ? resolveLink(linkTitle, index) : null;
+              return (
+                <li key={linkTitle} className="flex items-baseline justify-between gap-2 text-sm">
+                  {target ? (
+                    <>
+                      <Link to={target.path} className="min-w-0 truncate text-primary hover:underline">
+                        {target.label}
+                      </Link>
+                      <span className="shrink-0 text-xs text-muted-foreground">{KIND_LABEL[target.kind]}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="min-w-0 truncate text-muted-foreground">{linkTitle}</span>
+                      <button
+                        type="button"
+                        disabled={!index || creating === linkTitle}
+                        onClick={() => void createAndOpen(linkTitle)}
+                        className="shrink-0 text-xs text-primary hover:underline disabled:opacity-60"
+                      >
+                        {creating === linkTitle ? "Creating…" : "Create note"}
+                      </button>
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+      {backlinks.length > 0 && (
+        <section>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Linked from · {backlinks.length}
+          </h2>
+          <ul className="mt-2 flex flex-col gap-2">
+            {backlinks.map(({ note: from, snippet }) => (
+              <li key={from.id} className="text-sm">
+                <Link to={`/notes/${from.id}`} className="block truncate text-primary hover:underline">
+                  {from.title || "Untitled"}
+                </Link>
+                <span className="block text-xs text-muted-foreground">{snippet}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
+
 function NoteBody({ note }: { note: NoteWithContext }) {
   const navigate = useNavigate();
   const deleteNote = useDeleteNote();
   const { queue, flush, status } = useNoteAutosave(note.id);
   const [title, setTitle] = useState(note.title);
   const [cardCount, setCardCount] = useState(() => extractCards(note.content).length);
+  const [html, setHtml] = useState(note.content);
+  const { data: linkIndex } = useLinkIndex();
+  const { backend } = useBackend();
   const focusBody = useRef<(() => void) | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   // A long title wraps onto more lines instead of running off the edge:
@@ -102,13 +188,28 @@ function NoteBody({ note }: { note: NoteWithContext }) {
       <div className="mt-5">
         <NoteEditor
           initialContent={note.content}
-          onChange={(html) => {
-            queue({ content: html });
-            setCardCount(extractCards(html).length);
+          onChange={(next) => {
+            queue({ content: next });
+            setCardCount(extractCards(next).length);
+            setHtml(next);
+          }}
+          onOpenLink={async (linkTitle) => {
+            const target = linkIndex ? resolveLink(linkTitle, linkIndex) : null;
+            if (target) {
+              await flush();
+              navigate(target.path);
+            } else if (backend) {
+              // A link to nothing yet becomes a note of that name.
+              await flush();
+              const created = await backend.createNote({ title: linkTitle });
+              navigate(`/notes/${created.id}`);
+            }
           }}
           focusStartRef={focusBody}
         />
       </div>
+
+      <NoteLinks noteId={note.id} title={title} html={html} />
 
       <p className="mt-8 text-xs text-muted-foreground">
         {cardCount > 0 ? (
@@ -120,7 +221,8 @@ function NoteBody({ note }: { note: NoteWithContext }) {
           </>
         ) : (
           <>
-            Tip: a line written as <code>question :: answer</code> becomes a flashcard.
+            Tips: a line written as <code>question :: answer</code> becomes a flashcard, and{" "}
+            <code>[[Some title]]</code> links to a note, task, topic or track (Ctrl/Cmd+click to open).
           </>
         )}
       </p>

@@ -186,3 +186,11 @@ body {
   border-radius: 0.2em;
   padding: 0 0.1em;
 }
+
+/* [[Title]] inside a note. Ctrl/Cmd+click opens it. */
+.ProseMirror .wiki-link {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  border-radius: 3px;
+  cursor: text;
+}
