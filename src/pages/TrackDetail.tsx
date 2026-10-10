@@ -22,6 +22,7 @@ import {
   useUpdateTaskSchedule,
   useToggleTask,
 } from "../hooks/useTasks";
+import { useBackend } from "../context/BackendProvider";
 import {
   type Recurrence,
   type Task,
@@ -30,6 +31,7 @@ import {
   type TopicStatus,
 } from "../lib/database.types";
 import { RECURRENCES, RECURRENCE_LABEL } from "../lib/recurrence";
+import { downloadTextFile, safeFileName, trackToMarkdown } from "../lib/exportData";
 
 function RepeatIcon() {
   return (
@@ -613,9 +615,11 @@ export function TrackDetail() {
   const { data: progressMap } = useTrackProgress();
   const { data: topicProgress } = useTopicProgress(trackId);
   const updateTrackStatus = useUpdateTrackStatus();
+  const { backend } = useBackend();
   const [searchParams] = useSearchParams();
   const focusTopicId = searchParams.get("topic");
   const [expanded, setExpanded] = useState<Set<string> | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const topics = topicPages?.pages.flat();
 
@@ -639,6 +643,21 @@ export function TrackDetail() {
       else next.add(id);
       return next;
     });
+  }
+
+  async function handleExport() {
+    if (!backend || !track) return;
+    setExporting(true);
+    try {
+      const snap = await backend.snapshot({ notes: false });
+      downloadTextFile(
+        `${safeFileName(track.name)}.md`,
+        trackToMarkdown(track, snap.topics, snap.tasks),
+        "text/markdown",
+      );
+    } finally {
+      setExporting(false);
+    }
   }
 
   async function handleArchive() {
@@ -680,13 +699,24 @@ export function TrackDetail() {
     <AppShell>
       <div className="flex items-center justify-between gap-3">
         <h1 className="min-w-0 truncate text-2xl font-semibold tracking-[-0.02em]">{track.name}</h1>
-        <button
-          type="button"
-          onClick={handleArchive}
-          className="shrink-0 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Archive
-        </button>
+        <div className="flex shrink-0 items-center gap-4">
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting}
+            title="Download this track as Markdown — the same format Import reads"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
+          >
+            Export
+          </button>
+          <button
+            type="button"
+            onClick={handleArchive}
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Archive
+          </button>
+        </div>
       </div>
       {track.description && (
         <p className="mt-2 text-[15px] text-muted-foreground">{track.description}</p>

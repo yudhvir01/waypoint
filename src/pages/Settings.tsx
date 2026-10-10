@@ -11,6 +11,7 @@ import {
 } from "../lib/backend/googleAuth";
 import { GOOGLE_SIGNIN_ENABLED } from "../lib/env";
 import { getSpacedRevisit, setSpacedRevisit } from "../lib/preferences";
+import { backupFileName, downloadTextFile, snapshotToBackupJson } from "../lib/exportData";
 import { MAX_OPEN_REVIEWS_PER_TRACK, REVIEW_OFFSETS_DAYS } from "../lib/taskActions";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -166,6 +167,46 @@ function LearningSection() {
   );
 }
 
+function DataSection() {
+  const { backend } = useBackend();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleBackup() {
+    if (!backend) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const snap = await backend.snapshot({ notes: true });
+      downloadTextFile(backupFileName(), snapshotToBackupJson(snap), "application/json");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't create the backup.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Section title="Your data">
+      <Row
+        label="Download a backup"
+        description="Every track, topic, task and note as one JSON file. Images and audio inside notes aren't included. To move a single track, use Export on its page — it's a Markdown file Import can read back."
+        control={
+          <button
+            type="button"
+            onClick={handleBackup}
+            disabled={busy || !backend}
+            className="rounded-md border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:border-primary hover:bg-accent disabled:opacity-60"
+          >
+            {busy ? "Preparing…" : "Download .json"}
+          </button>
+        }
+      />
+      {error && <p className="text-sm text-destructive">{error}</p>}
+    </Section>
+  );
+}
+
 export function Settings() {
   const { mode } = useBackend();
   const location = useLocation();
@@ -210,6 +251,8 @@ export function Settings() {
         </Section>
 
         <LearningSection />
+
+        <DataSection />
 
         <DatabaseSection onMigrate={() => setMigrating(true)} onMigrateGoogle={handleMigrateGoogle} />
         {googleError && <p className="mt-3 text-sm text-destructive">{googleError}</p>}
