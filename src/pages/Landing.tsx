@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { LogoMark } from "../components/Logo";
 import { SiteFooter, SiteHeader } from "../components/SiteChrome";
+import { useInstallPrompt } from "../hooks/useInstallPrompt";
 
 // Page-local palette. Signal-style: a soft periwinkle hero band and pastel
 // feature panels in light mode. Dark mode is its own design rather than a
@@ -170,6 +171,58 @@ const CARDS = [
   { title: "Phone and web", body: "Use it in the browser, or install the native app on Android and iOS.", icon: <path d="M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1ZM11 18h2" /> },
 ];
 
+// The Android card: install the web app from the browser (no download, no
+// "unknown source" warning, updates itself), with the APK as the other way.
+function AndroidCard() {
+  const { available, canPrompt, installed, install } = useInstallPrompt();
+
+  return (
+    <div className="lp-card flex flex-col rounded-3xl border border-border bg-card p-8">
+      <h3 className="text-xl font-bold">Android</h3>
+      <p className="mt-2 text-sm text-muted-foreground">
+        The quickest way is to install it straight from your browser: nothing to download, no
+        security prompt, and it keeps itself up to date.
+      </p>
+
+      {available && (
+        <div className="mt-5">
+          {installed ? (
+            <span className="block rounded-lg border border-border px-5 py-3 text-center text-sm font-medium text-muted-foreground">
+              Installed — find Waypoint on your home screen
+            </span>
+          ) : canPrompt ? (
+            <button
+              type="button"
+              onClick={() => void install()}
+              className="w-full rounded-lg bg-primary px-5 py-3 text-center text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.02]"
+            >
+              Install Waypoint
+            </button>
+          ) : (
+            <span className="block rounded-lg border border-border px-5 py-3 text-center text-sm font-medium text-muted-foreground">
+              In Chrome: ⋮ menu → Install app
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className="mt-6 border-t border-border pt-5">
+        <p className="text-sm text-muted-foreground">
+          Prefer a regular app file? Download the APK and open it. If asked, allow installs from
+          your browser for this one file.
+        </p>
+        <a
+          href="/downloads/waypoint.apk"
+          download="Waypoint.apk"
+          className="mt-4 block rounded-lg border border-border px-5 py-3 text-center text-sm font-semibold transition-colors hover:border-primary hover:bg-accent"
+        >
+          Download the APK
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export function Landing() {
   return (
     <div className="lp min-h-screen overflow-x-hidden bg-background">
@@ -281,20 +334,7 @@ export function Landing() {
           Download Waypoint straight from here — no store account needed.
         </p>
         <div className="mx-auto mt-10 grid max-w-3xl gap-5 sm:grid-cols-2">
-          <div className="lp-card flex flex-col rounded-3xl border border-border bg-card p-8">
-            <h3 className="text-xl font-bold">Android</h3>
-            <p className="mt-2 flex-1 text-sm text-muted-foreground">
-              Download the APK and open it. If asked, allow installs from your browser for this one
-              file.
-            </p>
-            <a
-              href="/downloads/waypoint.apk"
-              download="Waypoint.apk"
-              className="mt-6 rounded-lg bg-primary px-5 py-3 text-center text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.02]"
-            >
-              Download for Android
-            </a>
-          </div>
+          <AndroidCard />
           <div className="lp-card flex flex-col rounded-3xl border border-border bg-card p-8">
             <h3 className="text-xl font-bold">iPhone &amp; iPad</h3>
             <p className="mt-2 flex-1 text-sm text-muted-foreground">
