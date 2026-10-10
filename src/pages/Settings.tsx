@@ -15,6 +15,8 @@ import { getFocusSettings, getSpacedRevisit, setFocusSettings, setSpacedRevisit 
 import { backupFileName, downloadTextFile, snapshotToBackupJson } from "../lib/exportData";
 import { MAX_OPEN_REVIEWS_PER_TRACK, REVIEW_OFFSETS_DAYS } from "../lib/taskActions";
 import { parseBackup, type ParsedBackup } from "../lib/backup";
+import { APP_VERSION, BUILD_TIME } from "../lib/buildInfo";
+import { checkForUpdates, installedNativeBuild, isNative, type UpdateResult } from "../lib/otaUpdater";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -165,6 +167,68 @@ function LearningSection() {
           </label>
         }
       />
+    </Section>
+  );
+}
+
+function AboutSection() {
+  const native = isNative();
+  const [nativeBuild, setNativeBuild] = useState<number | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState<UpdateResult | null>(null);
+
+  useEffect(() => {
+    if (native) void installedNativeBuild().then(setNativeBuild);
+  }, [native]);
+
+  async function handleCheck() {
+    setChecking(true);
+    try {
+      setResult(await checkForUpdates());
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  const message = !result
+    ? null
+    : result.kind === "up-to-date"
+      ? "You're on the latest version."
+      : result.kind === "bundle-ready"
+        ? `Version ${result.version} is downloaded and will be used the next time you open the app.`
+        : result.kind === "native"
+          ? `A new app version (${result.versionName}) is available. Download it from the notice at the bottom of the screen.`
+          : result.kind === "error"
+            ? `Couldn't check: ${result.message}`
+            : null;
+
+  return (
+    <Section title="About">
+      <Row
+        label={`Waypoint ${APP_VERSION}`}
+        description={`Built ${new Date(BUILD_TIME).toLocaleDateString()}${
+          native && nativeBuild ? ` · app build ${nativeBuild}` : ""
+        }`}
+        control={
+          native ? (
+            <button
+              type="button"
+              onClick={handleCheck}
+              disabled={checking}
+              className="rounded-md border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:border-primary hover:bg-accent disabled:opacity-60"
+            >
+              {checking ? "Checking…" : "Check for updates"}
+            </button>
+          ) : (
+            <span className="text-xs text-muted-foreground">Updates automatically</span>
+          )
+        }
+      />
+      {message && (
+        <p className={`text-sm ${result?.kind === "error" ? "text-destructive" : "text-muted-foreground"}`}>
+          {message}
+        </p>
+      )}
     </Section>
   );
 }
@@ -401,6 +465,8 @@ export function Settings() {
         <LearningSection />
 
         <FocusSection />
+
+        <AboutSection />
 
         <DataSection />
 

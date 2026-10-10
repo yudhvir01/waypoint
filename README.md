@@ -28,6 +28,7 @@ Everything rolls up into one **Focus Now** list on the dashboard: the tasks that
 - **Repeating tasks** — daily, weekdays, weekly or monthly; ticking one creates the next occurrence (never in the past). `#repeat:` in Markdown.
 - **Spaced revisit** — finishing a topic schedules review tasks at +3, +7 and +21 days in a per-track "Reviews" topic (toggle in Settings).
 - **Manual task order** — Move up / Move down in a task's menu.
+- **Quiet app updates** — installed Android apps fetch new web bundles in the background and use them on next launch, with automatic rollback; a new APK is only offered, never forced. See [`docs/mobile.md`](docs/mobile.md).
 - **Focus timer** — a Pomodoro-style timer tied to a task, kept running across pages; time is logged per task and shown on the Review page.
 - **Note links & backlinks** — `[[Title]]` links to a note, task, topic or track (Ctrl/Cmd+click to open); each note lists what it links to and what links back.
 - **Quick add** — press `C` anywhere and write a line like `read ch 4 friday !high #cpp`; dates, repeats, priority and track are picked out of the text, and unsorted tasks land in an Inbox. Tasks can be moved between topics and tracks.
@@ -80,6 +81,7 @@ Open the app — the login screen lets you try it as a guest immediately, or con
 | `npm run cap:android` / `cap:ios` | Sync and open the corresponding native project |
 | `npm run cap:run:android` / `cap:run:ios` | Sync, build, and run on a selected device or simulator |
 | `npm run preview`   | Preview the production build locally |
+| `npm run release:web` | Build and publish an over-the-air web update for installed apps |
 | `npm run lint`      | Run Oxlint                           |
 
 ## Tech stack
@@ -129,6 +131,7 @@ src/
     cards.ts                   Cards from note text, diffing, scheduler, daily session
     links.ts                   [[Title]] parsing, resolution and backlinks
     focusTimer.ts              The focus timer as pure functions over timestamps
+    appUpdate.ts / otaUpdater.ts   Update manifest parsing and decisions; the native updater
     quickAdd.ts / inbox.ts     Parse one line into a task; where it lands (a track or the Inbox)
     exportData.ts              Track → Markdown, full JSON backup, file download
     backup.ts                  Validating reader for backup files

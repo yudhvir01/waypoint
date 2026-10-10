@@ -8,6 +8,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ThemeProvider } from "./context/ThemeProvider";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { NativeAppLifecycle } from "./components/NativeAppLifecycle";
+import { AppUpdater } from "./components/AppUpdater";
 import { RequireAuth, RedirectIfAuthed, NotFoundRedirect, HomeRoute } from "./components/RouteGuards";
 import { Login } from "./pages/Login";
 import { Landing } from "./pages/Landing";
@@ -66,6 +67,7 @@ function App() {
             <FocusTimerProvider>
             <BrowserRouter>
               <NativeAppLifecycle />
+              <AppUpdater />
               <div
                 className="fixed z-50"
                 style={{

@@ -2,9 +2,23 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vite'
+import { readFileSync } from 'node:fs'
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    // Which build this is. The OTA release script pins BUILD_TIME so the
+    // number in the update manifest matches the bundle it describes.
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    __BUILD_TIME__: JSON.stringify(Number(process.env.WAYPOINT_BUILD_TIME) || Date.now()),
+  },
+  build: {
+    // The release script builds the over-the-air bundle somewhere other
+    // than dist so it doesn't disturb a site build.
+    outDir: process.env.WAYPOINT_OUT_DIR || 'dist',
+  },
   plugins: [
     react(),
     tailwindcss(),

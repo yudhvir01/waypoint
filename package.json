@@ -1,7 +1,7 @@
 {
   "name": "waypoint",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,12 +13,14 @@
     "cap:run:android": "npm run cap:sync && cap run android",
     "cap:run:ios": "npm run cap:sync && cap run ios",
     "lint": "oxlint",
+    "release:web": "node scripts/release-web.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",
     "@capacitor/browser": "^8.0.4",
     "@capacitor/core": "^8.5.2",
+    "@capgo/capacitor-updater": "^8.52.1",
     "@supabase/supabase-js": "^2.113.0",
     "@tailwindcss/typography": "^0.5.20",
     "@tanstack/react-query": "^5.102.8",
@@ -46,6 +48,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.1.0",
+    "fflate": "^0.8.2",
     "oxlint": "^1.79.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",

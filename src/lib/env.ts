@@ -50,3 +50,10 @@ export const GOOGLE_SIGNIN_ENABLED = GOOGLE_CLIENT_ID !== null && GOOGLE_TOKEN_R
 export const LINK_PREVIEW_URL: string | null =
   import.meta.env.VITE_LINK_PREVIEW_URL ||
   (DEFAULT_SUPABASE_CONFIG ? `${DEFAULT_SUPABASE_CONFIG.url.replace(/\/$/, "")}/functions/v1/link-preview` : null);
+
+// Where the installed apps look for updates (`/updates/latest.json`). A
+// native build's own origin is https://localhost, so it can't be derived
+// at runtime; this is the public site the APK is downloaded from.
+export const UPDATE_BASE_URL: string = (
+  import.meta.env.VITE_UPDATE_BASE_URL || "https://waypoint.yudhvir.in"
+).replace(/\/+$/, "");

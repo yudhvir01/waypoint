@@ -1,0 +1,9 @@
+{
+  "_comment": "Read by scripts/release-web.mjs. minNativeVersion is the lowest Android versionCode that can run the web bundle: raise it only when the bundle needs a new native plugin or permission. apk describes the APK currently published at /downloads/waypoint.apk: change it when you publish a new one.",
+  "minNativeVersion": 2,
+  "apk": {
+    "versionCode": 2,
+    "versionName": "2.0",
+    "url": "/downloads/waypoint.apk"
+  }
+}
