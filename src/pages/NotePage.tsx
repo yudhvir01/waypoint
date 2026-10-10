@@ -7,6 +7,7 @@ import { useBackend } from "../context/BackendProvider";
 import { useDeleteNote, useNote, useNoteAutosave, type SaveStatus } from "../hooks/useNotes";
 import { useQuery } from "@tanstack/react-query";
 import type { NoteWithContext } from "../lib/backend/types";
+import { extractCards } from "../lib/cards";
 
 const STATUS_LABEL: Record<SaveStatus, string> = {
   saved: "Saved",
@@ -19,6 +20,7 @@ function NoteBody({ note }: { note: NoteWithContext }) {
   const deleteNote = useDeleteNote();
   const { queue, flush, status } = useNoteAutosave(note.id);
   const [title, setTitle] = useState(note.title);
+  const [cardCount, setCardCount] = useState(() => extractCards(note.content).length);
   const focusBody = useRef<(() => void) | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   // A long title wraps onto more lines instead of running off the edge:
@@ -100,10 +102,28 @@ function NoteBody({ note }: { note: NoteWithContext }) {
       <div className="mt-5">
         <NoteEditor
           initialContent={note.content}
-          onChange={(html) => queue({ content: html })}
+          onChange={(html) => {
+            queue({ content: html });
+            setCardCount(extractCards(html).length);
+          }}
           focusStartRef={focusBody}
         />
       </div>
+
+      <p className="mt-8 text-xs text-muted-foreground">
+        {cardCount > 0 ? (
+          <>
+            {cardCount} flashcard{cardCount === 1 ? "" : "s"} in this note ·{" "}
+            <Link to="/cards" className="underline underline-offset-2 hover:text-foreground">
+              Review cards
+            </Link>
+          </>
+        ) : (
+          <>
+            Tip: a line written as <code>question :: answer</code> becomes a flashcard.
+          </>
+        )}
+      </p>
     </>
   );
 }

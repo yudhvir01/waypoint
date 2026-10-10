@@ -17,6 +17,7 @@ import { Settings } from "./pages/Settings";
 import { Archived } from "./pages/Archived";
 import { Search } from "./pages/Search";
 import { Review } from "./pages/Review";
+import { Cards } from "./pages/Cards";
 // The guide bundles four Markdown chapters plus the Markdown renderer.
 // Loading it lazily keeps roughly half a megabyte out of the entry chunk
 // that every signed-in page has to download first.
@@ -120,6 +121,7 @@ function App() {
                   <Route path="/archived" element={<Archived />} />
                   <Route path="/search" element={<Search />} />
                   <Route path="/review" element={<Review />} />
+                  <Route path="/cards" element={<Cards />} />
                   <Route
                     path="/notes/:noteId"
                     element={

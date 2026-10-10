@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBackend } from "../context/BackendProvider";
 import type { NoteWithContext } from "../lib/backend/types";
+import { extractCards } from "../lib/cards";
 
 export function useNotes() {
   const { backend } = useBackend();
@@ -45,6 +46,7 @@ export function useDeleteNote() {
     onSuccess: (_data, id) => {
       queryClient.removeQueries({ queryKey: ["note", id] });
       queryClient.invalidateQueries({ queryKey: ["notes"] });
+      queryClient.invalidateQueries({ queryKey: ["cards"] });
     },
   });
 }
@@ -80,6 +82,17 @@ export function useNoteAutosave(noteId: string) {
           old ? { ...old, ...patch } : old,
         );
         if (patch.title !== undefined) queryClient.invalidateQueries({ queryKey: ["notes"] });
+        if (patch.content !== undefined) {
+          // Cards are made from the note's text, so they follow every save.
+          // A failure here (say, an older Supabase project without the
+          // cards table) must not make the note itself look unsaved.
+          try {
+            await backend.syncNoteCards(noteId, extractCards(patch.content));
+            queryClient.invalidateQueries({ queryKey: ["cards"] });
+          } catch {
+            // The note is saved; cards will catch up on the next save.
+          }
+        }
         setStatus(Object.keys(pending.current).length > 0 ? "saving" : "saved");
       } catch {
         // Keep the failed text queued (newer edits win) so the next edit

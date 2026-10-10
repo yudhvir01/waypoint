@@ -5,6 +5,8 @@ import { BinIcon } from "./BinIcon";
 import { useCreateNote, useDeleteNote, useNotes } from "../hooks/useNotes";
 import { useTracks } from "../hooks/useTracks";
 import { useTrackProgress } from "../hooks/useTrackProgress";
+import { useCards } from "../hooks/useCards";
+import { isDue } from "../lib/cards";
 import { LogoMark } from "./Logo";
 
 function NavLink({ to, children }: { to: string; children: ReactNode }) {
@@ -37,6 +39,8 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
   const { data: tracks } = useTracks();
   const { data: progress } = useTrackProgress();
   const { data: notes } = useNotes();
+  const { data: cards } = useCards();
+  const dueCards = cards ? cards.filter((c) => isDue(c)).length : 0;
   const createNote = useCreateNote();
   const deleteNote = useDeleteNote();
   const { pathname } = useLocation();
@@ -141,6 +145,16 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
           <nav className="mt-9 flex flex-col gap-0.5">
             <NavLink to="/">Focus Now</NavLink>
             <NavLink to="/review">Review</NavLink>
+            <NavLink to="/cards">
+              <span className="flex items-center justify-between">
+                Cards
+                {dueCards > 0 && (
+                  <span className="ml-2 rounded-full bg-primary/15 px-1.5 font-mono text-xs tabular-nums text-primary">
+                    {dueCards}
+                  </span>
+                )}
+              </span>
+            </NavLink>
             <NavLink to="/search">Search</NavLink>
           </nav>
 
