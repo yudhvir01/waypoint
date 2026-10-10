@@ -106,8 +106,14 @@ only):
    every 30 minutes).
 2. If the manifest describes a bundle built after the running one, and the
    installed shell is new enough (`minNativeVersion`), it downloads the zip,
-   verifies its SHA-256, and stages it. It is used from the **next launch**, so
-   the screen is never swapped under someone mid-note.
+   verifies its SHA-256, and stages it with the plugin's `next()`. The plugin
+   switches to a staged bundle when the app is **sent to the background**, then
+   reloads, so the screen is never swapped under someone mid-note. Settings →
+   About has **Restart now**, which calls `set()` to switch immediately and
+   surfaces any error, and **Update details**, which shows the running bundle,
+   the staged one and what is on disk. If a bundle was staged but the app is
+   still on the old build ten minutes later, the details say so
+   (`reviewStagedUpdate` in `src/lib/otaUpdater.ts`).
 3. After a new bundle starts, the app tells the plugin it is healthy. If it
    never does (a broken release), the plugin returns to the previous bundle by
    itself.

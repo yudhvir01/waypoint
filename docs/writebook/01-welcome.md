@@ -29,6 +29,16 @@ track: the whole title (which you can edit, so a long one is never a problem),
 its priority, deadline and repeat, its notes to write in, and a **Focus on
 this** button that starts the timer on it.
 
+## Archiving and deleting
+
+**Archive** a track (the button on its page) and it leaves the sidebar and Focus
+Now but nothing is lost: **Archived** at the bottom of the sidebar lists it, and
+**Unarchive** brings it back. Once you're sure you're done, **Delete…** there
+removes it permanently, with its topics and tasks. It asks first and says how
+many tasks go. Notes you wrote on its tasks are kept as standalone notes, and
+the focus time you logged stays in your totals. A track has to be archived
+before it can be deleted, which is the safety.
+
 ## Your data is yours
 
 Waypoint doesn't have a database of its own. The login screen offers three ways to

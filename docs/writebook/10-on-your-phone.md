@@ -44,8 +44,10 @@ The website and the installed web app update themselves. The Android app has two
 layers:
 
 - **The app's screens and features** update quietly in the background. When you
-  open the app online it checks, downloads what's new, and uses it the next time
-  you open it.
+  open the app online it checks and downloads what's new. It switches to the new
+  version when you next leave the app (go to the home screen or another app), so
+  it never changes under you while you're writing. To switch immediately, use
+  **Settings → About → Check for updates**, then **Restart now to use it**.
 - **The app itself** (rare) needs a new install file. When that happens a notice
   appears at the bottom of the screen and the download starts **by itself**,
   with a progress bar. When it finishes, Android shows its own
@@ -83,6 +85,11 @@ start the swipe a little further in.
 
 ## If something doesn't work
 
+- **"Downloaded" but nothing changed:** open **Settings → About → Update
+  details**. It shows which version is running, which one is waiting, and what
+  has been downloaded, and says so when an update was downloaded but didn't take
+  effect. **Restart now to use it** switches to the waiting version straight
+  away and shows the reason if it can't.
 - **No Install button on the site:** Chrome only offers it when the app isn't
   already installed. Use the ⋮ menu.
 - **The update notice says it couldn't finish:** check your connection and tap
