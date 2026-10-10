@@ -1,17 +1,17 @@
 {
   "schema": 1,
-  "builtAt": 1791653121634,
-  "version": "2.1.0",
+  "builtAt": 1791653688488,
+  "version": "2.2.0",
   "bundle": {
-    "url": "/updates/waypoint-1791653121634.zip",
-    "checksum": "afd223740ff3a1b1887efa2d79685fcaa606d6f602c65a04e951a004a3deb9d0"
+    "url": "/updates/waypoint-1791653688488.zip",
+    "checksum": "523cb4c7d9bf45417bfc4049acae3abef3a9f7f3a94fcc1371259ca5edebd90d"
   },
   "minNativeVersion": 2,
   "apk": {
-    "versionCode": 4,
-    "versionName": "2.1.0",
+    "versionCode": 5,
+    "versionName": "2.2.0",
     "url": "/downloads/waypoint.apk",
-    "sha256": "4e306921678d6e8c5f513dadca1cb54edd6231decadc6050829bcc09676a3581"
+    "sha256": "d80783375dfdff97c90c844027d67940426ca31f4115a6f1a25cda25d4635757"
   },
-  "notes": "Swipe to open the sidebar, in-app updates with a progress bar"
+  "notes": "Task panel on Focus Now; the break waits for a tap and a notification tells you when a block ends"
 }
