@@ -2,7 +2,8 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vite'
-import { readFileSync } from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
 
@@ -20,6 +21,21 @@ export default defineConfig(({ mode }) => ({
     outDir: process.env.WAYPOINT_OUT_DIR || 'dist',
   },
   plugins: [
+    // public/downloads (the APK people download) and public/updates (the
+    // over-the-air bundles) are things the *site* serves. A native build or
+    // an update bundle must not carry them: they would sit inside the app
+    // and, with every rebuild, inside the previous copy of themselves.
+    {
+      name: 'waypoint-strip-site-only-files',
+      apply: 'build',
+      closeBundle() {
+        if (mode !== 'capacitor') return
+        const out = resolve(process.env.WAYPOINT_OUT_DIR || 'dist')
+        for (const dir of ['downloads', 'updates', '.well-known']) {
+          rmSync(resolve(out, dir), { recursive: true, force: true })
+        }
+      },
+    },
     react(),
     tailwindcss(),
     // A native bundle is copied into the app and does not need a service

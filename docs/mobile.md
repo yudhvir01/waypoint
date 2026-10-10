@@ -114,18 +114,37 @@ time they check.
 ### Publishing a new APK
 
 Needed only for native changes (a new Capacitor plugin, a permission, a
-Capacitor upgrade). On a machine with Android Studio:
+Capacitor upgrade). On a machine with the Android SDK and JDK 21:
 
 1. Raise `versionCode` (and `versionName`) in `android/app/build.gradle`.
-2. `npm run cap:sync`, then build a **signed release APK**.
-3. Sign it with **the same key as the APK already in people's hands**. Android
-   only updates in place when the signature matches; with a different key the
-   only route is uninstalling first, which erases guest-mode data. The key's
-   SHA-256 fingerprint is the one in `public/.well-known/assetlinks.json`.
-4. Put it at `public/downloads/waypoint.apk`.
+2. Build the unsigned release:
+
+   ```bash
+   npm run cap:sync
+   cd android && ./gradlew assembleRelease && cd ..
+   ```
+
+3. Sign it and place it on the site:
+
+   ```bash
+   scripts/sign-apk.sh        # writes public/downloads/waypoint.apk
+   ```
+
+   It reads the key from `~/.config/waypoint/release-signing.env`
+   (`release.keystore` next to it). **Neither file is in the repo, and both
+   must be backed up.** Android only updates an installed app in place when
+   the new APK has the same signing key. Lose the key and every installed app
+   needs uninstalling first, which erases guest-mode data.
+4. If the key is ever replaced, add the new SHA-256 fingerprint to
+   `public/.well-known/assetlinks.json` (keep the old one listed) so Google
+   sign-in keeps returning to the app.
 5. Update `ota.config.json`: set `apk.versionCode` / `apk.versionName`, and
    raise `minNativeVersion` if the web bundle now needs the new shell.
 6. `npm run release:web`, commit, push.
+
+Native builds and update bundles leave out `public/downloads`,
+`public/updates` and `public/.well-known`: those are things the site serves,
+not things the app should carry.
 
 Apps on an older shell then show a notice with an **Update** button that opens
 the APK download. If a new bundle requires a newer shell than the one
