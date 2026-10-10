@@ -140,6 +140,7 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
 
           <nav className="mt-9 flex flex-col gap-0.5">
             <NavLink to="/">Focus Now</NavLink>
+            <NavLink to="/review">Review</NavLink>
             <NavLink to="/search">Search</NavLink>
           </nav>
 
