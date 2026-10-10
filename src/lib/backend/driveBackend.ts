@@ -169,6 +169,16 @@ export class DriveBackend implements Backend {
     await this.persist();
   }
 
+  async deleteTrack(id: string): Promise<void> {
+    await this.ensureLoaded();
+    const taskIds = new Set(this.data.tasks.filter((t) => t.track_id === id).map((t) => t.id));
+    this.data.tracks = this.data.tracks.filter((t) => t.id !== id);
+    this.data.topics = this.data.topics.filter((t) => t.track_id !== id);
+    this.data.tasks = this.data.tasks.filter((t) => t.track_id !== id);
+    this.detachNotes(taskIds);
+    await this.persist();
+  }
+
   async listTopics(trackId: string, page: number, pageSize: number): Promise<Topic[]> {
     await this.ensureLoaded();
     const all = this.data.topics

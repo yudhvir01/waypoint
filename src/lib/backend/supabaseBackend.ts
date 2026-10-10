@@ -110,6 +110,13 @@ export class SupabaseBackend implements Backend {
     if (error) throw error;
   }
 
+  // Topics and tasks go with it by cascade; notes keep existing with their
+  // task link cleared, and focus sessions with theirs.
+  async deleteTrack(id: string): Promise<void> {
+    const { error } = await this.client.from("tracks").delete().eq("id", id);
+    if (error) throw error;
+  }
+
   async listTopics(trackId: string, page: number, pageSize: number): Promise<Topic[]> {
     const from = page * pageSize;
     const { data, error } = await this.client

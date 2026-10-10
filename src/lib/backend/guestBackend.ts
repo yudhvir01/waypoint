@@ -68,6 +68,30 @@ export class GuestBackend implements Backend {
     await db.put("tracks", { ...track, status });
   }
 
+  async deleteTrack(id: string): Promise<void> {
+    const db = await getGuestDB();
+    const [topics, tasks] = await Promise.all([
+      db.getAllFromIndex("topics", "trackId", id),
+      db.getAllFromIndex("tasks", "trackId", id),
+    ]);
+    const taskIds = new Set(tasks.map((t) => t.id));
+    const tx = db.transaction(["tracks", "topics", "tasks", "notes", "sessions"], "readwrite");
+    for (const task of tasks) {
+      tx.objectStore("tasks").delete(task.id);
+      // A task's note outlives the task, as a standalone note.
+      const note = await tx.objectStore("notes").index("taskId").get(task.id);
+      if (note) tx.objectStore("notes").put({ ...note, task_id: null });
+    }
+    for (const session of await tx.objectStore("sessions").getAll()) {
+      if (session.task_id && taskIds.has(session.task_id)) {
+        tx.objectStore("sessions").put({ ...session, task_id: null });
+      }
+    }
+    for (const topic of topics) tx.objectStore("topics").delete(topic.id);
+    tx.objectStore("tracks").delete(id);
+    await tx.done;
+  }
+
   async listTopics(trackId: string, page: number, pageSize: number): Promise<Topic[]> {
     const db = await getGuestDB();
     const rows = (await db.getAllFromIndex("topics", "trackId", trackId)).sort(

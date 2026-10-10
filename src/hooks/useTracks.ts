@@ -50,3 +50,29 @@ export function useTrack(trackId: string | undefined) {
     queryFn: () => backend!.getTrack(trackId!),
   });
 }
+
+export function useDeleteTrack() {
+  const { backend } = useBackend();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => backend!.deleteTrack(id),
+    onSuccess: () => {
+      for (const key of [
+        "tracks",
+        "track",
+        "trackProgress",
+        "topicProgress",
+        "topics",
+        "tasks",
+        "focusNow",
+        "notes",
+        "snapshot",
+        "focusSessions",
+        "linkIndex",
+      ]) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    },
+  });
+}

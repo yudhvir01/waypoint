@@ -122,6 +122,10 @@ export interface Backend {
   getTrack(id: string): Promise<Track | null>;
   createTrack(input: { name: string; description?: string | null }): Promise<Track>;
   updateTrackStatus(id: string, status: TrackStatus): Promise<void>;
+  // Permanently removes a track with its topics and tasks. Notes written on
+  // its tasks are kept, as standalone notes, and logged focus time stays,
+  // tied to nothing. There is no undo.
+  deleteTrack(id: string): Promise<void>;
 
   // Topics — paginated, page is 0-based.
   listTopics(trackId: string, page: number, pageSize: number): Promise<Topic[]>;
