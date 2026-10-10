@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "builtAt": 1791654265260,
-  "version": "2.2.1",
+  "builtAt": 1791654537325,
+  "version": "2.2.2",
   "bundle": {
-    "url": "/updates/waypoint-1791654265260.zip",
-    "checksum": "4dfa258eb57061c7c74cd076e4de63f203ad18568e08cbcba113c977f106d5d3"
+    "url": "/updates/waypoint-1791654537325.zip",
+    "checksum": "dc93f63f226e3ffa240a9920f428fb424c7ec1dfb35735011a0a16a58e75cd7b"
   },
   "minNativeVersion": 2,
   "apk": {
@@ -13,5 +13,5 @@
     "url": "/downloads/waypoint.apk",
     "sha256": "3974affb3088b5dd368bdf3e80f2a2a1ef4969ec6ea224a0ba86443df2d2a635"
   },
-  "notes": "Delete archived tracks for good; Restart now and update details"
+  "notes": "The focus block end plays a sound, notifies and shows the pop-up"
 }
