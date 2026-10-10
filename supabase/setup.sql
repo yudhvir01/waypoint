@@ -122,6 +122,7 @@ create index if not exists notes_user_updated_idx on public.notes (user_id, upda
 create or replace function public.notes_touch()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   new.updated_at := now();
@@ -820,6 +821,33 @@ begin
   return v_track_id;
 end;
 $$;
+
+-- ---------------------------------------------------------------------
+-- Internal functions are not part of the API
+--
+-- Everything in the public schema is reachable as /rest/v1/rpc/<name> by
+-- default, and Postgres grants EXECUTE to everyone on a new function. The
+-- trigger and counter-maintenance functions below are only ever run by
+-- the database itself, as their owner, so nobody needs to call them — and
+-- topic_counts_apply in particular would let a signed-in user adjust
+-- another user's progress counters. Triggers don't need the caller to
+-- hold EXECUTE, so revoking it changes nothing for the app.
+--
+-- The app's own entry points (track_progress, topic_progress,
+-- focus_tasks, import_track) are left alone.
+-- ---------------------------------------------------------------------
+revoke execute on function
+  public.topic_counts_apply(jsonb),
+  public.rebuild_topic_counts(),
+  public.tasks_counts_insert(),
+  public.tasks_counts_update(),
+  public.tasks_counts_delete(),
+  public.topics_counts_insert(),
+  public.tasks_set_owner(),
+  public.topics_set_owner(),
+  public.topics_cascade_track(),
+  public.tracks_cascade_owner()
+from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------
 -- Done. Next: copy this project's URL and anon key (Project Settings →
