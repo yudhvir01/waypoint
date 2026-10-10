@@ -55,4 +55,8 @@
          Android's installer. The person still confirms on Android's own
          screen, and has to allow it once in Settings. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- The focus timer is a timer app: its "block finished" notification
+         should fire at the minute, not whenever Android next wakes up.
+         Android grants this one automatically for timers. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 </manifest>

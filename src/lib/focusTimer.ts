@@ -4,7 +4,10 @@
 // Time is kept as timestamps, not a counter that ticks: a browser slows
 // background tabs' timers right down, and a counter would drift or stall.
 
-export type Phase = "idle" | "focus" | "break";
+// "focus-done" is a finished focus block waiting for the person: the break
+// does not start by itself, because they may have put the phone down and
+// walked away. It starts when they say so.
+export type Phase = "idle" | "focus" | "focus-done" | "break";
 
 export interface TimerState {
   phase: Phase;
@@ -21,6 +24,9 @@ export interface TimerState {
   // alter it.
   focusMinutes: number;
   breakMinutes: number;
+  // When a focus block ended, while it waits for the person to start the
+  // break (ms since epoch).
+  finishedAt: number | null;
 }
 
 export const IDLE: TimerState = {
@@ -33,7 +39,11 @@ export const IDLE: TimerState = {
   segmentStart: null,
   focusMinutes: 25,
   breakMinutes: 5,
+  finishedAt: null,
 };
+
+// A break offered long after the block ended is just noise.
+export const BREAK_OFFER_WINDOW_MS = 30 * 60_000;
 
 const MINUTE = 60_000;
 
@@ -51,6 +61,7 @@ export function startFocus(
     segmentStart: now,
     focusMinutes: args.focusMinutes,
     breakMinutes: args.breakMinutes,
+    finishedAt: null,
   };
 }
 
@@ -63,7 +74,23 @@ export function remainingMs(s: TimerState, now: number): number {
 }
 
 export function isPaused(s: TimerState): boolean {
-  return s.phase !== "idle" && s.segmentStart === null;
+  return (s.phase === "focus" || s.phase === "break") && s.segmentStart === null;
+}
+
+// A block that has run out. It stops there, logged, and waits.
+export function finishFocus(s: TimerState, now: number): TimerState {
+  if (s.breakMinutes <= 0) return { ...IDLE, focusMinutes: s.focusMinutes, breakMinutes: s.breakMinutes };
+  return {
+    ...s,
+    phase: "focus-done",
+    accumulatedMs: s.durationMs,
+    segmentStart: null,
+    finishedAt: now,
+  };
+}
+
+export function breakStillOffered(s: TimerState, now: number): boolean {
+  return s.phase === "focus-done" && s.finishedAt !== null && now - s.finishedAt <= BREAK_OFFER_WINDOW_MS;
 }
 
 export function pause(s: TimerState, now: number): TimerState {
@@ -91,7 +118,19 @@ export function startBreak(s: TimerState, now: number): TimerState {
     durationMs: s.breakMinutes * MINUTE,
     accumulatedMs: 0,
     segmentStart: now,
+    finishedAt: null,
   };
+}
+
+// Back to nothing, keeping the chosen lengths.
+export function toIdle(s: TimerState): TimerState {
+  return { ...IDLE, focusMinutes: s.focusMinutes, breakMinutes: s.breakMinutes };
+}
+
+// The moment the current running phase ends, for scheduling a notification.
+export function endsAt(s: TimerState, now: number): number | null {
+  if ((s.phase !== "focus" && s.phase !== "break") || s.segmentStart === null) return null;
+  return now + remainingMs(s, now);
 }
 
 // Has the running phase reached its end?
@@ -111,7 +150,7 @@ export function parseStored(raw: string | null): TimerState {
   if (!raw) return IDLE;
   try {
     const o = JSON.parse(raw) as Partial<TimerState> | null;
-    if (!o || (o.phase !== "focus" && o.phase !== "break")) return IDLE;
+    if (!o || (o.phase !== "focus" && o.phase !== "break" && o.phase !== "focus-done")) return IDLE;
     const num = (v: unknown, fallback: number) => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
     return {
       phase: o.phase,
@@ -123,6 +162,7 @@ export function parseStored(raw: string | null): TimerState {
       segmentStart: o.segmentStart === null ? null : num(o.segmentStart, Date.now()),
       focusMinutes: Math.min(180, Math.max(1, num(o.focusMinutes, 25))),
       breakMinutes: Math.min(60, Math.max(0, num(o.breakMinutes, 5))),
+      finishedAt: typeof o.finishedAt === "number" && Number.isFinite(o.finishedAt) ? o.finishedAt : null,
     };
   } catch {
     return IDLE;

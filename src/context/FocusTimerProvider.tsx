@@ -1,8 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { App as CapacitorApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
 import { useBackend } from "./BackendProvider";
 import {
   IDLE,
+  endsAt,
+  finishFocus,
   focusedMinutes,
   isFinished,
   isPaused,
@@ -10,11 +14,17 @@ import {
   pause as pauseState,
   remainingMs,
   resume as resumeState,
-  startBreak,
+  startBreak as startBreakState,
   startFocus,
+  toIdle,
   type TimerState,
 } from "../lib/focusTimer";
 import { getFocusSettings } from "../lib/preferences";
+import {
+  cancelPhaseNotification,
+  requestTimerNotificationPermission,
+  schedulePhaseNotification,
+} from "../lib/timerNotifications";
 
 const STORAGE_KEY = "waypoint.focusTimer";
 
@@ -27,34 +37,34 @@ export interface FocusTimerApi {
   resume: () => void;
   // Ends a focus block early (logging what was done) or skips a break.
   stop: () => void;
+  // A finished block waits for the person: this starts the break.
+  startBreak: () => void;
 }
 
 const FocusTimerContext = createContext<FocusTimerApi | null>(null);
 
-function beep() {
+// While the page is alive but not in front (another tab, a minimised
+// window), a web notification that stays until it is clicked. When the app
+// is in front the in-app prompt does this job, and a short vibration is
+// enough. There is deliberately no beep: it is easy to miss and easy to
+// find annoying.
+function alertPhaseEnd(title: string, body: string) {
   try {
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.value = 880;
-    gain.gain.value = 0.08;
-    osc.connect(gain).connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.25);
-    osc.onended = () => void ctx.close();
+    navigator.vibrate?.([200, 100, 200]);
   } catch {
-    // No audio available; the notification and title still say so.
+    // Not available.
   }
-}
-
-function notify(title: string, body: string) {
-  beep();
+  if (!document.hidden || Capacitor.isNativePlatform()) return;
   try {
     if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-      new Notification(title, { body });
+      const n = new Notification(title, { body, tag: "waypoint-focus", requireInteraction: true });
+      n.onclick = () => {
+        window.focus();
+        n.close();
+      };
     }
   } catch {
-    // Some mobile webviews throw on `new Notification`.
+    // Some webviews throw on `new Notification`.
   }
 }
 
@@ -69,6 +79,10 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
     }
   });
   const [now, setNow] = useState(() => Date.now());
+  // The installed app asks the operating system to deliver the "block is
+  // over" notification only while it isn't in front: in front, the prompt
+  // on screen is the notification.
+  const [appActive, setAppActive] = useState(true);
   // A focus block is logged once, even if the tick fires again before the
   // state change lands.
   const logged = useRef(new Set<string>());
@@ -111,15 +125,53 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
       handled.current.add(key);
       if (s.phase === "focus") {
         void log(s, Math.max(1, Math.round(s.durationMs / 60_000)));
-        notify("Focus block done", s.breakMinutes > 0 ? `Take ${s.breakMinutes} minutes.` : "Nice work.");
-        setState(startBreak(s, t));
+        alertPhaseEnd(
+          "Focus block done",
+          s.breakMinutes > 0 ? `Tap to start your ${s.breakMinutes}-minute break.` : "Nice work.",
+        );
+        // Wait here. Whoever set the phone down needs to see this before
+        // a break they didn't ask for starts and ends unnoticed.
+        setState(finishFocus(s, t));
       } else {
-        notify("Break over", "Ready for another block?");
-        setState({ ...IDLE, focusMinutes: s.focusMinutes, breakMinutes: s.breakMinutes });
+        alertPhaseEnd("Break over", "Ready for the next block?");
+        setState(toIdle(s));
       }
     },
     [log],
   );
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let remove: (() => Promise<void>) | undefined;
+    let cancelled = false;
+    void CapacitorApp.addListener("appStateChange", (s) => setAppActive(s.isActive)).then((h) => {
+      if (cancelled) void h.remove();
+      else remove = () => h.remove();
+    });
+    return () => {
+      cancelled = true;
+      void remove?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const at = endsAt(state, Date.now());
+    if (appActive || at === null) {
+      void cancelPhaseNotification();
+      return;
+    }
+    const isFocus = state.phase === "focus";
+    void schedulePhaseNotification({
+      at,
+      title: isFocus ? "Focus block done" : "Break over",
+      body: isFocus
+        ? `${state.taskTitle ? `${state.taskTitle} · ` : ""}${
+            state.breakMinutes > 0 ? `Tap to start your ${state.breakMinutes}-minute break.` : "Nice work."
+          }`
+        : "Ready for the next block?",
+    });
+  }, [state, appActive]);
 
   // One tick drives both the clock and the end of a phase. It also catches
   // a timer that ran out while the tab was closed, on its first tick.
@@ -146,7 +198,10 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
     if (baseTitle.current === null) baseTitle.current = document.title;
     const left = Math.ceil(remainingMs(state, now) / 1000);
     const clock = `${String(Math.floor(left / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}`;
-    document.title = `${clock} ${state.phase === "focus" ? "Focus" : "Break"} · Waypoint`;
+    document.title =
+      state.phase === "focus-done"
+        ? "✓ Focus done · Waypoint"
+        : `${clock} ${state.phase === "focus" ? "Focus" : "Break"} · Waypoint`;
   }, [state, now]);
 
   const start = useCallback(
@@ -155,6 +210,7 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
       // Switching task mid-block keeps what was done on the old one.
       if (state.phase === "focus") void log(state, focusedMinutes(state, t));
       const settings = getFocusSettings();
+      void requestTimerNotificationPermission();
       try {
         if (typeof Notification !== "undefined" && Notification.permission === "default") {
           void Notification.requestPermission();
@@ -187,7 +243,12 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
       stop: () => {
         const t = Date.now();
         if (state.phase === "focus") void log(state, focusedMinutes(state, t));
-        setState({ ...IDLE, focusMinutes: state.focusMinutes, breakMinutes: state.breakMinutes });
+        setState(toIdle(state));
+      },
+      startBreak: () => {
+        const t = Date.now();
+        setNow(t);
+        setState((s) => (s.phase === "focus-done" ? startBreakState(s, t) : s));
       },
     }),
     [state, now, start, log],

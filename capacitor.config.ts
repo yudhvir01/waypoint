@@ -6,6 +6,11 @@ const config: CapacitorConfig = {
   webDir: "dist",
   backgroundColor: "#f8fafc",
   plugins: {
+    LocalNotifications: {
+      // Focus-timer notifications (src/lib/timerNotifications.ts).
+      smallIcon: "ic_stat_waypoint",
+      iconColor: "#2563EB",
+    },
     CapacitorUpdater: {
       // Updates are checked and downloaded by the app itself (see
       // src/lib/otaUpdater.ts) against Waypoint's own site, never against
