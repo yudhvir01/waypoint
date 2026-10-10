@@ -28,6 +28,7 @@ Everything rolls up into one **Focus Now** list on the dashboard: the tasks that
 - **Repeating tasks** — daily, weekdays, weekly or monthly; ticking one creates the next occurrence (never in the past). `#repeat:` in Markdown.
 - **Spaced revisit** — finishing a topic schedules review tasks at +3, +7 and +21 days in a per-track "Reviews" topic (toggle in Settings).
 - **Manual task order** — Move up / Move down in a task's menu.
+- **Flashcards from notes** — write `question :: answer` on a line of a note and it becomes a card; spaced review with a 20-card session cap.
 - **Topic confidence** — rate a topic Shaky / Okay / Solid; it sets how soon reviews come back and feeds the Review page.
 - **Gentle by design** — one rest day doesn't break a streak, overdue tasks can be cleared in one move, and open reviews are capped per track.
 - **Export & restore** — a track as Markdown (round-trips with import), a full JSON backup, and a restore that adds a backup's contents as new rows.
@@ -51,7 +52,7 @@ npm install
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Open **SQL Editor**, paste in the contents of [`supabase/setup.sql`](./supabase/setup.sql), and run it. This creates every table the app needs (`tracks`, `topics`, `tasks`, `topic_counts`), the indexes and helper functions the app's queries rely on, a public `attachments` Storage bucket for note images/audio, and locks it all down with row-level security so only you can read or write your own data.
 
-   The script is safe to re-run. **Already running an older Waypoint?** Re-run it after pulling — it migrates an existing database in place (adding ownership columns, indexes, maintained progress counters, and the `recurrence` and `confidence` columns) without touching your rows. Repeating tasks, topic confidence and Focus Now need this re-run.
+   The script is safe to re-run. **Already running an older Waypoint?** Re-run it after pulling — it migrates an existing database in place (adding ownership columns, indexes, maintained progress counters, and the `recurrence` and `confidence` columns and the `cards` table) without touching your rows. Repeating tasks, topic confidence, flashcards and Focus Now need this re-run.
 3. Grab your **Project ID** (Settings → General) and **anon key** (Settings → API Keys).
 4. **(Optional) Deploy the link-preview function** so pasted links show a preview card: `supabase functions deploy link-preview --no-verify-jwt`. Nothing to configure — it's stateless and needs no secrets. Deploying it to the project behind `VITE_SUPABASE_URL` (the baked-in default, if you set one) makes it work for every visitor regardless of which backend they pick, guest and Google Drive included — those have no "connected project" of their own to reach a function through otherwise. Skip it and pasted links just stay plain links.
 
@@ -122,6 +123,7 @@ src/
     recurrence.ts              Next-occurrence date math for repeating tasks
     taskActions.ts             Ticking a task: repeat follow-up + spaced reviews
     search.ts / insights.ts    Pure functions over a snapshot: search, streaks, review
+    cards.ts                   Cards from note text, diffing, scheduler, daily session
     exportData.ts              Track → Markdown, full JSON backup, file download
     backup.ts                  Validating reader for backup files
     database.types.ts          Track/Topic/Task types
@@ -131,6 +133,7 @@ src/
     Dashboard.tsx  Focus Now + Tracks list
     Search.tsx     Search across everything
     Review.tsx     Weekly review, streaks, activity grid
+    Cards.tsx      Flashcard review session
     TrackDetail.tsx Topics + tasks for one track
     Settings.tsx   Database/migration status
     Guide.tsx      In-app docs, sidebar nav
