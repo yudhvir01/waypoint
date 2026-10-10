@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { Card, Note, Task, Topic, Track } from "../database.types";
+import type { Card, FocusSession, Note, Task, Topic, Track } from "../database.types";
 
 // The single local user id stamped onto every row a guest creates. There
 // is exactly one guest per browser profile, so this exists only so
@@ -21,14 +21,18 @@ interface GuestDB extends DBSchema {
   notes: { key: string; value: Note; indexes: { taskId: string } };
   attachments: { key: string; value: GuestAttachment };
   cards: { key: string; value: Card; indexes: { noteId: string } };
+  sessions: { key: string; value: FocusSession };
 }
 
 let dbPromise: Promise<IDBPDatabase<GuestDB>> | null = null;
 
 export function getGuestDB(): Promise<IDBPDatabase<GuestDB>> {
   if (!dbPromise) {
-    dbPromise = openDB<GuestDB>("waypoint-guest", 4, {
+    dbPromise = openDB<GuestDB>("waypoint-guest", 5, {
       upgrade(db, oldVersion) {
+        // v4 -> v5 only adds focus sessions; existing stores are untouched.
+        if (oldVersion < 5) db.createObjectStore("sessions", { keyPath: "id" });
+        if (oldVersion >= 4) return;
         // v3 -> v4 only adds cards; existing stores are untouched.
         if (oldVersion < 4) {
           const cards = db.createObjectStore("cards", { keyPath: "id" });
@@ -88,7 +92,7 @@ export async function hasAnyGuestData(): Promise<boolean> {
 // backend after migrating their data, or explicitly asks to start over.
 export async function clearGuestData(): Promise<void> {
   const db = await getGuestDB();
-  const tx = db.transaction(["tracks", "topics", "tasks", "notes", "attachments", "cards"], "readwrite");
+  const tx = db.transaction(["tracks", "topics", "tasks", "notes", "attachments", "cards", "sessions"], "readwrite");
   await Promise.all([
     tx.objectStore("tracks").clear(),
     tx.objectStore("topics").clear(),
@@ -96,6 +100,7 @@ export async function clearGuestData(): Promise<void> {
     tx.objectStore("notes").clear(),
     tx.objectStore("attachments").clear(),
     tx.objectStore("cards").clear(),
+    tx.objectStore("sessions").clear(),
   ]);
   await tx.done;
 }

@@ -1,4 +1,4 @@
-import type { Card, Confidence, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
+import type { Card, Confidence, FocusSession, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
 import {
   createDataFile,
@@ -39,6 +39,7 @@ interface DriveData {
   tasks: Task[];
   notes: Note[];
   cards: Card[];
+  sessions: FocusSession[];
 }
 
 function newId(): string {
@@ -50,7 +51,7 @@ function nowIso(): string {
 }
 
 function emptyData(): DriveData {
-  return { version: DATA_VERSION, tracks: [], topics: [], tasks: [], notes: [], cards: [] };
+  return { version: DATA_VERSION, tracks: [], topics: [], tasks: [], notes: [], cards: [], sessions: [] };
 }
 
 // The whole account's data is one JSON file in a "Waypoint" folder in the
@@ -101,6 +102,7 @@ export class DriveBackend implements Backend {
               tasks: parsed.tasks ?? [],
               notes: parsed.notes ?? [],
               cards: parsed.cards ?? [],
+              sessions: parsed.sessions ?? [],
             };
           } catch {
             throw new Error(
@@ -291,6 +293,7 @@ export class DriveBackend implements Backend {
     this.data.tasks.push(...fresh.tasks);
     this.data.notes.push(...fresh.notes);
     this.data.cards.push(...fresh.cards);
+    this.data.sessions.push(...fresh.sessions);
     await this.persist();
     return {
       tracks: fresh.tracks.length,
@@ -298,6 +301,7 @@ export class DriveBackend implements Backend {
       tasks: fresh.tasks.length,
       notes: fresh.notes.length,
       cards: fresh.cards.length,
+      sessions: fresh.sessions.length,
     };
   }
 
@@ -355,10 +359,14 @@ export class DriveBackend implements Backend {
     await this.persist();
   }
 
-  // A task's note outlives the task, as a standalone note.
+  // A task's note outlives the task, as a standalone note, and the time
+  // spent on it still counts, just no longer tied to anything.
   private detachNotes(taskIds: Set<string>): void {
     for (const note of this.data.notes) {
       if (note.task_id && taskIds.has(note.task_id)) note.task_id = null;
+    }
+    for (const session of this.data.sessions) {
+      if (session.task_id && taskIds.has(session.task_id)) session.task_id = null;
     }
   }
 
@@ -403,6 +411,26 @@ export class DriveBackend implements Backend {
   async listCards(): Promise<Card[]> {
     await this.ensureLoaded();
     return [...this.data.cards];
+  }
+
+  async listFocusSessions(): Promise<FocusSession[]> {
+    await this.ensureLoaded();
+    return [...this.data.sessions];
+  }
+
+  async logFocusSession(input: { taskId: string | null; startedAt: string; minutes: number }): Promise<FocusSession> {
+    await this.ensureLoaded();
+    const session: FocusSession = {
+      id: newId(),
+      user_id: this.session.email,
+      task_id: input.taskId,
+      started_at: input.startedAt,
+      minutes: input.minutes,
+      created_at: nowIso(),
+    };
+    this.data.sessions.push(session);
+    await this.persist();
+    return session;
   }
 
   async syncNoteCards(noteId: string, wanted: { front: string; back: string }[]): Promise<void> {
@@ -500,6 +528,7 @@ export class DriveBackend implements Backend {
       tasks: [...this.data.tasks],
       notes: options.notes === false ? [] : [...this.data.notes],
       cards: [...this.data.cards],
+      sessions: [...this.data.sessions],
     };
   }
 

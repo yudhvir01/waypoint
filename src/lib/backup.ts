@@ -1,5 +1,5 @@
 import type { Snapshot } from "./backend/types";
-import type { Card, Confidence, Note, Recurrence, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "./database.types";
+import type { Card, Confidence, FocusSession, Note, Recurrence, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "./database.types";
 import { isRecurrence } from "./recurrence";
 
 // Reading a backup file back in. The file is untrusted input (edited by
@@ -62,7 +62,8 @@ export function parseBackup(text: string): ParsedBackup {
   const rawTasks = list("tasks");
   const rawNotes = list("notes");
   const rawCards = list("cards");
-  if (rawTracks.length + rawTopics.length + rawTasks.length + rawNotes.length + rawCards.length > MAX_ROWS) {
+  const rawSessions = list("sessions");
+  if (rawTracks.length + rawTopics.length + rawTasks.length + rawNotes.length + rawCards.length + rawSessions.length > MAX_ROWS) {
     throw new Error("That backup has too many rows to restore in one go.");
   }
 
@@ -183,12 +184,31 @@ export function parseBackup(text: string): ParsedBackup {
     });
   }
 
+  const sessions: FocusSession[] = [];
+  for (const r of rawSessions) {
+    const o = obj(r);
+    const id = o && str(o.id);
+    const minutes = o ? int(o.minutes) : 0;
+    if (!o || !id || minutes < 1 || minutes > 24 * 60) {
+      skipped++;
+      continue;
+    }
+    sessions.push({
+      id,
+      user_id: "",
+      task_id: str(o.task_id),
+      started_at: isoOr(o.started_at, epoch),
+      minutes,
+      created_at: isoOr(o.created_at, epoch),
+    });
+  }
+
   if (tracks.length + notes.length === 0) {
     throw new Error("That backup has no tracks or notes in it.");
   }
 
   return {
-    snapshot: { tracks, topics, tasks, notes, cards },
+    snapshot: { tracks, topics, tasks, notes, cards, sessions },
     exportedAt: typeof root.exportedAt === "string" ? root.exportedAt : null,
     skipped,
   };

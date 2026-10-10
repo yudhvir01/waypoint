@@ -1,4 +1,4 @@
-import type { Card, Confidence, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
+import type { Card, Confidence, FocusSession, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
 import type { ParsedImport, ParsedTopic } from "../markdownImport";
 import { GUEST_USER_ID, getGuestDB, newGuestId, nowIso } from "./guestStore";
 import { diffCards, newCardSchedule } from "../cards";
@@ -194,7 +194,8 @@ export class GuestBackend implements Backend {
   async importSnapshot(data: Snapshot): Promise<RestoreCounts> {
     const db = await getGuestDB();
     const fresh = remapSnapshot(data, GUEST_USER_ID, newGuestId);
-    const tx = db.transaction(["tracks", "topics", "tasks", "notes", "cards"], "readwrite");
+    const tx = db.transaction(["tracks", "topics", "tasks", "notes", "cards", "sessions"], "readwrite");
+    for (const row of fresh.sessions) tx.objectStore("sessions").put(row);
     for (const row of fresh.cards) tx.objectStore("cards").put(row);
     for (const row of fresh.tracks) tx.objectStore("tracks").put(row);
     for (const row of fresh.topics) tx.objectStore("topics").put(row);
@@ -208,6 +209,7 @@ export class GuestBackend implements Backend {
       tasks: fresh.tasks.length,
       notes: fresh.notes.length,
       cards: fresh.cards.length,
+      sessions: fresh.sessions.length,
     };
   }
 
@@ -309,6 +311,25 @@ export class GuestBackend implements Backend {
     return db.getAll("cards");
   }
 
+  async listFocusSessions(): Promise<FocusSession[]> {
+    const db = await getGuestDB();
+    return db.getAll("sessions");
+  }
+
+  async logFocusSession(input: { taskId: string | null; startedAt: string; minutes: number }): Promise<FocusSession> {
+    const db = await getGuestDB();
+    const session: FocusSession = {
+      id: newGuestId(),
+      user_id: GUEST_USER_ID,
+      task_id: input.taskId,
+      started_at: input.startedAt,
+      minutes: input.minutes,
+      created_at: nowIso(),
+    };
+    await db.put("sessions", session);
+    return session;
+  }
+
   async syncNoteCards(noteId: string, wanted: { front: string; back: string }[]): Promise<void> {
     const db = await getGuestDB();
     const existing = await db.getAllFromIndex("cards", "noteId", noteId);
@@ -405,14 +426,15 @@ export class GuestBackend implements Backend {
 
   async snapshot(options: { notes?: boolean } = {}): Promise<Snapshot> {
     const db = await getGuestDB();
-    const [tracks, topics, tasks, notes, cards] = await Promise.all([
+    const [tracks, topics, tasks, notes, cards, sessions] = await Promise.all([
       db.getAll("tracks"),
       db.getAll("topics"),
       db.getAll("tasks"),
       options.notes === false ? Promise.resolve([] as Note[]) : db.getAll("notes"),
       db.getAll("cards"),
+      db.getAll("sessions"),
     ]);
-    return { tracks, topics, tasks, notes, cards };
+    return { tracks, topics, tasks, notes, cards, sessions };
   }
 
   async importTrack(parsed: ParsedImport): Promise<string> {

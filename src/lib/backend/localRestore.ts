@@ -54,5 +54,14 @@ export function remapSnapshot(data: Snapshot, userId: string, newId: () => strin
     return noteId ? [{ ...c, id: newId(), user_id: userId, note_id: noteId }] : [];
   });
 
-  return { tracks, topics, tasks, notes, cards };
+  // Time already logged stays logged; if its task isn't in the file it
+  // simply isn't tied to one.
+  const sessions = data.sessions.map((x) => ({
+    ...x,
+    id: newId(),
+    user_id: userId,
+    task_id: x.task_id ? (taskIds.get(x.task_id) ?? null) : null,
+  }));
+
+  return { tracks, topics, tasks, notes, cards, sessions };
 }

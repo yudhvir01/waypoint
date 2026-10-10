@@ -76,3 +76,15 @@ export interface Card {
   last_reviewed_at: string | null;
   created_at: string;
 }
+
+// One block of focused time, logged when a focus timer finishes (or is
+// stopped part-way). task_id is null for time not tied to a task, or once
+// the task it was for has been deleted.
+export interface FocusSession {
+  id: string;
+  user_id: string;
+  task_id: string | null;
+  started_at: string;
+  minutes: number;
+  created_at: string;
+}

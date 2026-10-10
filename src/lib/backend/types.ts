@@ -1,4 +1,4 @@
-import type { Card, Confidence, Note, Recurrence, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
+import type { Card, Confidence, FocusSession, Note, Recurrence, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
 
 export interface TrackProgress {
@@ -64,6 +64,7 @@ export interface Snapshot {
   // Empty unless the caller asked for notes (they carry full HTML bodies).
   notes: Note[];
   cards: Card[];
+  sessions: FocusSession[];
 }
 
 // What a card's schedule is rewritten to after it's reviewed.
@@ -82,6 +83,7 @@ export interface RestoreCounts {
   tasks: number;
   notes: number;
   cards: number;
+  sessions: number;
 }
 
 export interface TaskOrderUpdate {
@@ -161,6 +163,10 @@ export interface Backend {
   listCards(): Promise<Card[]>;
   syncNoteCards(noteId: string, wanted: { front: string; back: string }[]): Promise<void>;
   reviewCard(id: string, schedule: CardSchedule): Promise<void>;
+
+  // Focus time logged by the timer.
+  listFocusSessions(): Promise<FocusSession[]>;
+  logFocusSession(input: { taskId: string | null; startedAt: string; minutes: number }): Promise<FocusSession>;
 
   // Attachments — images and audio clips embedded in a note's body.
   // uploadAttachment stores the file and returns its id; resolveAttachmentUrl

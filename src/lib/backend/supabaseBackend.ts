@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Card, Confidence, Note, Task, Topic, Track, TrackStatus, TopicStatus } from "../database.types";
+import type { Card, Confidence, FocusSession, Note, Task, Topic, Track, TrackStatus, TopicStatus } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
 import { diffCards, newCardSchedule } from "../cards";
 import { remapSnapshot } from "./localRestore";
@@ -36,6 +36,8 @@ const TRACK_LIMIT = 500;
 const NOTE_LIMIT = 500;
 // Every card is loaded to work out what's due today.
 const CARD_LIMIT = 5000;
+// Focus sessions, newest first.
+const SESSION_LIMIT = 5000;
 
 interface TrackProgressRow {
   track_id: string;
@@ -302,6 +304,17 @@ export class SupabaseBackend implements Backend {
           created_at: c.created_at,
         })),
       );
+      await insertAll(
+        "focus_sessions",
+        fresh.sessions.map((x) => ({
+          id: x.id,
+          user_id: this.userId,
+          task_id: x.task_id,
+          started_at: x.started_at,
+          minutes: x.minutes,
+          created_at: x.created_at,
+        })),
+      );
     } catch (error) {
       for (let i = 0; i < createdTracks.length; i += 100) {
         await this.client.from("tracks").delete().in("id", createdTracks.slice(i, i + 100));
@@ -318,6 +331,7 @@ export class SupabaseBackend implements Backend {
       tasks: fresh.tasks.length,
       notes: fresh.notes.length,
       cards: fresh.cards.length,
+      sessions: fresh.sessions.length,
     };
   }
 
@@ -494,6 +508,32 @@ export class SupabaseBackend implements Backend {
     }
   }
 
+  async listFocusSessions(): Promise<FocusSession[]> {
+    const { data, error } = await this.client
+      .from("focus_sessions")
+      .select("*")
+      .eq("user_id", this.userId)
+      .order("started_at", { ascending: false })
+      .limit(SESSION_LIMIT);
+    if (error) throw error;
+    return (data ?? []) as FocusSession[];
+  }
+
+  async logFocusSession(input: { taskId: string | null; startedAt: string; minutes: number }): Promise<FocusSession> {
+    const { data, error } = await this.client
+      .from("focus_sessions")
+      .insert({
+        user_id: this.userId,
+        task_id: input.taskId,
+        started_at: input.startedAt,
+        minutes: input.minutes,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as FocusSession;
+  }
+
   async reviewCard(id: string, schedule: CardSchedule): Promise<void> {
     const { error } = await this.client.from("cards").update(schedule).eq("id", id);
     if (error) throw error;
@@ -628,14 +668,15 @@ export class SupabaseBackend implements Backend {
   }
 
   async snapshot(options: { notes?: boolean } = {}): Promise<Snapshot> {
-    const [tracks, topics, tasks, notes, cards] = await Promise.all([
+    const [tracks, topics, tasks, notes, cards, sessions] = await Promise.all([
       this.fetchAll<Track>("tracks", "created_at"),
       this.fetchAll<Topic>("topics", "created_at"),
       this.fetchAll<Task>("tasks", "created_at"),
       options.notes === false ? Promise.resolve([] as Note[]) : this.fetchAll<Note>("notes", "created_at"),
       this.fetchAll<Card>("cards", "created_at"),
+      this.fetchAll<FocusSession>("focus_sessions", "created_at"),
     ]);
-    return { tracks, topics, tasks, notes, cards };
+    return { tracks, topics, tasks, notes, cards, sessions };
   }
 
   async importTrack(parsed: ParsedImport): Promise<string> {
