@@ -9,6 +9,7 @@ import connectRaw from "../../docs/writebook/02-connecting-your-supabase-project
 import importRaw from "../../docs/writebook/03-the-markdown-import-format.md?raw";
 import featuresRaw from "../../docs/writebook/04-search-review-and-repeating-tasks.md?raw";
 import flashcardsRaw from "../../docs/writebook/06-flashcards.md?raw";
+import quickAddRaw from "../../docs/writebook/07-quick-add.md?raw";
 import googleDriveRaw from "../../docs/writebook/05-google-drive-setup.md?raw";
 
 const CHAPTERS = [
@@ -17,6 +18,7 @@ const CHAPTERS = [
   { slug: "the-markdown-import-format", raw: importRaw },
   { slug: "search-review-and-repeating-tasks", raw: featuresRaw },
   { slug: "flashcards", raw: flashcardsRaw },
+  { slug: "quick-add", raw: quickAddRaw },
   { slug: "google-drive-setup", raw: googleDriveRaw },
 ].map(({ slug, raw }) => {
   const { title, body } = stripFrontMatter(raw);
