@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useBackend } from "../context/BackendProvider";
 import { BinIcon } from "./BinIcon";
@@ -44,6 +44,17 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
   // Notes attached to a task live on that task; the sidebar lists only
   // free-standing ones.
   const standaloneNotes = notes?.filter((n) => !n.task_id);
+  // Ctrl/⌘+K from anywhere in the app jumps to search.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        navigate("/search");
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [navigate]);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [guestBannerDismissed, setGuestBannerDismissed] = useState(
@@ -129,6 +140,7 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
 
           <nav className="mt-9 flex flex-col gap-0.5">
             <NavLink to="/">Focus Now</NavLink>
+            <NavLink to="/search">Search</NavLink>
           </nav>
 
           <div className="mt-8 flex flex-col gap-0.5">

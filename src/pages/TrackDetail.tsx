@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { SchedulePopover } from "../components/SchedulePopover";
 import { ActionMenu } from "../components/ActionMenu";
@@ -613,6 +613,8 @@ export function TrackDetail() {
   const { data: progressMap } = useTrackProgress();
   const { data: topicProgress } = useTopicProgress(trackId);
   const updateTrackStatus = useUpdateTrackStatus();
+  const [searchParams] = useSearchParams();
+  const focusTopicId = searchParams.get("topic");
   const [expanded, setExpanded] = useState<Set<string> | null>(null);
 
   const topics = topicPages?.pages.flat();
@@ -621,10 +623,12 @@ export function TrackDetail() {
   // shouldn't land as one giant expanded wall.
   useEffect(() => {
     if (expanded === null && topics && topics.length > 0) {
-      const firstIncomplete = topics.find((t) => t.status !== "done") ?? topics[0];
+      // A search result links straight to the topic it found.
+      const linked = focusTopicId ? topics.find((t) => t.id === focusTopicId) : undefined;
+      const firstIncomplete = linked ?? topics.find((t) => t.status !== "done") ?? topics[0];
       setExpanded(new Set([firstIncomplete.id]));
     }
-  }, [topics, expanded]);
+  }, [topics, expanded, focusTopicId]);
 
   const expandedSet = expanded ?? new Set<string>();
 

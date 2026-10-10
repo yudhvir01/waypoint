@@ -15,6 +15,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { TrackDetail } from "./pages/TrackDetail";
 import { Settings } from "./pages/Settings";
 import { Archived } from "./pages/Archived";
+import { Search } from "./pages/Search";
 // The guide bundles four Markdown chapters plus the Markdown renderer.
 // Loading it lazily keeps roughly half a megabyte out of the entry chunk
 // that every signed-in page has to download first.
@@ -116,6 +117,7 @@ function App() {
                   <Route path="/tracks/:trackId" element={<TrackDetail />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/archived" element={<Archived />} />
+                  <Route path="/search" element={<Search />} />
                   <Route
                     path="/notes/:noteId"
                     element={
