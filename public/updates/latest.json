@@ -1,17 +1,17 @@
 {
   "schema": 1,
-  "builtAt": 1791653688488,
-  "version": "2.2.0",
+  "builtAt": 1791654265260,
+  "version": "2.2.1",
   "bundle": {
-    "url": "/updates/waypoint-1791653688488.zip",
-    "checksum": "523cb4c7d9bf45417bfc4049acae3abef3a9f7f3a94fcc1371259ca5edebd90d"
+    "url": "/updates/waypoint-1791654265260.zip",
+    "checksum": "4dfa258eb57061c7c74cd076e4de63f203ad18568e08cbcba113c977f106d5d3"
   },
   "minNativeVersion": 2,
   "apk": {
-    "versionCode": 5,
-    "versionName": "2.2.0",
+    "versionCode": 6,
+    "versionName": "2.2.1",
     "url": "/downloads/waypoint.apk",
-    "sha256": "d80783375dfdff97c90c844027d67940426ca31f4115a6f1a25cda25d4635757"
+    "sha256": "3974affb3088b5dd368bdf3e80f2a2a1ef4969ec6ea224a0ba86443df2d2a635"
   },
-  "notes": "Task panel on Focus Now; the break waits for a tap and a notification tells you when a block ends"
+  "notes": "Delete archived tracks for good; Restart now and update details"
 }
