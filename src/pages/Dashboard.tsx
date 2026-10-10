@@ -6,6 +6,7 @@ import { useFocusNow, useToggleFocusTask, type FocusTask } from "../hooks/useFoc
 import type { Task } from "../lib/database.types";
 import { RECURRENCE_LABEL } from "../lib/recurrence";
 import { useFocusTimer } from "../context/FocusTimerProvider";
+import { TaskDetailSheet } from "../components/TaskDetailSheet";
 
 function dueLabel(dueDate: string | null): { text: string; className: string } | null {
   if (!dueDate) return null;
@@ -39,22 +40,37 @@ function isUrgent(task: FocusTask): boolean {
   return delta <= 1;
 }
 
-function TaskRow({ task }: { task: FocusTask }) {
+function TaskRow({ task, onOpen }: { task: FocusTask; onOpen: () => void }) {
   const toggleTask = useToggleFocusTask();
   const timer = useFocusTimer();
   const due = dueLabel(task.due_date);
+  const focusing = timer.state.phase === "focus" && timer.state.taskId === task.id;
 
   return (
-    <li className="flex items-start gap-3 border-b border-border py-4 last:border-0">
+    <li
+      className={`flex items-start gap-3 border-b border-border py-4 last:border-0 ${
+        focusing ? "-mx-3 rounded-lg bg-primary/5 px-3" : ""
+      }`}
+    >
       <button
         type="button"
         onClick={() => toggleTask.mutate(task)}
         aria-label="Mark done"
         className="mt-0.5 h-4 w-4 shrink-0 rounded-full border border-input transition-colors hover:border-primary"
       />
-      <div className="min-w-0 flex-1">
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Open task: ${task.title}`}
+        className="min-w-0 flex-1 rounded-md text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring"
+      >
         <p className="text-[15px] leading-snug">
           {task.title}
+          {focusing && (
+            <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 align-middle text-[11px] font-medium text-primary">
+              Focusing
+            </span>
+          )}
           {task.recurrence && (
             <span
               className="ml-1.5 text-xs text-muted-foreground"
@@ -71,7 +87,7 @@ function TaskRow({ task }: { task: FocusTask }) {
             {task.topic.track.name} &rarr; {task.topic.title}
           </span>
         </div>
-      </div>
+      </button>
       {due && <span className={`mt-0.5 shrink-0 text-xs ${due.className}`}>{due.text}</span>}
       <button
         type="button"
@@ -88,6 +104,11 @@ function TaskRow({ task }: { task: FocusTask }) {
 
 function FocusNowList() {
   const { data: tasks, isLoading, isError, refetch } = useFocusNow();
+  const toggleTask = useToggleFocusTask();
+  // The task whose panel is open. Kept as an id and looked up in the live
+  // list, so the panel always shows the current title and fields, and
+  // closes by itself once the task is done.
+  const [openId, setOpenId] = useState<string | null>(null);
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Loading…</p>;
@@ -122,6 +143,8 @@ function FocusNowList() {
   const today = tasks.filter(isUrgent).slice(0, 8);
   const upNext = tasks.filter((t) => !isUrgent(t)).slice(0, Math.max(0, 8 - today.length));
 
+  const open = openId ? tasks.find((t) => t.id === openId) : undefined;
+
   return (
     <div className="flex flex-col gap-8">
       {today.length > 0 && (
@@ -131,7 +154,7 @@ function FocusNowList() {
           </p>
           <ul className="mt-2">
             {today.map((task) => (
-              <TaskRow key={task.id} task={task} />
+              <TaskRow key={task.id} task={task} onOpen={() => setOpenId(task.id)} />
             ))}
           </ul>
         </div>
@@ -143,10 +166,25 @@ function FocusNowList() {
           </p>
           <ul className="mt-2">
             {upNext.map((task) => (
-              <TaskRow key={task.id} task={task} />
+              <TaskRow key={task.id} task={task} onOpen={() => setOpenId(task.id)} />
             ))}
           </ul>
         </div>
+      )}
+
+      {open && (
+        <TaskDetailSheet
+          key={open.id}
+          task={open}
+          place={{
+            trackId: open.topic.track.id,
+            trackName: open.topic.track.name,
+            topicId: open.topic.id,
+            topicTitle: open.topic.title,
+          }}
+          onToggleDone={() => toggleTask.mutate(open)}
+          onClose={() => setOpenId(null)}
+        />
       )}
     </div>
   );

@@ -69,6 +69,9 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key.toLowerCase() !== "c" || e.ctrlKey || e.metaKey || e.altKey) return;
+      // Not while a dialog (a task panel, the finished-block prompt…) is
+      // open: the letter belongs to whatever is being typed there.
+      if (document.querySelector('[aria-modal="true"]')) return;
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)) {
         return;
