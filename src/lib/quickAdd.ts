@@ -1,6 +1,13 @@
 import type { Recurrence, TaskPriority, Track } from "./database.types";
 import { fromDateKey, toDateKey } from "./recurrence";
 
+// Where quick-added tasks land: the Inbox track when no #track matched,
+// or a plain "Tasks" topic made in a track that has no topics yet. Both
+// are buckets of errands, not something learned, so they never get
+// spaced reviews (see scheduleTopicReviews).
+export const INBOX_NAME = "Inbox";
+export const QUICK_ADD_TOPIC_TITLE = "Tasks";
+
 // Turns one line of ordinary writing into a task:
 //
 //   "buy a book tomorrow !high"      -> due tomorrow, high priority

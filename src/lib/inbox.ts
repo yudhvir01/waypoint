@@ -1,9 +1,9 @@
 import type { Backend } from "./backend/types";
 import type { Topic, Track } from "./database.types";
-import { matchTrack, type QuickAdd } from "./quickAdd";
+import { INBOX_NAME, QUICK_ADD_TOPIC_TITLE, matchTrack, type QuickAdd } from "./quickAdd";
 import { REVIEWS_TOPIC_TITLE } from "./taskActions";
 
-export const INBOX_NAME = "Inbox";
+export { INBOX_NAME };
 
 export interface Placed {
   topicId: string;
@@ -42,7 +42,7 @@ export async function placeQuickAdd(backend: Backend, parsed: QuickAdd): Promise
   const match = matchTrack(tracks, parsed.trackHint);
   if (match) {
     const topic = pickTopic(await backend.listTopics(match.id, 0, 100));
-    const topicId = topic?.id ?? (await backend.createTopic(match.id, "Tasks")).id;
+    const topicId = topic?.id ?? (await backend.createTopic(match.id, QUICK_ADD_TOPIC_TITLE)).id;
     return { topicId, trackName: match.name, missedHint: null };
   }
   const placed = await inboxTopic(backend, tracks);

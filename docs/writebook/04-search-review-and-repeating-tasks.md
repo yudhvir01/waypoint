@@ -72,6 +72,10 @@ in a topic adds review tasks to that track, due 3, 7 and
 track; past that, new ones wait until you've cleared some, so finishing a big
 roadmap doesn't bury you. The choice is saved on the device you set it on.
 
+Quick-added tasks never get reviews: finishing what's in the **Inbox**, or in
+the **Tasks** topic quick add makes in a track with no topics, is an errand
+done, not something to revisit.
+
 ## Reordering and export
 
 - **Move up / Move down** in a task's ⋮ menu changes its order within the topic.

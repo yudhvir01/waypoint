@@ -2,6 +2,7 @@ import type { Backend } from "./backend/types";
 import type { Confidence, Task, Topic } from "./database.types";
 import { getSpacedRevisit } from "./preferences";
 import { nextOccurrence, toDateKey } from "./recurrence";
+import { INBOX_NAME, QUICK_ADD_TOPIC_TITLE } from "./quickAdd";
 
 // Where review tasks are collected, per track. Matched by title: it is
 // what a person sees, and renaming it just means a new one is made.
@@ -59,7 +60,10 @@ export async function scheduleTopicReviews(
   topicTitle: string,
   confidence?: Confidence | null,
 ): Promise<void> {
-  if (topicTitle === REVIEWS_TOPIC_TITLE) return;
+  if (topicTitle === REVIEWS_TOPIC_TITLE || topicTitle === QUICK_ADD_TOPIC_TITLE) return;
+  // Finishing the groceries isn't learning anything.
+  const track = await backend.getTrack(trackId);
+  if (!track || track.name.toLowerCase() === INBOX_NAME.toLowerCase()) return;
   let reviews = await findTopic(backend, trackId, (t) => t.title === REVIEWS_TOPIC_TITLE);
   if (!reviews) reviews = await backend.createTopic(trackId, REVIEWS_TOPIC_TITLE);
 
