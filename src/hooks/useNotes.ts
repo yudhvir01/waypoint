@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBackend } from "../context/BackendProvider";
 import type { NoteWithContext } from "../lib/backend/types";
 import { extractCards } from "../lib/cards";
+import { attachmentIdsIn, queueAttachmentCleanup } from "../lib/backend/attachmentCleanup";
 
 export function useNotes() {
   const { backend } = useBackend();
@@ -76,8 +77,15 @@ export function useNoteAutosave(noteId: string) {
       const patch = pending.current;
       if (!backend || Object.keys(patch).length === 0) return;
       pending.current = {};
+      const before = queryClient.getQueryData<NoteWithContext | null>(["note", noteId])?.content;
       try {
         await backend.updateNote(noteId, patch);
+        if (patch.content !== undefined && before !== undefined) {
+          // Not deleted yet: undo can still bring the node back. See
+          // attachmentCleanup.ts.
+          const kept = attachmentIdsIn(patch.content);
+          queueAttachmentCleanup(backend.kind, [...attachmentIdsIn(before)].filter((id) => !kept.has(id)));
+        }
         queryClient.setQueryData<NoteWithContext | null>(["note", noteId], (old) =>
           old ? { ...old, ...patch } : old,
         );

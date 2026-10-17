@@ -3,6 +3,7 @@ import type { ParsedImport, ParsedTopic } from "../markdownImport";
 import { GUEST_USER_ID, getGuestDB, newGuestId, nowIso } from "./guestStore";
 import { diffCards, newCardSchedule } from "../cards";
 import { buildNoteContext, newNote, newestFirst } from "./localNotes";
+import { attachmentIdsIn, removeUnreferencedAttachments } from "./attachmentCleanup";
 import { remapSnapshot } from "./localRestore";
 import { computeTopicProgress, computeTrackProgress, rankFocusTasks, topicStatusChanges } from "./localRanking";
 import {
@@ -323,11 +324,13 @@ export class GuestBackend implements Backend {
 
   async deleteNote(id: string): Promise<void> {
     const db = await getGuestDB();
+    const note = await db.get("notes", id);
     const cardIds = await db.getAllKeysFromIndex("cards", "noteId", id);
     const tx = db.transaction(["notes", "cards"], "readwrite");
     await tx.objectStore("notes").delete(id);
     for (const cardId of cardIds) await tx.objectStore("cards").delete(cardId);
     await tx.done;
+    if (note) await removeUnreferencedAttachments(this, attachmentIdsIn(note.content));
   }
 
   async listCards(): Promise<Card[]> {
@@ -417,6 +420,23 @@ export class GuestBackend implements Backend {
     const url = URL.createObjectURL(row.blob);
     this.attachmentUrls.set(id, url);
     return url;
+  }
+
+  async attachmentsInUse(ids: string[]): Promise<Set<string>> {
+    const db = await getGuestDB();
+    const inUse = new Set<string>();
+    for (const note of await db.getAll("notes")) {
+      for (const id of attachmentIdsIn(note.content)) if (ids.includes(id)) inUse.add(id);
+    }
+    return inUse;
+  }
+
+  async deleteAttachment(id: string): Promise<void> {
+    const db = await getGuestDB();
+    await db.delete("attachments", id);
+    const url = this.attachmentUrls.get(id);
+    if (url) URL.revokeObjectURL(url);
+    this.attachmentUrls.delete(id);
   }
 
   async trackProgress(): Promise<Map<string, TrackProgress>> {

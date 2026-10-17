@@ -7,6 +7,7 @@ import { useBackend } from "../context/BackendProvider";
 import { fetchLinkPreview, soleUrl } from "../lib/linkPreview";
 import { LINK_PREVIEW_URL } from "../lib/env";
 import type { AttachmentKind, Backend } from "../lib/backend/types";
+import { queueAttachmentCleanup } from "../lib/backend/attachmentCleanup";
 
 // Self-imposed — none of the three backends enforce this uniformly
 // (Supabase's bucket does via setup.sql, guest/Drive don't), so it's
@@ -36,6 +37,9 @@ export async function insertFilesAt(
     }
     try {
       const attachment = await backend.uploadAttachment(file, kind);
+      // Swept later unless a saved note embeds it by then — covers an
+      // upload that's removed (or the note abandoned) before it saves.
+      queueAttachmentCleanup(backend.kind, [attachment.id]);
       const nodeType = view.state.schema.nodes[kind === "image" ? "attachmentImage" : "attachmentAudio"];
       const node = nodeType.create({ attachmentId: attachment.id, name: attachment.name });
       view.dispatch(view.state.tr.insert(insertPos, node));

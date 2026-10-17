@@ -6,11 +6,13 @@ import {
   ensureWaypointFolder,
   loadDataFile,
   saveDataFile,
+  trashFile,
   uploadBinaryFile,
 } from "./driveClient";
 import type { GoogleDriveSession } from "./googleAuth";
 import { diffCards, newCardSchedule } from "../cards";
 import { buildNoteContext, newNote, newestFirst } from "./localNotes";
+import { attachmentIdsIn, removeUnreferencedAttachments } from "./attachmentCleanup";
 import { remapSnapshot } from "./localRestore";
 import { computeTopicProgress, computeTrackProgress, rankFocusTasks, topicStatusChanges } from "./localRanking";
 import {
@@ -413,9 +415,12 @@ export class DriveBackend implements Backend {
 
   async deleteNote(id: string): Promise<void> {
     await this.ensureLoaded();
+    const note = this.data.notes.find((n) => n.id === id);
     this.data.notes = this.data.notes.filter((n) => n.id !== id);
     this.data.cards = this.data.cards.filter((c) => c.note_id !== id);
     await this.persist();
+    // Attachments are separate Drive files the data file only points at.
+    if (note) await removeUnreferencedAttachments(this, attachmentIdsIn(note.content));
   }
 
   async listCards(): Promise<Card[]> {
@@ -513,6 +518,22 @@ export class DriveBackend implements Backend {
     const url = URL.createObjectURL(blob);
     this.attachmentUrls.set(id, url);
     return url;
+  }
+
+  async attachmentsInUse(ids: string[]): Promise<Set<string>> {
+    await this.ensureLoaded();
+    const inUse = new Set<string>();
+    for (const note of this.data.notes) {
+      for (const id of attachmentIdsIn(note.content)) if (ids.includes(id)) inUse.add(id);
+    }
+    return inUse;
+  }
+
+  async deleteAttachment(id: string): Promise<void> {
+    await trashFile(this.session, id);
+    const url = this.attachmentUrls.get(id);
+    if (url) URL.revokeObjectURL(url);
+    this.attachmentUrls.delete(id);
   }
 
   async trackProgress(): Promise<Map<string, TrackProgress>> {

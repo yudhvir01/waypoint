@@ -16,6 +16,15 @@ export class DriveConflictError extends Error {
   }
 }
 
+class DriveRequestError extends Error {
+  readonly status: number;
+
+  constructor(status: number, body: string) {
+    super(`Drive request failed (${status}): ${body.slice(0, 300)}`);
+    this.status = status;
+  }
+}
+
 async function driveFetch(session: GoogleDriveSession, url: string, init: RequestInit = {}): Promise<Response> {
   const token = await session.getAccessToken();
   const res = await fetch(url, {
@@ -24,7 +33,7 @@ async function driveFetch(session: GoogleDriveSession, url: string, init: Reques
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`Drive request failed (${res.status}): ${body.slice(0, 300)}`);
+    throw new DriveRequestError(res.status, body);
   }
   return res;
 }
@@ -143,6 +152,22 @@ export async function uploadBinaryFile(
 export async function downloadBinaryFile(session: GoogleDriveSession, fileId: string): Promise<Blob> {
   const res = await driveFetch(session, `${DRIVE_API}/${fileId}?alt=media`);
   return await res.blob();
+}
+
+// Moves an attachment to the Drive trash once nothing references it
+// any more. Trashed rather than deleted outright, so a mistaken delete
+// is still recoverable from Drive for the usual 30 days. A file that's
+// already gone (removed by hand, or by another device) counts as done.
+export async function trashFile(session: GoogleDriveSession, fileId: string): Promise<void> {
+  try {
+    await driveFetch(session, `${DRIVE_API}/${fileId}?fields=id`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trashed: true }),
+    });
+  } catch (err) {
+    if (!(err instanceof DriveRequestError && err.status === 404)) throw err;
+  }
 }
 
 // Overwrites the data file's content. `expectedRevisionId` is the

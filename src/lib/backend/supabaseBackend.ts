@@ -3,6 +3,7 @@ import type { Card, Confidence, FocusSession, Note, Task, Topic, Track, TrackSta
 import type { ParsedImport } from "../markdownImport";
 import { diffCards, newCardSchedule } from "../cards";
 import { remapSnapshot } from "./localRestore";
+import { attachmentIdsIn, removeUnreferencedAttachments } from "./attachmentCleanup";
 import { topicStatusChanges } from "./localRanking";
 import {
   type Attachment,
@@ -478,8 +479,12 @@ export class SupabaseBackend implements Backend {
   }
 
   async deleteNote(id: string): Promise<void> {
-    const { error } = await this.client.from("notes").delete().eq("id", id);
+    // .select() hands back the deleted row, so its attachments can be
+    // found without a separate read first.
+    const { data, error } = await this.client.from("notes").delete().eq("id", id).select("content");
     if (error) throw error;
+    const ids = (data ?? []).flatMap((n) => [...attachmentIdsIn(n.content)]);
+    await removeUnreferencedAttachments(this, ids);
   }
 
   async listCards(): Promise<Card[]> {
@@ -607,6 +612,33 @@ export class SupabaseBackend implements Backend {
   async resolveAttachmentUrl(id: string): Promise<string> {
     const { data } = this.client.storage.from(ATTACHMENTS_BUCKET).getPublicUrl(id);
     return data.publicUrl;
+  }
+
+  // One LIKE per id rather than pulling every note body down: there are
+  // only ever a handful of ids to check at a time.
+  async attachmentsInUse(ids: string[]): Promise<Set<string>> {
+    const inUse = new Set<string>();
+    await Promise.all(
+      ids.map(async (id) => {
+        const pattern = `%data-attachment-id="${id.replace(/[\\%_]/g, "\\$&")}"%`;
+        const { data, error } = await this.client
+          .from("notes")
+          .select("id")
+          .eq("user_id", this.userId)
+          .like("content", pattern)
+          .limit(1);
+        if (error) throw error;
+        if (data.length > 0) inUse.add(id);
+      }),
+    );
+    return inUse;
+  }
+
+  // Removing a path that doesn't exist isn't an error in Storage, and
+  // setup.sql's owner-delete policy keeps this to the user's own folder.
+  async deleteAttachment(id: string): Promise<void> {
+    const { error } = await this.client.storage.from(ATTACHMENTS_BUCKET).remove([id]);
+    if (error) throw error;
   }
 
   async trackProgress(): Promise<Map<string, TrackProgress>> {

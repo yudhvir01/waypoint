@@ -23,6 +23,7 @@ import { requestPersistentGuestStorage } from "../lib/backend/guestStore";
 import { DriveBackend } from "../lib/backend/driveBackend";
 import { GoogleDriveSession, restoreGoogleSignIn, signOutOfGoogle } from "../lib/backend/googleAuth";
 import type { Backend } from "../lib/backend/types";
+import { sweepAttachmentCleanup } from "../lib/backend/attachmentCleanup";
 
 type Mode = "guest" | "supabase" | "drive";
 
@@ -159,6 +160,11 @@ export function BackendProvider({ children }: { children: ReactNode }) {
     if (mode === "drive" && driveSession) return new DriveBackend(driveSession);
     return null;
   }, [mode, guestBackend, client, session, driveSession]);
+
+  useEffect(() => {
+    // Background housekeeping; a failure just leaves the queue for next time.
+    if (backend) sweepAttachmentCleanup(backend).catch(() => {});
+  }, [backend]);
 
   function loginAsGuest() {
     localStorage.setItem(MODE_KEY, "guest");

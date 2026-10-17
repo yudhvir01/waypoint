@@ -180,6 +180,12 @@ export interface Backend {
   // are guaranteed to hand back a URL that's valid forever.
   uploadAttachment(file: File, kind: AttachmentKind): Promise<Attachment>;
   resolveAttachmentUrl(id: string): Promise<string>;
+  // Which of `ids` some note still embeds — checked before deleting any
+  // attachment, since a node can be copied from one note into another.
+  attachmentsInUse(ids: string[]): Promise<Set<string>>;
+  // Removes the stored file; a no-op if it's already gone. Called only by
+  // attachmentCleanup.ts, once attachmentsInUse has cleared it.
+  deleteAttachment(id: string): Promise<void>;
 
   // Aggregates
   trackProgress(): Promise<Map<string, TrackProgress>>;
