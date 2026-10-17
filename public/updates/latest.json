@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "builtAt": 1791654537325,
-  "version": "2.2.2",
+  "builtAt": 1792254133787,
+  "version": "2.3.0",
   "bundle": {
-    "url": "/updates/waypoint-1791654537325.zip",
-    "checksum": "dc93f63f226e3ffa240a9920f428fb424c7ec1dfb35735011a0a16a58e75cd7b"
+    "url": "/updates/waypoint-1792254133787.zip",
+    "checksum": "f49d9249f3acd209e31c0ec4b43c794d1cad753a11198d077f0b8902cd725344"
   },
   "minNativeVersion": 2,
   "apk": {
@@ -13,5 +13,5 @@
     "url": "/downloads/waypoint.apk",
     "sha256": "3974affb3088b5dd368bdf3e80f2a2a1ef4969ec6ea224a0ba86443df2d2a635"
   },
-  "notes": "The focus block end plays a sound, notifies and shows the pop-up"
+  "notes": "Today: pick three and close the day; each track shows its trail"
 }
