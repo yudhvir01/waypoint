@@ -45,6 +45,7 @@ export function snapshotToBackupJson(snapshot: Snapshot): string {
       notes: snapshot.notes,
       cards: snapshot.cards,
       sessions: snapshot.sessions,
+      waypoints: snapshot.waypoints,
     },
     null,
     2,

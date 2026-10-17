@@ -88,7 +88,7 @@ function FocusScreen() {
     <div className="flex flex-col gap-2.5">
       <div className="flex items-center gap-2">
         <LogoMark size={20} />
-        <span className="text-sm font-semibold">Focus Now</span>
+        <span className="text-sm font-semibold">Today</span>
       </div>
       {rows.map((r) => (
         <div key={r.t} className="rounded-xl border border-border bg-card p-2.5">
@@ -268,14 +268,14 @@ export function Landing() {
 
       <FeatureRow
         panel="--lp-panel-a"
-        title="One Dashboard, Every Goal"
-        body="Tracks, tasks and notes live together. Focus Now surfaces what to do next, so you spend your time doing, not organizing."
+        title="Pick Three. Close the Day."
+        body="Each morning, pick up to three things from what's waiting. Each evening, write one line about what moved. Those lines become the trail on every track: where you're headed, where you are, and how far you've come."
       >
         <div className="flex w-full max-w-sm flex-col gap-3">
-          <Pill>🎯 Focus Now</Pill>
-          <Pill tone="bg-primary/10 self-end">Learn Rust · 3 tasks</Pill>
-          <Pill>Ship v2 · 5 tasks</Pill>
-          <Pill tone="bg-teal/20 self-end">✓ Weekly review done</Pill>
+          <Pill>🎯 Today · 2 of 3 done</Pill>
+          <Pill tone="bg-primary/10 self-end">📍 You are here: Ownership</Pill>
+          <Pill>✎ Lifetimes finally clicked</Pill>
+          <Pill tone="bg-teal/20 self-end">🏁 Headed to: ship a Rust CLI</Pill>
         </div>
       </FeatureRow>
 

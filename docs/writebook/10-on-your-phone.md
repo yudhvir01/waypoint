@@ -79,7 +79,7 @@ On a phone the sidebar is a drawer:
 - The ☰ button in the corner does the same.
 
 The swipe is ignored where it would get in the way: in text fields, inside the
-note editor, and on anything that scrolls sideways, such as the activity grid.
+note editor, and on anything that scrolls sideways.
 Android's own back gesture lives at the very edge of the screen, so you can
 start the swipe a little further in.
 

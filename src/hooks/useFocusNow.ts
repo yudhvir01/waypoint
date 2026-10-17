@@ -44,6 +44,7 @@ export function useToggleFocusTask() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["focusNow"] });
+      queryClient.invalidateQueries({ queryKey: ["planned"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["trackProgress"] });
       queryClient.invalidateQueries({ queryKey: ["topicProgress"] });

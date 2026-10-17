@@ -4,16 +4,9 @@ import { AppShell } from "../components/AppShell";
 import { useSnapshot } from "../hooks/useSnapshot";
 import { useRescheduleTasks } from "../hooks/useTasks";
 import { toDateKey } from "../lib/recurrence";
-import { computeInsights, STALE_AFTER_DAYS, type HeatCell, type TaskWithPlace } from "../lib/insights";
+import { computeInsights, STALE_AFTER_DAYS, type TaskWithPlace } from "../lib/insights";
+import { getSpacedRevisit } from "../lib/preferences";
 import { useMemo } from "react";
-
-const LEVEL_CLASS: Record<HeatCell["level"], string> = {
-  0: "bg-border/70",
-  1: "bg-primary/25",
-  2: "bg-primary/50",
-  3: "bg-primary/75",
-  4: "bg-primary",
-};
 
 function formatMinutes(total: number): string {
   if (total < 60) return `${total}m`;
@@ -72,33 +65,6 @@ function TaskList({ items, showDue = false }: { items: TaskWithPlace[]; showDue?
   );
 }
 
-function Heatmap({ columns }: { columns: HeatCell[][] }) {
-  return (
-    <div className="overflow-x-auto pb-1">
-      <div className="inline-flex gap-[3px]" role="img" aria-label="Tasks completed per day, last 26 weeks">
-        {columns.map((column, w) => (
-          <div key={w} className="flex flex-col gap-[3px]">
-            {column.map((cell) => (
-              <div
-                key={cell.key}
-                title={
-                  cell.future
-                    ? undefined
-                    : `${new Date(cell.key + "T00:00").toLocaleDateString()} — ${cell.count} done`
-                }
-                className={`h-3 w-3 rounded-[3px] ${cell.future ? "opacity-0" : LEVEL_CLASS[cell.level]}`}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Overdue tasks are the single biggest reason people abandon a task
-// app, so Review lets you clear the pile in one move instead of
-// confronting it one task at a time.
 function SlippedActions({ taskIds }: { taskIds: string[] }) {
   const reschedule = useRescheduleTasks();
   const [confirm, setConfirm] = useState<"today" | "clear" | null>(null);
@@ -154,7 +120,7 @@ export function Review() {
     <AppShell wide>
       <h1 className="text-2xl font-semibold tracking-[-0.02em]">Review</h1>
       <p className="mt-1.5 text-[15px] text-muted-foreground">
-        What you finished, what slipped, and what you've let go quiet.
+        What slipped, what's gone quiet, and what's coming. Your trail on each track holds the rest.
       </p>
 
       {isLoading && <p className="mt-8 text-sm text-muted-foreground">Loading…</p>}
@@ -164,7 +130,9 @@ export function Review() {
 
       {insights && (
         <>
-          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {/* No streaks or activity grid: counting days turns a quiet week
+              into a debt. The trail on each track is the look back. */}
+          <div className="mt-8 grid grid-cols-2 gap-3">
             <Stat
               label="Done, last 7 days"
               value={insights.doneLast7}
@@ -175,28 +143,12 @@ export function Review() {
               }
             />
             <Stat
-              label="Current streak"
-              value={`${insights.currentStreak}d`}
-              hint={
-                insights.currentStreak > 0
-                  ? `best ${insights.longestStreak}d · one rest day is fine`
-                  : "finish a task to start one"
-              }
-            />
-            <Stat label="Active days, last 30" value={insights.activeDays30} hint="days you finished something" />
-            <Stat
               label="Focus, last 7 days"
               value={formatMinutes(insights.focusMinutes7)}
               hint={insights.focusMinutesTotal > 0 ? `${formatMinutes(insights.focusMinutesTotal)} all time` : "start a timer on a task"}
             />
           </div>
 
-          <Section
-            title="Activity"
-            hint={`${insights.heatmapTotal} task${insights.heatmapTotal === 1 ? "" : "s"} finished in the last 26 weeks`}
-          >
-            <Heatmap columns={insights.heatmap} />
-          </Section>
 
           {insights.focusLast7.length > 0 && (
             <Section title="Where the time went" hint="Focus time over the last 7 days.">
@@ -228,7 +180,7 @@ export function Review() {
             </Section>
           )}
 
-          {insights.shakyTopics.length > 0 && (
+          {getSpacedRevisit() && insights.shakyTopics.length > 0 && (
             <Section
               title={`Shaky · ${insights.shakyTopics.length}`}
               hint="Topics you rated shaky. These come back for review sooner."
@@ -249,7 +201,7 @@ export function Review() {
             </Section>
           )}
 
-          {insights.unratedDone.length > 0 && (
+          {getSpacedRevisit() && insights.unratedDone.length > 0 && (
             <Section
               title={`Finished but unrated · ${insights.unratedDone.length}`}
               hint="Finished isn't the same as known. Tap Rate on a topic to say how well it stuck."
@@ -327,7 +279,7 @@ export function Review() {
 
           <Section
             title={`Finished this week · ${insights.completedLast7.length}`}
-            hint={insights.completedLast7.length === 0 ? "Nothing yet — one tick starts the streak." : undefined}
+            hint={insights.completedLast7.length === 0 ? "Nothing yet this week." : undefined}
           >
             <TaskList items={insights.completedLast7} />
           </Section>

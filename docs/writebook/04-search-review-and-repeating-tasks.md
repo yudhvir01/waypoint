@@ -16,19 +16,17 @@ opens its track with that topic already expanded.
 
 ## Review
 
-**Review** in the sidebar is a look back at the last few weeks:
+**Review** is a check on what needs sorting out. Today links to it when tasks
+have slipped. There are no streaks or activity grid on purpose: counting days
+turns a quiet week into a debt. The trail on each track is the look back.
 
-- **Done in the last 7 days**, next to the week before it.
-- **Streaks.** Days you finished at least one task. One rest day between two
-  active days doesn't break it, and it's still alive until two days have gone
-  by with nothing. Next to it, **active days in the last 30** gives a view
-  that a single bad week can't wreck.
-- **Activity.** A 26-week grid, one square per day, darker for busier days.
+- **Done in the last 7 days**, next to the week before it, and focus time.
 - **Slipped.** Overdue tasks that are still open. A pile of these is the
   quickest way to stop wanting to open a to-do list, so there are two ways to
   clear it in one move: **Move all to today**, or **Clear deadlines** (the
   tasks stay, they just stop being overdue).
-- **Shaky** and **Finished but unrated.** See "Rating a topic" below.
+- **Shaky** and **Finished but unrated**, when spaced revisit is on. See
+  "Rating a topic" below.
 - **Gone quiet.** Topics you started but haven't finished a task in for 14+
   days, and tracks with open work and nothing done in that time. Paused and
   archived tracks are left out on purpose.
@@ -48,15 +46,15 @@ created straight away, so a repeating task is always a single open item.
   doesn't leave a pile of overdue copies.
 - A task with no deadline repeats from today.
 - Stop repeating by editing the open task and choosing "Doesn't repeat".
-- A repeating mark (↻) shows next to it in Focus Now and on the track page.
+- A repeating mark (↻) shows next to it on Today and on the track page.
 
 In Markdown, add `#repeat:daily`, `#repeat:weekdays`, `#repeat:weekly` or
 `#repeat:monthly` next to `#priority:` and `#due:`.
 
 ## Rating a topic
 
-Ticking everything off says you did it, not that it stuck. Each topic has a
-small **Rate** chip: click it to cycle **Shaky → Okay → Solid → unrated**. It's
+Ticking everything off says you did it, not that it stuck. With spaced revisit
+on (below), each topic has a small **Rate** chip: click it to cycle **Shaky → Okay → Solid → unrated**. It's
 your own call, not a quiz.
 
 - A topic rated **shaky** comes back sooner (reviews at 1, 3 and 7 days);
@@ -66,12 +64,13 @@ your own call, not a quiz.
 
 ## Spaced revisit
 
-Finishing every task in a topic adds review tasks to that track, due 3, 7 and
+Off unless you turn it on, in **Settings → Learning**, because tasks the app
+adds by itself crowd out the ones you chose. When it's on, finishing every task
+in a topic adds review tasks to that track, due 3, 7 and
 21 days later by default, e.g. "Review: Pointers (day 7)". They live in a
 **Reviews** topic that's created for you. At most 12 reviews stay open on a
 track; past that, new ones wait until you've cleared some, so finishing a big
-roadmap doesn't bury you. Switch it off in **Settings → Learning** (the choice
-is saved on the device you set it on).
+roadmap doesn't bury you. The choice is saved on the device you set it on.
 
 ## Reordering and export
 
@@ -79,7 +78,7 @@ is saved on the device you set it on).
 - **Export** on a track's page downloads it as Markdown, in exactly the format
   **Import Markdown** reads, so it round-trips.
 - **Settings → Your data → Download .json** saves everything (tracks, topics,
-  tasks, notes, ratings) as one backup file. Images and audio embedded in
+  tasks, notes, ratings, the lines on your trails) as one backup file. Images and audio embedded in
   notes aren't part of it.
 - **Settings → Your data → Choose file…** restores a backup. It always *adds*
   the contents as new tracks and notes; nothing you already have is changed or

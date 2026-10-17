@@ -64,6 +64,11 @@ alter table public.tasks drop constraint if exists tasks_recurrence_check;
 alter table public.tasks add constraint tasks_recurrence_check
   check (recurrence is null or recurrence in ('daily', 'weekdays', 'weekly', 'monthly'));
 
+-- The day a task was picked as one of that day's few. Safe to re-run:
+-- existing tasks simply aren't picked for any day.
+alter table public.tasks add column if not exists planned_on date;
+create index if not exists tasks_user_planned_idx on public.tasks (user_id, planned_on) where planned_on is not null;
+
 -- Safe to re-run against an existing database created before these
 -- reminder-related columns were removed.
 alter table public.tasks drop column if exists remind_me;
@@ -110,6 +115,19 @@ create table if not exists public.focus_sessions (
   minutes integer not null check (minutes between 1 and 1440),
   created_at timestamptz not null default now()
 );
+
+-- Waypoints: the one line written when closing a day. Deleting a track
+-- keeps its lines, tied to nothing.
+create table if not exists public.waypoints (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  track_id uuid references public.tracks (id) on delete set null,
+  day date not null default current_date,
+  text text not null check (char_length(text) between 1 and 2000),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists waypoints_user_day_idx on public.waypoints (user_id, day desc);
 
 create index if not exists focus_sessions_user_started_idx on public.focus_sessions (user_id, started_at desc);
 
@@ -376,6 +394,7 @@ alter table public.tasks enable row level security;
 alter table public.notes enable row level security;
 alter table public.cards enable row level security;
 alter table public.focus_sessions enable row level security;
+alter table public.waypoints enable row level security;
 
 drop policy if exists "tracks_owner_all" on public.tracks;
 create policy "tracks_owner_all" on public.tracks
@@ -403,6 +422,10 @@ create policy "cards_owner_all" on public.cards
 
 drop policy if exists "focus_sessions_owner_all" on public.focus_sessions;
 create policy "focus_sessions_owner_all" on public.focus_sessions
+  for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+
+drop policy if exists "waypoints_owner_all" on public.waypoints;
+create policy "waypoints_owner_all" on public.waypoints
   for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
 -- ---------------------------------------------------------------------

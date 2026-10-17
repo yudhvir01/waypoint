@@ -61,6 +61,19 @@ export function rankFocusTasks(tracks: Track[], topics: Topic[], tasks: Task[], 
   });
 }
 
+// Today's picks (and what's left of yesterday's), with where each lives.
+// Paused and archived tracks are left out, as they are from Focus Now.
+export function plannedTasks(tracks: Track[], topics: Topic[], tasks: Task[], since: string): FocusTask[] {
+  const trackById = new Map(tracks.map((t) => [t.id, t]));
+  const topicById = new Map(topics.map((t) => [t.id, t]));
+  return tasks.flatMap((task) => {
+    const topic = topicById.get(task.topic_id);
+    const track = trackById.get(task.track_id);
+    if (!task.planned_on || task.planned_on < since || !topic || track?.status !== "active") return [];
+    return [{ ...task, topic: { id: topic.id, title: topic.title, track: { id: track.id, name: track.name } } }];
+  });
+}
+
 export function computeTrackProgress(tasks: Task[]): Map<string, TrackProgress> {
   const map = new Map<string, TrackProgress>();
   for (const task of tasks) {

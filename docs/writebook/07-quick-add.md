@@ -37,7 +37,7 @@ track.
 ## The Inbox
 
 With no `#track`, or one that matches nothing, the task goes to an **Inbox**
-track that's created the first time you need it. It shows up in Focus Now like
+track that's created the first time you need it. It shows up on Today like
 anything else. The box stays open after you add, so you can capture several in
 a row; **Esc** closes it.
 

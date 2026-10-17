@@ -3,10 +3,10 @@ title: Welcome
 ---
 # Welcome
 
-Waypoint is one dashboard for everything you're learning and building — instead of
-digging through a dozen notes to remember what you're supposed to be doing today,
-you get one ranked list: what's overdue, what's urgent, and what's next, across
-every track you're working on.
+Waypoint is a logbook for everything you're learning and building. Each morning
+you pick up to three things to do. Each evening you write one line about what
+moved. Those lines become the trail on every track: where it's headed, where
+you are, and how far you've come.
 
 ## How it's different
 
@@ -20,11 +20,11 @@ Waypoint gives you three things and nothing else:
 - **Tasks** — the actual next actions inside a topic, each with an optional
   priority and due date.
 
-Everything rolls up into one **Focus Now** list on the dashboard: the tasks that
-most need your attention right now, blended from what's overdue, what's due soon,
-and what you've manually flagged as high priority.
+**Today** opens the day: it suggests what most needs you (what's overdue, what's
+due soon, what you've flagged) and you pick up to three. At the end of the day,
+it asks for one line. The chapter **Your Day and the Trail** covers both.
 
-**Tap any task** in Focus Now and it opens right there, without taking you to its
+**Tap any task** on Today and it opens right there, without taking you to its
 track: the whole title (which you can edit, so a long one is never a problem),
 its priority, deadline and repeat, its notes to write in, and a **Focus on
 this** button that starts the timer on it.
@@ -59,8 +59,8 @@ Around those three things, Waypoint is also a notebook and a place to look back:
   previews and `[[links]]` between notes, tasks, topics and tracks.
 - **Flashcards** made by writing `question :: answer` in a note, reviewed in
   short daily sessions.
-- **Search** across everything, **Review** (streaks, an activity grid, what
-  slipped), **repeating tasks**, **spaced revisit** and a **focus timer**.
+- **Search** across everything, **Review** (what slipped, what's gone quiet,
+  what's coming), **repeating tasks** and a **focus timer**.
 - **Quick add**: press **C**, write a line, and the date, repeat and priority are
   picked out of it.
 - **Export and backup**, so nothing is stuck inside the app.

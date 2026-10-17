@@ -3,12 +3,13 @@
 
 const SPACED_REVISIT_KEY = "waypoint.spacedRevisit";
 
-// On by default: finishing a topic quietly schedules a few review tasks.
+// Off unless turned on: finishing a topic then schedules a few review
+// tasks. Tasks the app adds by itself crowd out the ones you chose.
 export function getSpacedRevisit(): boolean {
   try {
-    return localStorage.getItem(SPACED_REVISIT_KEY) !== "0";
+    return localStorage.getItem(SPACED_REVISIT_KEY) === "1";
   } catch {
-    return true;
+    return false;
   }
 }
 

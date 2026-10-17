@@ -1,8 +1,8 @@
 # Waypoint
 
-**One Dashboard. Every Goal.**
+**Pick three. Close the day.**
 
-Waypoint is one dashboard for everything you're learning and building. Instead of digging through a dozen notes to remember what you're supposed to be doing today, you get one ranked list: what's overdue, what's urgent, and what's next — across every track you're working on.
+Waypoint is a logbook for everything you're learning and building. Each morning you pick up to three things from a ranked list of what's waiting. Each evening you write one line about what moved. Those lines become the trail on every track — where it's headed, where you are, and how far you've come.
 
 There's no backend Waypoint controls. Try it instantly as a guest (data stays in your browser), or connect it to your own [Supabase](https://supabase.com) project for a real account that works across devices. Every storage option lives behind one interface (`Backend`, in `src/lib/backend/`), so which one you're on never changes how a page works.
 
@@ -14,7 +14,11 @@ Most note apps give you a blank page and a thousand templates. Waypoint gives yo
 - **Topics** — a unit inside a track (e.g. "Pointers", "ROS basics"), with a status: not started, in progress, or done.
 - **Tasks** — the actual next actions inside a topic, each with an optional priority and due date.
 
-Everything rolls up into one **Focus Now** list on the dashboard: the tasks that most need your attention, ranked by what's overdue, what's due soon, and priority — blended across every active track.
+Around them is one daily ritual:
+
+- **Today** — the app ranks what needs you (overdue, due soon, priority, the topic you're in); you pick up to three. Yesterday's unfinished picks are offered first.
+- **Close the day** — one line: what did you learn or get done? It lands on a track as a **waypoint**.
+- **The trail** — each track's page shows where it's headed, the topics ahead, "you are here", and every line you've written on it, back to the day it started.
 
 ## Features
 
@@ -22,23 +26,24 @@ Everything rolls up into one **Focus Now** list on the dashboard: the tasks that
 - **Google sign-in needs one-time setup of your own**: a Google Cloud OAuth client, and a tiny stateless Supabase Edge Function (`supabase/functions/google-token`) that holds the OAuth client secret so it never reaches the browser — see that function's header comment for the exact steps and required secrets.
 - **Guest → Supabase or Google Drive migration** — Settings offers a one-click "Move to Supabase"/"Move to Google Drive" for guest data: connect (or sign in), and every guest track is imported into the new account. Nothing local is touched unless you ask.
 - **Tracks / Topics / Tasks** with row-level security — every row is scoped to `auth.uid()`, so a user can only ever see their own data.
-- **Focus Now** — overdue tasks first, then due-within-2-days, then by priority, sorted by due date within each tier.
+- **Today** — pick up to three tasks for the day (`tasks.planned_on`, so picks sync across devices) from the ranked suggestions: overdue first, then due-within-2-days, then by priority. Cards due, the Inbox and slipped tasks surface as one line here instead of sidebar pages.
+- **Waypoints & the trail** — a line written when closing a day (`waypoints` table / IndexedDB store / Drive JSON array), shown on its track's Trail beneath the track's "headed to" sentence (its description). Included in backups.
 - **Search** — Ctrl/⌘+K from anywhere; tracks, topics, tasks and note text in one box, accent- and case-insensitive.
-- **Review** — a look back: done this week vs. last, streaks, a 26-week activity grid, overdue ("slipped"), and topics/tracks that have gone quiet.
+- **Review** — what needs sorting: done this week vs. last, focus time, overdue ("slipped"), and topics/tracks that have gone quiet. No streaks or activity grid, deliberately.
 - **Repeating tasks** — daily, weekdays, weekly or monthly; ticking one creates the next occurrence (never in the past). `#repeat:` in Markdown.
-- **Spaced revisit** — finishing a topic schedules review tasks at +3, +7 and +21 days in a per-track "Reviews" topic (toggle in Settings).
+- **Spaced revisit** (opt-in, Settings → Learning) — finishing a topic schedules review tasks at +3, +7 and +21 days in a per-track "Reviews" topic. Topic confidence ratings only show while it's on.
 - **Manual task order** — Move up / Move down in a task's menu.
 - **Self-updating Android app** — new web bundles are fetched in the background and used on the next launch, with automatic rollback. A new APK downloads by itself with a progress bar and is handed to Android's installer, whose "update this app?" screen is the one confirmation Android requires. The file is checked against a published SHA-256 first. See [`docs/mobile.md`](docs/mobile.md).
 - **Install from the browser** — the landing page offers Install on Android (the web app, no download), the APK as the other option, and Add to Home Screen steps for iOS.
 - **Swipeable sidebar** — on a phone, swipe right to open the drawer and left to close it; it follows the finger and ignores text fields, the editor and sideways-scrolling areas.
 - **Archive, then delete for good** — archived tracks can be restored or permanently deleted (with a confirmation that says how many tasks go; notes are kept as standalone notes).
-- **Task panel** — tap a task in Focus Now and it opens in place: the full title (editable), priority, deadline, repeat, its notes, and a Focus on this button. No trip to the track.
+- **Task panel** — tap a task on Today and it opens in place: the full title (editable), priority, deadline, repeat, its notes, and a Focus on this button. No trip to the track.
 - **Focus timer** — a Pomodoro-style timer tied to a task, kept running across pages; time is logged per task and shown on the Review page. A finished block announces itself three ways (a sound, a notification and a pop-up; the notification comes from the OS even when the Android app is closed) and the break only starts when you tap it.
 - **Note links & backlinks** — `[[Title]]` links to a note, task, topic or track (Ctrl/Cmd+click to open); each note lists what it links to and what links back.
 - **Quick add** — press `C` anywhere and write a line like `read ch 4 friday !high #cpp`; dates, repeats, priority and track are picked out of the text, and unsorted tasks land in an Inbox. Tasks can be moved between topics and tracks.
 - **Flashcards from notes** — write `question :: answer` on a line of a note and it becomes a card; spaced review with a 20-card session cap.
-- **Topic confidence** — rate a topic Shaky / Okay / Solid; it sets how soon reviews come back and feeds the Review page.
-- **Gentle by design** — one rest day doesn't break a streak, overdue tasks can be cleared in one move, and open reviews are capped per track.
+- **Topic confidence** — with spaced revisit on, rate a topic Shaky / Okay / Solid; it sets how soon reviews come back and feeds the Review page.
+- **Gentle by design** — no streaks to break, overdue tasks can be cleared in one move, unfinished picks carry over instead of vanishing, and open reviews are capped per track.
 - **Export & restore** — a track as Markdown (round-trips with import), a full JSON backup, and a restore that adds a backup's contents as new rows.
 - **Markdown import** — write a whole track as `# Track / ## Topic / - [ ] Task #priority:high #due:2026-09-10` and import it in one shot, with a preview and non-fatal warnings for anything it can't parse. See [`docs/writebook/03-the-markdown-import-format.md`](docs/writebook/03-the-markdown-import-format.md).
 - **Image & audio attachments in notes** — insert a photo or a voice clip inline; each backend stores the file its own way (a Supabase Storage bucket, an IndexedDB blob for guest, a file in the Drive "Waypoint" folder) behind the same `uploadAttachment`/`resolveAttachmentUrl` pair on `Backend`.
@@ -60,7 +65,7 @@ npm install
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Open **SQL Editor**, paste in the contents of [`supabase/setup.sql`](./supabase/setup.sql), and run it. This creates every table the app needs (`tracks`, `topics`, `tasks`, `topic_counts`), the indexes and helper functions the app's queries rely on, a public `attachments` Storage bucket for note images/audio, and locks it all down with row-level security so only you can read or write your own data.
 
-   The script is safe to re-run. **Already running an older Waypoint?** Re-run it after pulling — it migrates an existing database in place (adding ownership columns, indexes, maintained progress counters, and the `recurrence` and `confidence` columns and the `cards` and `focus_sessions` tables) without touching your rows. Repeating tasks, topic confidence, flashcards, the focus timer's log and Focus Now need this re-run.
+   The script is safe to re-run. **Already running an older Waypoint?** Re-run it after pulling — it migrates an existing database in place (adding ownership columns, indexes, maintained progress counters, and the `recurrence` and `confidence` columns and the `cards` and `focus_sessions` tables) without touching your rows. Repeating tasks, topic confidence, flashcards, the focus timer's log, Today's picks and waypoints need this re-run.
 3. Grab your **Project ID** (Settings → General) and **anon key** (Settings → API Keys).
 4. **(Optional) Deploy the link-preview function** so pasted links show a preview card: `supabase functions deploy link-preview --no-verify-jwt`. Nothing to configure — it's stateless and needs no secrets. Deploying it to the project behind `VITE_SUPABASE_URL` (the baked-in default, if you set one) makes it work for every visitor regardless of which backend they pick, guest and Google Drive included — those have no "connected project" of their own to reach a function through otherwise. Skip it and pasted links just stay plain links.
 
@@ -113,12 +118,15 @@ src/
     GuestMigrationDialog.tsx  Guest → Supabase/Drive one-click import
     NoteEditor.tsx            TipTap rich text editor: formatting, attachments, link previews
     noteAttachments.tsx       Custom TipTap nodes: image/audio attachments, link preview cards
+    TrackTrail.tsx            A track as a path: headed to, ahead, you are here, the lines behind
   context/
     BackendProvider.tsx       Picks guest vs. Supabase, exposes the active Backend + session
     ThemeProvider.tsx         Light/dark theme state
   hooks/
     useTracks.ts / useTopics.ts / useTasks.ts   CRUD queries + mutations, backend-agnostic
-    useFocusNow.ts             Focus Now ranking query
+    useFocusNow.ts             Ranked suggestions for Today
+    useToday.ts                Today's picks (and yesterday's leftovers)
+    useWaypoints.ts            The lines written when closing a day
     useImportTrack.ts          Bulk insert for Markdown import
     useSnapshot.ts             Whole-account read behind search, review and export
     useDrawerSwipe.ts          Finger-following open/close for the phone sidebar
@@ -148,7 +156,7 @@ src/
   pages/
     Login.tsx      Landing screen: guest / Supabase / Google
     GoogleCallback.tsx  Handles Google's OAuth redirect back to the app
-    Dashboard.tsx  Focus Now + Tracks list
+    Dashboard.tsx  Today: picks, suggestions, close the day
     Search.tsx     Search across everything
     Review.tsx     Weekly review, streaks, activity grid
     Cards.tsx      Flashcard review session

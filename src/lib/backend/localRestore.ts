@@ -63,5 +63,13 @@ export function remapSnapshot(data: Snapshot, userId: string, newId: () => strin
     task_id: x.task_id ? (taskIds.get(x.task_id) ?? null) : null,
   }));
 
-  return { tracks, topics, tasks, notes, cards, sessions };
+  // A day's line stays even if its track isn't in the file.
+  const waypoints = (data.waypoints ?? []).map((w) => ({
+    ...w,
+    id: newId(),
+    user_id: userId,
+    track_id: w.track_id ? (trackIds.get(w.track_id) ?? null) : null,
+  }));
+
+  return { tracks, topics, tasks, notes, cards, sessions, waypoints };
 }

@@ -37,6 +37,21 @@ export function useUpdateTrackStatus() {
       queryClient.invalidateQueries({ queryKey: ["track"] });
       queryClient.invalidateQueries({ queryKey: ["trackProgress"] });
       queryClient.invalidateQueries({ queryKey: ["focusNow"] });
+      queryClient.invalidateQueries({ queryKey: ["planned"] });
+    },
+  });
+}
+
+export function useUpdateTrackDescription() {
+  const { backend } = useBackend();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, description }: { id: string; description: string | null }) =>
+      backend!.updateTrackDescription(id, description),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tracks"] });
+      queryClient.invalidateQueries({ queryKey: ["track"] });
     },
   });
 }

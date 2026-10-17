@@ -1,4 +1,4 @@
-import type { Note, Task, Topic, Track } from "../database.types";
+import type { Note, Task, Topic, Track, Waypoint } from "../database.types";
 import type { NoteContext } from "./types";
 
 // Shared by the in-memory backends (guest, Drive). Null when the note is
@@ -32,4 +32,8 @@ export function newNote(
 
 export function newestFirst(a: Note, b: Note): number {
   return b.updated_at.localeCompare(a.updated_at);
+}
+
+export function newestDayFirst(a: Waypoint, b: Waypoint): number {
+  return b.day.localeCompare(a.day) || b.created_at.localeCompare(a.created_at);
 }

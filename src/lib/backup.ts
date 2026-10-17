@@ -1,5 +1,5 @@
 import type { Snapshot } from "./backend/types";
-import type { Card, Confidence, FocusSession, Note, Recurrence, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "./database.types";
+import type { Card, Confidence, FocusSession, Note, Recurrence, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus, Waypoint } from "./database.types";
 import { isRecurrence } from "./recurrence";
 
 // Reading a backup file back in. The file is untrusted input (edited by
@@ -63,7 +63,13 @@ export function parseBackup(text: string): ParsedBackup {
   const rawNotes = list("notes");
   const rawCards = list("cards");
   const rawSessions = list("sessions");
-  if (rawTracks.length + rawTopics.length + rawTasks.length + rawNotes.length + rawCards.length + rawSessions.length > MAX_ROWS) {
+  // Absent from backups made before waypoints existed.
+  const rawWaypoints = list("waypoints");
+  if (
+    rawTracks.length + rawTopics.length + rawTasks.length + rawNotes.length + rawCards.length + rawSessions.length +
+      rawWaypoints.length >
+    MAX_ROWS
+  ) {
     throw new Error("That backup has too many rows to restore in one go.");
   }
 
@@ -203,12 +209,25 @@ export function parseBackup(text: string): ParsedBackup {
     });
   }
 
+  const waypoints: Waypoint[] = [];
+  for (const r of rawWaypoints) {
+    const o = obj(r);
+    const id = o && str(o.id);
+    const text = o && str(o.text)?.trim().slice(0, 2000);
+    const day = o && dateKeyOrNull(o.day);
+    if (!o || !id || !text || !day) {
+      skipped++;
+      continue;
+    }
+    waypoints.push({ id, user_id: "", track_id: str(o.track_id), day, text, created_at: isoOr(o.created_at, epoch) });
+  }
+
   if (tracks.length + notes.length === 0) {
     throw new Error("That backup has no tracks or notes in it.");
   }
 
   return {
-    snapshot: { tracks, topics, tasks, notes, cards, sessions },
+    snapshot: { tracks, topics, tasks, notes, cards, sessions, waypoints },
     exportedAt: typeof root.exportedAt === "string" ? root.exportedAt : null,
     skipped,
   };

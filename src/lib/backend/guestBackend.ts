@@ -1,11 +1,11 @@
-import type { Card, Confidence, FocusSession, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
+import type { Card, Confidence, FocusSession, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus, Waypoint } from "../database.types";
 import type { ParsedImport, ParsedTopic } from "../markdownImport";
 import { GUEST_USER_ID, getGuestDB, newGuestId, nowIso } from "./guestStore";
 import { diffCards, newCardSchedule } from "../cards";
-import { buildNoteContext, newNote, newestFirst } from "./localNotes";
+import { buildNoteContext, newNote, newestDayFirst, newestFirst } from "./localNotes";
 import { attachmentIdsIn, removeUnreferencedAttachments } from "./attachmentCleanup";
 import { remapSnapshot } from "./localRestore";
-import { computeTopicProgress, computeTrackProgress, rankFocusTasks, topicStatusChanges } from "./localRanking";
+import { computeTopicProgress, computeTrackProgress, plannedTasks, rankFocusTasks, topicStatusChanges } from "./localRanking";
 import {
   type Attachment,
   type AttachmentKind,
@@ -69,6 +69,13 @@ export class GuestBackend implements Backend {
     await db.put("tracks", { ...track, status });
   }
 
+  async updateTrackDescription(id: string, description: string | null): Promise<void> {
+    const db = await getGuestDB();
+    const track = await db.get("tracks", id);
+    if (!track) return;
+    await db.put("tracks", { ...track, description });
+  }
+
   async deleteTrack(id: string): Promise<void> {
     const db = await getGuestDB();
     const [topics, tasks] = await Promise.all([
@@ -76,7 +83,7 @@ export class GuestBackend implements Backend {
       db.getAllFromIndex("tasks", "trackId", id),
     ]);
     const taskIds = new Set(tasks.map((t) => t.id));
-    const tx = db.transaction(["tracks", "topics", "tasks", "notes", "sessions"], "readwrite");
+    const tx = db.transaction(["tracks", "topics", "tasks", "notes", "sessions", "waypoints"], "readwrite");
     for (const task of tasks) {
       tx.objectStore("tasks").delete(task.id);
       // A task's note outlives the task, as a standalone note.
@@ -87,6 +94,10 @@ export class GuestBackend implements Backend {
       if (session.task_id && taskIds.has(session.task_id)) {
         tx.objectStore("sessions").put({ ...session, task_id: null });
       }
+    }
+    // The days written along it stay, tied to no track.
+    for (const waypoint of await tx.objectStore("waypoints").getAll()) {
+      if (waypoint.track_id === id) tx.objectStore("waypoints").put({ ...waypoint, track_id: null });
     }
     for (const topic of topics) tx.objectStore("topics").delete(topic.id);
     tx.objectStore("tracks").delete(id);
@@ -216,10 +227,27 @@ export class GuestBackend implements Backend {
     await tx.done;
   }
 
+  async planTasks(taskIds: string[], day: string | null): Promise<void> {
+    const db = await getGuestDB();
+    const tx = db.transaction("tasks", "readwrite");
+    for (const id of taskIds) {
+      const task = await tx.store.get(id);
+      if (task) await tx.store.put({ ...task, planned_on: day });
+    }
+    await tx.done;
+  }
+
+  async listPlannedTasks(since: string): Promise<FocusTask[]> {
+    const db = await getGuestDB();
+    const [tracks, topics, tasks] = await Promise.all([db.getAll("tracks"), db.getAll("topics"), db.getAll("tasks")]);
+    return plannedTasks(tracks, topics, tasks, since);
+  }
+
   async importSnapshot(data: Snapshot): Promise<RestoreCounts> {
     const db = await getGuestDB();
     const fresh = remapSnapshot(data, GUEST_USER_ID, newGuestId);
-    const tx = db.transaction(["tracks", "topics", "tasks", "notes", "cards", "sessions"], "readwrite");
+    const tx = db.transaction(["tracks", "topics", "tasks", "notes", "cards", "sessions", "waypoints"], "readwrite");
+    for (const row of fresh.waypoints) tx.objectStore("waypoints").put(row);
     for (const row of fresh.sessions) tx.objectStore("sessions").put(row);
     for (const row of fresh.cards) tx.objectStore("cards").put(row);
     for (const row of fresh.tracks) tx.objectStore("tracks").put(row);
@@ -235,6 +263,7 @@ export class GuestBackend implements Backend {
       notes: fresh.notes.length,
       cards: fresh.cards.length,
       sessions: fresh.sessions.length,
+      waypoints: fresh.waypoints.length,
     };
   }
 
@@ -336,6 +365,30 @@ export class GuestBackend implements Backend {
   async listCards(): Promise<Card[]> {
     const db = await getGuestDB();
     return db.getAll("cards");
+  }
+
+  async listWaypoints(): Promise<Waypoint[]> {
+    const db = await getGuestDB();
+    return (await db.getAll("waypoints")).sort(newestDayFirst);
+  }
+
+  async addWaypoint(input: { trackId: string | null; day: string; text: string }): Promise<Waypoint> {
+    const db = await getGuestDB();
+    const waypoint: Waypoint = {
+      id: newGuestId(),
+      user_id: GUEST_USER_ID,
+      track_id: input.trackId,
+      day: input.day,
+      text: input.text,
+      created_at: nowIso(),
+    };
+    await db.put("waypoints", waypoint);
+    return waypoint;
+  }
+
+  async deleteWaypoint(id: string): Promise<void> {
+    const db = await getGuestDB();
+    await db.delete("waypoints", id);
   }
 
   async listFocusSessions(): Promise<FocusSession[]> {
@@ -470,15 +523,16 @@ export class GuestBackend implements Backend {
 
   async snapshot(options: { notes?: boolean } = {}): Promise<Snapshot> {
     const db = await getGuestDB();
-    const [tracks, topics, tasks, notes, cards, sessions] = await Promise.all([
+    const [tracks, topics, tasks, notes, cards, sessions, waypoints] = await Promise.all([
       db.getAll("tracks"),
       db.getAll("topics"),
       db.getAll("tasks"),
       options.notes === false ? Promise.resolve([] as Note[]) : db.getAll("notes"),
       db.getAll("cards"),
       db.getAll("sessions"),
+      db.getAll("waypoints"),
     ]);
-    return { tracks, topics, tasks, notes, cards, sessions };
+    return { tracks, topics, tasks, notes, cards, sessions, waypoints };
   }
 
   async importTrack(parsed: ParsedImport): Promise<string> {

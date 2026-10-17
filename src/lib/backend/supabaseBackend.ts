@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Card, Confidence, FocusSession, Note, Task, Topic, Track, TrackStatus, TopicStatus } from "../database.types";
+import type { Card, Confidence, FocusSession, Note, Task, Topic, Track, TrackStatus, TopicStatus, Waypoint } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
 import { diffCards, newCardSchedule } from "../cards";
 import { remapSnapshot } from "./localRestore";
@@ -39,6 +39,8 @@ const NOTE_LIMIT = 500;
 const CARD_LIMIT = 5000;
 // Focus sessions, newest first.
 const SESSION_LIMIT = 5000;
+// Daily lines, newest first — over thirteen years of one a day.
+const WAYPOINT_LIMIT = 5000;
 
 interface TrackProgressRow {
   track_id: string;
@@ -113,6 +115,11 @@ export class SupabaseBackend implements Backend {
 
   // Topics and tasks go with it by cascade; notes keep existing with their
   // task link cleared, and focus sessions with theirs.
+  async updateTrackDescription(id: string, description: string | null): Promise<void> {
+    const { error } = await this.client.from("tracks").update({ description }).eq("id", id);
+    if (error) throw error;
+  }
+
   async deleteTrack(id: string): Promise<void> {
     const { error } = await this.client.from("tracks").delete().eq("id", id);
     if (error) throw error;
@@ -213,6 +220,29 @@ export class SupabaseBackend implements Backend {
     if ("recurrence" in input) patch.recurrence = input.recurrence ?? null;
     const { error } = await this.client.from("tasks").update(patch).eq("id", taskId);
     if (error) throw error;
+  }
+
+  async planTasks(taskIds: string[], day: string | null): Promise<void> {
+    if (taskIds.length === 0) return;
+    const { error } = await this.client.from("tasks").update({ planned_on: day }).in("id", taskIds);
+    if (error) throw error;
+  }
+
+  async listPlannedTasks(since: string): Promise<FocusTask[]> {
+    const { data, error } = await this.client
+      .from("tasks")
+      .select("*, topic:topics!inner(id, title), track:tracks!inner(id, name, status)")
+      .eq("user_id", this.userId)
+      .gte("planned_on", since)
+      .eq("track.status", "active")
+      .order("created_at", { ascending: true })
+      .limit(50);
+    if (error) throw error;
+    type Row = Task & { topic: { id: string; title: string }; track: { id: string; name: string } };
+    return ((data ?? []) as Row[]).map(({ topic, track, ...task }) => ({
+      ...task,
+      topic: { id: topic.id, title: topic.title, track: { id: track.id, name: track.name } },
+    }));
   }
 
   async rescheduleTasks(taskIds: string[], dueDate: string | null): Promise<void> {
@@ -323,6 +353,17 @@ export class SupabaseBackend implements Backend {
           created_at: x.created_at,
         })),
       );
+      await insertAll(
+        "waypoints",
+        fresh.waypoints.map((w) => ({
+          id: w.id,
+          user_id: this.userId,
+          track_id: w.track_id,
+          day: w.day,
+          text: w.text,
+          created_at: w.created_at,
+        })),
+      );
     } catch (error) {
       for (let i = 0; i < createdTracks.length; i += 100) {
         await this.client.from("tracks").delete().in("id", createdTracks.slice(i, i + 100));
@@ -340,6 +381,7 @@ export class SupabaseBackend implements Backend {
       notes: fresh.notes.length,
       cards: fresh.cards.length,
       sessions: fresh.sessions.length,
+      waypoints: fresh.waypoints.length,
     };
   }
 
@@ -518,6 +560,33 @@ export class SupabaseBackend implements Backend {
       );
       if (insError) throw insError;
     }
+  }
+
+  async listWaypoints(): Promise<Waypoint[]> {
+    const { data, error } = await this.client
+      .from("waypoints")
+      .select("*")
+      .eq("user_id", this.userId)
+      .order("day", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(WAYPOINT_LIMIT);
+    if (error) throw error;
+    return (data ?? []) as Waypoint[];
+  }
+
+  async addWaypoint(input: { trackId: string | null; day: string; text: string }): Promise<Waypoint> {
+    const { data, error } = await this.client
+      .from("waypoints")
+      .insert({ user_id: this.userId, track_id: input.trackId, day: input.day, text: input.text })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Waypoint;
+  }
+
+  async deleteWaypoint(id: string): Promise<void> {
+    const { error } = await this.client.from("waypoints").delete().eq("id", id);
+    if (error) throw error;
   }
 
   async listFocusSessions(): Promise<FocusSession[]> {
@@ -707,15 +776,17 @@ export class SupabaseBackend implements Backend {
   }
 
   async snapshot(options: { notes?: boolean } = {}): Promise<Snapshot> {
-    const [tracks, topics, tasks, notes, cards, sessions] = await Promise.all([
+    const [tracks, topics, tasks, notes, cards, sessions, waypoints] = await Promise.all([
       this.fetchAll<Track>("tracks", "created_at"),
       this.fetchAll<Topic>("topics", "created_at"),
       this.fetchAll<Task>("tasks", "created_at"),
       options.notes === false ? Promise.resolve([] as Note[]) : this.fetchAll<Note>("notes", "created_at"),
       this.fetchAll<Card>("cards", "created_at"),
       this.fetchAll<FocusSession>("focus_sessions", "created_at"),
+      // An older project without the table still backs up everything else.
+      this.fetchAll<Waypoint>("waypoints", "created_at").catch(() => [] as Waypoint[]),
     ]);
-    return { tracks, topics, tasks, notes, cards, sessions };
+    return { tracks, topics, tasks, notes, cards, sessions, waypoints };
   }
 
   async importTrack(parsed: ParsedImport): Promise<string> {

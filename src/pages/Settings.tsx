@@ -159,7 +159,7 @@ function LearningSection() {
         label="Spaced revisit"
         description={`When you finish every task in a topic, add review tasks for it after ${REVIEW_OFFSETS_DAYS.join(
           ", ",
-        )} days (sooner if you rated it shaky, later if solid), in a “Reviews” topic on that track. At most ${MAX_OPEN_REVIEWS_PER_TRACK} stay open per track. Saved on this device only.`}
+        )} days (sooner if you rated it shaky, later if solid), in a “Reviews” topic on that track. At most ${MAX_OPEN_REVIEWS_PER_TRACK} stay open per track. Also shows a Rate button on topics. Off by default; saved on this device only.`}
         control={
           <label className="flex cursor-pointer items-center gap-2 text-sm">
             <input

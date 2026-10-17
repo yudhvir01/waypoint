@@ -185,15 +185,16 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
           </button>
 
           <nav className="mt-5 flex flex-col gap-0.5">
-            <NavLink to="/">Focus Now</NavLink>
-            <NavLink to="/review">Review</NavLink>
-            <NavLink to="/cards">
+            {/* Cards, the Inbox and Review are reached from Today, which
+                says when one of them needs you, rather than living here. */}
+            <NavLink to="/">
               <span className="flex items-center justify-between">
-                Cards
+                Today
                 {dueCards > 0 && (
-                  <span className="ml-2 rounded-full bg-primary/15 px-1.5 font-mono text-xs tabular-nums text-primary">
-                    {dueCards}
-                  </span>
+                  <span
+                    className="ml-2 h-1.5 w-1.5 rounded-full bg-primary"
+                    title={`${dueCards} card${dueCards === 1 ? "" : "s"} to review`}
+                  />
                 )}
               </span>
             </NavLink>

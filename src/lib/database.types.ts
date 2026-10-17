@@ -41,6 +41,9 @@ export interface Task {
   // How the task repeats once it's ticked off. Rows written before
   // recurrence existed simply lack the field, so read it as `?? null`.
   recurrence?: Recurrence | null;
+  // The day (YYYY-MM-DD) this task was picked as one of that day's few.
+  // Absent on rows written before picking existed; read as `?? null`.
+  planned_on?: string | null;
   sort_order: number;
   created_at: string;
 }
@@ -86,5 +89,18 @@ export interface FocusSession {
   task_id: string | null;
   started_at: string;
   minutes: number;
+  created_at: string;
+}
+
+// One line written when closing a day: what you learned or got done. The
+// lines along a track are its trail. track_id is null for a line about no
+// track in particular, or once its track has been deleted.
+export interface Waypoint {
+  id: string;
+  user_id: string;
+  track_id: string | null;
+  // YYYY-MM-DD, local calendar day.
+  day: string;
+  text: string;
   created_at: string;
 }

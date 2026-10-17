@@ -16,9 +16,11 @@ import linkingRaw from "../../docs/writebook/08-linking-notes.md?raw";
 import focusTimerRaw from "../../docs/writebook/09-focus-timer.md?raw";
 import phoneRaw from "../../docs/writebook/10-on-your-phone.md?raw";
 import googleDriveRaw from "../../docs/writebook/05-google-drive-setup.md?raw";
+import dayRaw from "../../docs/writebook/11-your-day-and-the-trail.md?raw";
 
 const CHAPTERS = [
   { slug: "welcome", raw: welcomeRaw },
+  { slug: "your-day-and-the-trail", raw: dayRaw },
   { slug: "connecting-your-supabase-project", raw: connectRaw },
   { slug: "the-markdown-import-format", raw: importRaw },
   { slug: "search-review-and-repeating-tasks", raw: featuresRaw },

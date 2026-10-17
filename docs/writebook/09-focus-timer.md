@@ -7,7 +7,7 @@ A timer for working in blocks, tied to the task you're on.
 
 ## Starting one
 
-- On **Focus Now**, tap a task to open it, then tap **Focus on this**. Or press
+- On **Today**, tap a task to open it, then tap **Focus on this**. Or press
   the **▶** at the end of its row.
 - On a track's page, use **Start focus timer** in a task's ⋮ menu.
 - Or use **Start focus** in the sidebar for a block that isn't about any
@@ -16,7 +16,7 @@ A timer for working in blocks, tied to the task you're on.
 A small timer appears in the bottom-right corner of every page and keeps
 running as you move around the app. The tab's title shows the clock too, so
 you can see it from another tab. The task you're timing is marked
-**Focusing** in Focus Now.
+**Focusing** on Today.
 
 ## What happens
 

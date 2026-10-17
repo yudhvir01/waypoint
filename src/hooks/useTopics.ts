@@ -87,6 +87,7 @@ export function useUpdateTopicConfidence(trackId: string) {
       queryClient.invalidateQueries({ queryKey: ["topics", trackId] });
       queryClient.invalidateQueries({ queryKey: ["snapshot"] });
       queryClient.invalidateQueries({ queryKey: ["focusNow"] });
+      queryClient.invalidateQueries({ queryKey: ["planned"] });
     },
   });
 }
@@ -112,6 +113,7 @@ export function useDeleteTopic(trackId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["topics", trackId] });
       queryClient.invalidateQueries({ queryKey: ["focusNow"] });
+      queryClient.invalidateQueries({ queryKey: ["planned"] });
       queryClient.invalidateQueries({ queryKey: ["trackProgress"] });
       queryClient.invalidateQueries({ queryKey: ["topicProgress", trackId] });
     },

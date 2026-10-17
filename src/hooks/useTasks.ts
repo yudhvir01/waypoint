@@ -32,6 +32,7 @@ function useTaskInvalidator(topicId: string) {
     queryClient.invalidateQueries({ queryKey: ["snapshot"] });
     queryClient.invalidateQueries({ queryKey: ["tasks", topicId] });
     queryClient.invalidateQueries({ queryKey: ["focusNow"] });
+    queryClient.invalidateQueries({ queryKey: ["planned"] });
     queryClient.invalidateQueries({ queryKey: ["trackProgress"] });
     queryClient.invalidateQueries({ queryKey: ["topicProgress"] });
     // Ticking a task can move its topic (and the next one) along.
@@ -149,6 +150,7 @@ export function useRescheduleTasks() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["snapshot"] });
       queryClient.invalidateQueries({ queryKey: ["focusNow"] });
+      queryClient.invalidateQueries({ queryKey: ["planned"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
     },
   });

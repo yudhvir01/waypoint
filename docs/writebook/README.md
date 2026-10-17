@@ -15,3 +15,4 @@ meantime.
 | `02-connecting-your-supabase-project.md` | Connecting Your Supabase Project |
 | `03-the-markdown-import-format.md` | The Markdown Import Format |
 | `05-google-drive-setup.md` | Setting Up Google Sign-In |
+| `11-your-day-and-the-trail.md` | Your Day and the Trail |

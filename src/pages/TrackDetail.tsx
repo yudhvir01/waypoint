@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
+import { TrackTrail } from "../components/TrackTrail";
 import { SchedulePopover } from "../components/SchedulePopover";
 import { ActionMenu } from "../components/ActionMenu";
 import { MoveTaskDialog } from "../components/MoveTaskDialog";
@@ -37,6 +38,7 @@ import {
   type TopicStatus,
 } from "../lib/database.types";
 import { RECURRENCES, RECURRENCE_LABEL } from "../lib/recurrence";
+import { getSpacedRevisit } from "../lib/preferences";
 import { downloadTextFile, safeFileName, trackToMarkdown } from "../lib/exportData";
 
 function RepeatIcon() {
@@ -539,6 +541,8 @@ function TopicItem({
                 ]}
               />
             </div>
+            {/* Ratings only steer spaced revisit, so they're hidden without it. */}
+            {getSpacedRevisit() && (
             <button
               type="button"
               onClick={() =>
@@ -557,6 +561,7 @@ function TopicItem({
             >
               {topic.confidence ? CONFIDENCE_LABEL[topic.confidence] : "Rate"}
             </button>
+            )}
             {!!tasksCount && (
               <span
                 className={`ml-2 shrink-0 font-mono tabular-nums ${
@@ -649,6 +654,25 @@ function NewTopicForm({ trackId }: { trackId: string }) {
   );
 }
 
+type TrackView = "trail" | "tasks";
+const TRACK_VIEW_KEY = "waypoint.trackView";
+
+function readTrackView(): TrackView {
+  try {
+    return localStorage.getItem(TRACK_VIEW_KEY) === "tasks" ? "tasks" : "trail";
+  } catch {
+    return "trail";
+  }
+}
+
+function saveTrackView(view: TrackView): void {
+  try {
+    localStorage.setItem(TRACK_VIEW_KEY, view);
+  } catch {
+    // Not remembered; the trail shows next time.
+  }
+}
+
 export function TrackDetail() {
   const { trackId } = useParams<{ trackId: string }>();
   const navigate = useNavigate();
@@ -669,6 +693,19 @@ export function TrackDetail() {
   const focusTopicId = searchParams.get("topic");
   const [expanded, setExpanded] = useState<Set<string> | null>(null);
   const [exporting, setExporting] = useState(false);
+  // A search result links straight to a topic, which only the task list
+  // shows; otherwise the track opens on whichever view was used last.
+  const [view, setView] = useState<TrackView>(() => (focusTopicId ? "tasks" : readTrackView()));
+
+  function chooseView(next: TrackView) {
+    setView(next);
+    saveTrackView(next);
+  }
+
+  function openTopic(id: string) {
+    setExpanded((prev) => new Set([...(prev ?? []), id]));
+    chooseView("tasks");
+  }
 
   const topics = topicPages?.pages.flat();
 
@@ -767,22 +804,42 @@ export function TrackDetail() {
           </button>
         </div>
       </div>
-      {track.description && (
-        <p className="mt-2 text-[15px] text-muted-foreground">{track.description}</p>
+      <div role="tablist" aria-label="Track view" className="mt-4 inline-flex rounded-md border border-border p-0.5 text-sm">
+        {(["trail", "tasks"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={view === v}
+            onClick={() => chooseView(v)}
+            className={`rounded px-3 py-1 transition-colors ${
+              view === v ? "bg-accent font-medium text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {v === "trail" ? "Trail" : "Tasks"}
+          </button>
+        ))}
+      </div>
+
+      {view === "trail" && (
+        <div className="mt-8">
+          {topicsLoading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : (
+            <TrackTrail
+              track={track}
+              topics={topics ?? []}
+              topicProgress={topicProgress}
+              onOpenTopic={openTopic}
+            />
+          )}
+        </div>
       )}
 
-      {progress && progress.total > 0 && (
-        <div className="mt-4 flex items-center gap-3">
-          <div className="h-1 flex-1 overflow-hidden rounded-full bg-border">
-            <div
-              className="h-full rounded-full bg-primary transition-[width]"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
-            {progress.done} / {progress.total} · {pct}%
-          </span>
-        </div>
+      {view === "tasks" && (
+      <>
+      {track.description && (
+        <p className="mt-4 text-[15px] text-muted-foreground">{track.description}</p>
       )}
 
       {!!topics?.length && (
@@ -857,6 +914,8 @@ export function TrackDetail() {
       </div>
 
       <NewTopicForm trackId={track.id} />
+      </>
+      )}
     </AppShell>
   );
 }

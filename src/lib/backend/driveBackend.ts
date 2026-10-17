@@ -1,4 +1,4 @@
-import type { Card, Confidence, FocusSession, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
+import type { Card, Confidence, FocusSession, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus, Waypoint } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
 import {
   createDataFile,
@@ -11,10 +11,10 @@ import {
 } from "./driveClient";
 import type { GoogleDriveSession } from "./googleAuth";
 import { diffCards, newCardSchedule } from "../cards";
-import { buildNoteContext, newNote, newestFirst } from "./localNotes";
+import { buildNoteContext, newNote, newestDayFirst, newestFirst } from "./localNotes";
 import { attachmentIdsIn, removeUnreferencedAttachments } from "./attachmentCleanup";
 import { remapSnapshot } from "./localRestore";
-import { computeTopicProgress, computeTrackProgress, rankFocusTasks, topicStatusChanges } from "./localRanking";
+import { computeTopicProgress, computeTrackProgress, plannedTasks, rankFocusTasks, topicStatusChanges } from "./localRanking";
 import {
   type Attachment,
   type AttachmentKind,
@@ -42,6 +42,7 @@ interface DriveData {
   notes: Note[];
   cards: Card[];
   sessions: FocusSession[];
+  waypoints: Waypoint[];
 }
 
 function newId(): string {
@@ -53,7 +54,7 @@ function nowIso(): string {
 }
 
 function emptyData(): DriveData {
-  return { version: DATA_VERSION, tracks: [], topics: [], tasks: [], notes: [], cards: [], sessions: [] };
+  return { version: DATA_VERSION, tracks: [], topics: [], tasks: [], notes: [], cards: [], sessions: [], waypoints: [] };
 }
 
 // The whole account's data is one JSON file in a "Waypoint" folder in the
@@ -105,6 +106,7 @@ export class DriveBackend implements Backend {
               notes: parsed.notes ?? [],
               cards: parsed.cards ?? [],
               sessions: parsed.sessions ?? [],
+              waypoints: parsed.waypoints ?? [],
             };
           } catch {
             throw new Error(
@@ -171,8 +173,18 @@ export class DriveBackend implements Backend {
     await this.persist();
   }
 
+  async updateTrackDescription(id: string, description: string | null): Promise<void> {
+    await this.ensureLoaded();
+    const track = this.data.tracks.find((t) => t.id === id);
+    if (!track) return;
+    track.description = description;
+    await this.persist();
+  }
+
   async deleteTrack(id: string): Promise<void> {
     await this.ensureLoaded();
+    // The days written along it stay, tied to no track.
+    for (const waypoint of this.data.waypoints) if (waypoint.track_id === id) waypoint.track_id = null;
     const taskIds = new Set(this.data.tasks.filter((t) => t.track_id === id).map((t) => t.id));
     this.data.tracks = this.data.tracks.filter((t) => t.id !== id);
     this.data.topics = this.data.topics.filter((t) => t.track_id !== id);
@@ -306,6 +318,7 @@ export class DriveBackend implements Backend {
     this.data.notes.push(...fresh.notes);
     this.data.cards.push(...fresh.cards);
     this.data.sessions.push(...fresh.sessions);
+    this.data.waypoints.push(...fresh.waypoints);
     await this.persist();
     return {
       tracks: fresh.tracks.length,
@@ -314,6 +327,7 @@ export class DriveBackend implements Backend {
       notes: fresh.notes.length,
       cards: fresh.cards.length,
       sessions: fresh.sessions.length,
+      waypoints: fresh.waypoints.length,
     };
   }
 
@@ -426,6 +440,44 @@ export class DriveBackend implements Backend {
   async listCards(): Promise<Card[]> {
     await this.ensureLoaded();
     return [...this.data.cards];
+  }
+
+  async planTasks(taskIds: string[], day: string | null): Promise<void> {
+    await this.ensureLoaded();
+    const ids = new Set(taskIds);
+    for (const task of this.data.tasks) if (ids.has(task.id)) task.planned_on = day;
+    await this.persist();
+  }
+
+  async listPlannedTasks(since: string): Promise<FocusTask[]> {
+    await this.ensureLoaded();
+    return plannedTasks(this.data.tracks, this.data.topics, this.data.tasks, since);
+  }
+
+  async listWaypoints(): Promise<Waypoint[]> {
+    await this.ensureLoaded();
+    return [...this.data.waypoints].sort(newestDayFirst);
+  }
+
+  async addWaypoint(input: { trackId: string | null; day: string; text: string }): Promise<Waypoint> {
+    await this.ensureLoaded();
+    const waypoint: Waypoint = {
+      id: newId(),
+      user_id: this.session.email,
+      track_id: input.trackId,
+      day: input.day,
+      text: input.text,
+      created_at: nowIso(),
+    };
+    this.data.waypoints.push(waypoint);
+    await this.persist();
+    return waypoint;
+  }
+
+  async deleteWaypoint(id: string): Promise<void> {
+    await this.ensureLoaded();
+    this.data.waypoints = this.data.waypoints.filter((w) => w.id !== id);
+    await this.persist();
   }
 
   async listFocusSessions(): Promise<FocusSession[]> {
@@ -560,6 +612,7 @@ export class DriveBackend implements Backend {
       notes: options.notes === false ? [] : [...this.data.notes],
       cards: [...this.data.cards],
       sessions: [...this.data.sessions],
+      waypoints: [...this.data.waypoints],
     };
   }
 

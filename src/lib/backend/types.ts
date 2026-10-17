@@ -1,4 +1,4 @@
-import type { Card, Confidence, FocusSession, Note, Recurrence, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus } from "../database.types";
+import type { Card, Confidence, FocusSession, Note, Recurrence, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus, Waypoint } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
 
 export interface TrackProgress {
@@ -65,6 +65,7 @@ export interface Snapshot {
   notes: Note[];
   cards: Card[];
   sessions: FocusSession[];
+  waypoints: Waypoint[];
 }
 
 // What a card's schedule is rewritten to after it's reviewed.
@@ -84,6 +85,7 @@ export interface RestoreCounts {
   notes: number;
   cards: number;
   sessions: number;
+  waypoints: number;
 }
 
 export interface TaskOrderUpdate {
@@ -122,6 +124,9 @@ export interface Backend {
   getTrack(id: string): Promise<Track | null>;
   createTrack(input: { name: string; description?: string | null }): Promise<Track>;
   updateTrackStatus(id: string, status: TrackStatus): Promise<void>;
+  // The track's description doubles as where it's headed — the
+  // destination at the top of its trail.
+  updateTrackDescription(id: string, description: string | null): Promise<void>;
   // Permanently removes a track with its topics and tasks. Notes written on
   // its tasks are kept, as standalone notes, and logged focus time stays,
   // tied to nothing. There is no undo.
@@ -147,6 +152,11 @@ export interface Backend {
   moveTask(taskId: string, topicId: string): Promise<void>;
   // Sets (or clears, with null) the deadline of many tasks in one go.
   rescheduleTasks(taskIds: string[], dueDate: string | null): Promise<void>;
+  // Picks tasks for a day (or unpicks them, with null).
+  planTasks(taskIds: string[], day: string | null): Promise<void>;
+  // Tasks picked for `since` or any later day, done or not, with where
+  // they live — today's picks plus whatever is left of yesterday's.
+  listPlannedTasks(since: string): Promise<FocusTask[]>;
   // Rewrites the manual order of tasks within a topic.
   reorderTasks(updates: TaskOrderUpdate[]): Promise<void>;
 
@@ -167,6 +177,11 @@ export interface Backend {
   listCards(): Promise<Card[]>;
   syncNoteCards(noteId: string, wanted: { front: string; back: string }[]): Promise<void>;
   reviewCard(id: string, schedule: CardSchedule): Promise<void>;
+
+  // Daily lines, newest day first.
+  listWaypoints(): Promise<Waypoint[]>;
+  addWaypoint(input: { trackId: string | null; day: string; text: string }): Promise<Waypoint>;
+  deleteWaypoint(id: string): Promise<void>;
 
   // Focus time logged by the timer.
   listFocusSessions(): Promise<FocusSession[]>;

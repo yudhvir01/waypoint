@@ -92,7 +92,7 @@ function Session({ initial, waiting, onFinished }: { initial: Card[]; waiting: n
             to="/"
             className="rounded-md border border-border px-3 py-1.5 text-sm transition-colors hover:border-primary hover:bg-accent"
           >
-            Back to Focus Now
+            Back to Today
           </Link>
         </div>
         {saveFailed && (
