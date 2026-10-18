@@ -17,6 +17,7 @@ import focusTimerRaw from "../../docs/writebook/09-focus-timer.md?raw";
 import phoneRaw from "../../docs/writebook/10-on-your-phone.md?raw";
 import googleDriveRaw from "../../docs/writebook/05-google-drive-setup.md?raw";
 import dayRaw from "../../docs/writebook/11-your-day-and-the-trail.md?raw";
+import wordsRaw from "../../docs/writebook/12-words-and-writing.md?raw";
 
 const CHAPTERS = [
   { slug: "welcome", raw: welcomeRaw },
@@ -27,6 +28,7 @@ const CHAPTERS = [
   { slug: "flashcards", raw: flashcardsRaw },
   { slug: "quick-add", raw: quickAddRaw },
   { slug: "linking-notes", raw: linkingRaw },
+  { slug: "words-and-writing", raw: wordsRaw },
   { slug: "focus-timer", raw: focusTimerRaw },
   { slug: "on-your-phone", raw: phoneRaw },
   { slug: "google-drive-setup", raw: googleDriveRaw },

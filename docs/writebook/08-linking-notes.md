@@ -6,7 +6,7 @@ title: Linking Notes
 ## TL;DR
 
 - Write `[[Name]]` in a note to link to a note, task, topic or track of that
-  name.
+  name. Typing `[[` lists your notes' titles to pick from.
 - **Ctrl/Cmd + click** follows the link; a link to nothing yet creates the
   note when you open it.
 - Under each note: **Links** (what it points at) and **Linked from** (notes
@@ -17,6 +17,12 @@ Write a name in double square brackets and it becomes a link:
 ```
 Pointers are easier once [[RAII]] clicks.
 ```
+
+As soon as you type `[[`, a list of your notes' titles appears under the
+cursor, narrowing as you type. Pick one with a tap, or with ↑/↓ and Enter
+(or Tab), and the link is finished for you, closing `]]` included. Esc hides
+the list if you're linking to something that isn't a note, or to a note that
+doesn't exist yet.
 
 The text is highlighted in the note. **Ctrl/Cmd + click** it to open the
 target. A plain click only places the cursor, so you can still edit the

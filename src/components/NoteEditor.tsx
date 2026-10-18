@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
+import { PluginKey } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import Highlight from "@tiptap/extension-highlight";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -16,6 +17,10 @@ import {
 import { useBackend } from "../context/BackendProvider";
 import type { Backend } from "../lib/backend/types";
 import { WikiLinks } from "./wikiLinks";
+import { PlainNewLines } from "./plainNewLines";
+import { LinkSuggest } from "./LinkSuggest";
+import { WritingCheck } from "./WritingCheck";
+import { define, isLookupable, type Definition } from "../lib/dictionary";
 
 function isAttachableFile(file: File): boolean {
   return file.type.startsWith("image/") || file.type.startsWith("audio/");
@@ -123,6 +128,9 @@ function Swatch({
   );
 }
 
+// Named so SelectionMenu can ask the menu to place itself again.
+const selectionMenuKey = new PluginKey("selectionMenu");
+
 function SelectionMenu({ editor }: { editor: Editor }) {
   const state = useEditorState({
     editor,
@@ -131,8 +139,29 @@ function SelectionMenu({ editor }: { editor: Editor }) {
       italic: e.isActive("italic"),
       color: (e.getAttributes("textStyle").color as string | undefined) ?? null,
       highlight: (e.getAttributes("highlight").color as string | undefined) ?? null,
+      selected: e.state.doc.textBetween(e.state.selection.from, e.state.selection.to, " "),
     }),
   });
+  const [lookup, setLookup] = useState<Lookup | null>(null);
+
+  async function lookUp(term: string) {
+    setLookup({ term, status: "loading" });
+    let next: Lookup;
+    try {
+      const entry = await define(term);
+      next = entry ? { term, status: "found", entry } : { term, status: "missing" };
+    } catch {
+      next = { term, status: "error" };
+    }
+    // Ignore an answer for a selection that's since changed.
+    setLookup((current) => (current?.term === term ? next : current));
+  }
+
+  // The menu was placed for its toolbar alone; once a definition makes it
+  // taller, place it again so it doesn't cover the selected text.
+  useEffect(() => {
+    editor.view.dispatch(editor.state.tr.setMeta(selectionMenuKey, "updatePosition"));
+  }, [editor, lookup]);
 
   return (
     <div className="flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center gap-1 rounded-lg border border-border bg-popover p-1 shadow-lg">
@@ -202,7 +231,87 @@ function SelectionMenu({ editor }: { editor: Editor }) {
           />
         ))}
       </div>
+
+      {isLookupable(state.selected) && (
+        <>
+          <Divider />
+          <MenuButton
+            label="Define"
+            active={lookup?.term === state.selected}
+            onPress={() => void lookUp(state.selected)}
+          >
+            <BookIcon />
+            <span className="ml-1 text-xs">Define</span>
+          </MenuButton>
+        </>
+      )}
+
+      {lookup?.term === state.selected && <DefinitionPanel lookup={lookup} />}
     </div>
+  );
+}
+
+type Lookup =
+  | { term: string; status: "loading" | "missing" | "error" }
+  | { term: string; status: "found"; entry: Definition };
+
+function DefinitionPanel({ lookup }: { lookup: Lookup }) {
+  if (lookup.status !== "found") {
+    const message = {
+      loading: "Looking it up…",
+      missing: `No English definition found for "${lookup.term.trim()}".`,
+      error: "Couldn't reach the dictionary. Check your connection.",
+    }[lookup.status];
+    return <p className="basis-full px-1.5 py-1 text-xs text-muted-foreground [contain:inline-size]">{message}</p>;
+  }
+
+  const { entry } = lookup;
+  return (
+    // contain:inline-size keeps long definitions from widening the menu
+    // past its toolbar; they wrap to the toolbar's width instead.
+    <div className="max-h-64 basis-full overflow-y-auto border-t border-border px-1.5 pb-1 pt-2 text-left [contain:inline-size]">
+      <div className="flex items-baseline gap-2">
+        <span className="font-semibold">{entry.word}</span>
+        {entry.phonetic && <span className="text-xs text-muted-foreground">{entry.phonetic}</span>}
+        {entry.audio && (
+          <button
+            type="button"
+            aria-label="Play pronunciation"
+            title="Play pronunciation"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              void new Audio(entry.audio).play().catch(() => {});
+            }}
+            className="self-center rounded px-1 text-xs text-primary hover:bg-accent"
+          >
+            ▶
+          </button>
+        )}
+      </div>
+      {entry.meanings.map((m) => (
+        <div key={m.partOfSpeech} className="mt-1.5">
+          <p className="text-[11px] italic text-muted-foreground">{m.partOfSpeech}</p>
+          <ol className="ml-4 list-decimal text-sm">
+            {m.senses.map((s, i) => (
+              <li key={i} className="mt-0.5">
+                {s.definition}
+                {s.example && <span className="block text-xs text-muted-foreground">"{s.example}"</span>}
+              </li>
+            ))}
+          </ol>
+        </div>
+      ))}
+      <p className="mt-2 text-[10px] text-muted-foreground">From {entry.source}</p>
+    </div>
+  );
+}
+
+function BookIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.5 3.5c1.8-.7 3.6-.7 5.5.5v9c-1.9-1.2-3.7-1.2-5.5-.5z" />
+      <path d="M13.5 3.5c-1.8-.7-3.6-.7-5.5.5v9c1.9-1.2 3.7-1.2 5.5-.5z" />
+    </svg>
   );
 }
 
@@ -245,7 +354,7 @@ function AttachmentToolbar({ editor }: { editor: Editor }) {
   }
 
   return (
-    <div className="mb-2 flex items-center gap-1">
+    <div className="mb-2 flex flex-wrap items-center gap-1">
       <button
         type="button"
         onClick={() => imageInput.current?.click()}
@@ -266,6 +375,7 @@ function AttachmentToolbar({ editor }: { editor: Editor }) {
         <AudioIcon />
         {busy === "audio" ? "Uploading…" : "Audio"}
       </button>
+      <WritingCheck editor={editor} />
       {error && <span className="text-xs text-destructive">{error}</span>}
       <input
         ref={imageInput}
@@ -323,6 +433,10 @@ export function NoteEditor({
     backendRef.current = backend;
   }, [backend]);
 
+  // Set by LinkSuggest while its list is open, so arrow keys, Enter and
+  // Esc move through the list instead of the note.
+  const linkKeysRef = useRef<((event: KeyboardEvent) => boolean) | null>(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
@@ -338,6 +452,7 @@ export function NoteEditor({
       LinkPreviewNode,
       LinkPreviewPaste,
       WikiLinks,
+      PlainNewLines,
     ],
     content: initialContent,
     autofocus: autoFocus ? "end" : false,
@@ -361,6 +476,9 @@ export function NoteEditor({
       // Pasting an actual file (a screenshot, a copied image) rather than
       // a link — LinkPreviewPaste handles the "pasted a bare URL" case
       // separately, since that's text, not a file.
+      handleKeyDown(_view, event) {
+        return linkKeysRef.current?.(event) ?? false;
+      },
       handlePaste(view, event) {
         const backend = backendRef.current;
         const files = Array.from(event.clipboardData?.files ?? []).filter(isAttachableFile);
@@ -392,9 +510,10 @@ export function NoteEditor({
     <>
       <AttachmentToolbar editor={editor} />
       {dropError && <p className="-mt-1 mb-2 text-xs text-destructive">{dropError}</p>}
-      <BubbleMenu editor={editor} options={{ placement: "top", offset: 8 }}>
+      <BubbleMenu editor={editor} pluginKey={selectionMenuKey} options={{ placement: "top", offset: 8 }}>
         <SelectionMenu editor={editor} />
       </BubbleMenu>
+      <LinkSuggest editor={editor} keyHandlerRef={linkKeysRef} />
       <EditorContent editor={editor} />
     </>
   );

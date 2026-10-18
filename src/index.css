@@ -194,3 +194,34 @@ body {
   border-radius: 3px;
   cursor: text;
 }
+
+/* Notes read like a notes app, not an article: lines sit close together,
+   and a blank line is made by pressing Enter twice. */
+.tiptap.prose {
+  line-height: 1.5;
+}
+
+.tiptap.prose p,
+.tiptap.prose li {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.tiptap.prose ul,
+.tiptap.prose ol {
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+.tiptap.prose li > p {
+  margin: 0;
+}
+
+.tiptap.prose :is(h1, h2, h3) {
+  margin-top: 0.9em;
+  margin-bottom: 0.3em;
+}
+
+.tiptap.prose > :first-child {
+  margin-top: 0;
+}

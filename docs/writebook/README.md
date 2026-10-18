@@ -22,6 +22,7 @@ meantime.
 | `09-focus-timer.md` | The Focus Timer |
 | `10-on-your-phone.md` | On Your Phone |
 | `11-your-day-and-the-trail.md` | Your Day and the Trail |
+| `12-words-and-writing.md` | Words and Writing |
 
 Every chapter opens with a `## TL;DR` list, which the app shows as a box at the
 top, followed by the detail.
