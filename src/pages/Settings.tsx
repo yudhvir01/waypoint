@@ -11,9 +11,8 @@ import {
   startGoogleSignIn,
 } from "../lib/backend/googleAuth";
 import { GOOGLE_SIGNIN_ENABLED } from "../lib/env";
-import { getFocusSettings, getSpacedRevisit, setFocusSettings, setSpacedRevisit } from "../lib/preferences";
+import { getFocusSettings, setFocusSettings } from "../lib/preferences";
 import { backupFileName, downloadTextFile, snapshotToBackupJson } from "../lib/exportData";
-import { MAX_OPEN_REVIEWS_PER_TRACK, REVIEW_OFFSETS_DAYS } from "../lib/taskActions";
 import { parseBackup, type ParsedBackup } from "../lib/backup";
 import { APP_VERSION, BUILD_TIME } from "../lib/buildInfo";
 import {
@@ -146,35 +145,6 @@ function DatabaseSection({
       >
         Sign out and use a different Supabase project
       </button>
-    </Section>
-  );
-}
-
-function LearningSection() {
-  const [spaced, setSpaced] = useState(getSpacedRevisit);
-
-  return (
-    <Section title="Learning">
-      <Row
-        label="Remind me to revisit finished topics"
-        description={`When a topic is done, add tasks to go over it again after ${REVIEW_OFFSETS_DAYS.join(
-          ", ",
-        )} days, so it sticks. You can rate each topic shaky or solid to bring them sooner or later. At most ${MAX_OPEN_REVIEWS_PER_TRACK} per track. Saved on this device.`}
-        control={
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={spaced}
-              onChange={(e) => {
-                setSpaced(e.target.checked);
-                setSpacedRevisit(e.target.checked);
-              }}
-              className="h-4 w-4 accent-primary"
-            />
-            {spaced ? "On" : "Off"}
-          </label>
-        }
-      />
     </Section>
   );
 }
@@ -627,7 +597,6 @@ export function Settings() {
           <Row label="Theme" control={<ThemeToggle />} />
         </Section>
 
-        <LearningSection />
 
         <FocusSection />
 

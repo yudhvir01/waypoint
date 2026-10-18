@@ -1,11 +1,11 @@
 import { Link } from "react-router-dom";
+import { DEADLINE_TONE_CLASS, deadlineLabel } from "../lib/deadline";
 import { useState } from "react";
 import { AppShell } from "../components/AppShell";
 import { useSnapshot } from "../hooks/useSnapshot";
 import { useRescheduleTasks } from "../hooks/useTasks";
 import { toDateKey } from "../lib/recurrence";
 import { computeInsights, STALE_AFTER_DAYS, type TaskWithPlace } from "../lib/insights";
-import { getSpacedRevisit } from "../lib/preferences";
 import { useMemo } from "react";
 
 function formatMinutes(total: number): string {
@@ -50,9 +50,9 @@ function TaskList({ items, showDue = false }: { items: TaskWithPlace[]; showDue?
                 {track?.name} &rarr; {topic?.title}
               </span>
             </span>
-            {showDue && task.due_date && (
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {new Date(task.due_date).toLocaleDateString()}
+            {showDue && deadlineLabel(task.due_date) && (
+              <span className={`shrink-0 text-xs ${DEADLINE_TONE_CLASS[deadlineLabel(task.due_date)!.tone]}`}>
+                {deadlineLabel(task.due_date)!.text}
               </span>
             )}
           </Link>
@@ -177,48 +177,6 @@ export function Review() {
             <Section title={`Slipped · ${insights.overdue.length}`} hint="Overdue and still open.">
               <TaskList items={insights.overdue} showDue />
               <SlippedActions taskIds={insights.overdue.map((o) => o.task.id)} />
-            </Section>
-          )}
-
-          {getSpacedRevisit() && insights.shakyTopics.length > 0 && (
-            <Section
-              title={`Shaky · ${insights.shakyTopics.length}`}
-              hint="Topics you rated shaky. These come back for review sooner."
-            >
-              <ul>
-                {insights.shakyTopics.slice(0, 10).map(({ topic, track }) => (
-                  <li key={topic.id} className="border-b border-border last:border-0">
-                    <Link
-                      to={`/tracks/${track.id}?topic=${topic.id}`}
-                      className="-mx-2 flex items-baseline justify-between gap-3 rounded-sm px-2 py-2.5 hover:bg-accent/50"
-                    >
-                      <span className="min-w-0 truncate text-[15px]">{topic.title}</span>
-                      <span className="shrink-0 truncate text-xs text-muted-foreground">{track.name}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          )}
-
-          {getSpacedRevisit() && insights.unratedDone.length > 0 && (
-            <Section
-              title={`Finished but unrated · ${insights.unratedDone.length}`}
-              hint="Finished isn't the same as known. Tap Rate on a topic to say how well it stuck."
-            >
-              <ul>
-                {insights.unratedDone.slice(0, 8).map(({ topic, track }) => (
-                  <li key={topic.id} className="border-b border-border last:border-0">
-                    <Link
-                      to={`/tracks/${track.id}?topic=${topic.id}`}
-                      className="-mx-2 flex items-baseline justify-between gap-3 rounded-sm px-2 py-2.5 hover:bg-accent/50"
-                    >
-                      <span className="min-w-0 truncate text-[15px]">{topic.title}</span>
-                      <span className="shrink-0 truncate text-xs text-muted-foreground">{track.name}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
             </Section>
           )}
 

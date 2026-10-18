@@ -10,6 +10,8 @@ import type { Recurrence, Task, TaskPriority } from "../lib/database.types";
 import { RECURRENCES, RECURRENCE_LABEL } from "../lib/recurrence";
 import { formatClock as clock } from "../lib/focusTimer";
 import { LIMITS } from "../lib/limits";
+import { DEADLINE_TONE_CLASS, deadlineLabel } from "../lib/deadline";
+import { ReviewLaterDialog } from "./ReviewLaterDialog";
 
 export interface TaskPlace {
   trackId: string;
@@ -62,6 +64,8 @@ export function TaskDetailSheet({
   onToggleDone: () => void;
   onClose: () => void;
 }) {
+  const [reviewing, setReviewing] = useState(false);
+  const deadline = deadlineLabel(task.due_date, task.done);
   const timer = useFocusTimer();
   const updateTask = useUpdateTask(task.topic_id);
   const panel = useRef<HTMLDivElement>(null);
@@ -186,6 +190,7 @@ export function TaskDetailSheet({
                 onChange={(e) => save({ dueDate: e.target.value || null })}
                 className={field}
               />
+              {deadline && <span className={DEADLINE_TONE_CLASS[deadline.tone]}>{deadline.text}</span>}
             </label>
             <label className="col-span-2 flex flex-col gap-1 text-xs text-muted-foreground">
               Repeat
@@ -229,7 +234,15 @@ export function TaskDetailSheet({
             >
               Mark done
             </button>
+            <button
+              type="button"
+              onClick={() => setReviewing(true)}
+              className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-primary hover:bg-accent"
+            >
+              Review later…
+            </button>
           </div>
+          {reviewing && <ReviewLaterDialog task={task} onClose={() => setReviewing(false)} />}
 
           <h3 className="mt-7 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes</h3>
           <div className="mt-2">

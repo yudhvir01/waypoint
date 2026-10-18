@@ -6,10 +6,10 @@ import { toggleTaskWithFollowUps } from "../lib/taskActions";
 
 export type { FocusTask };
 
-// The dashboard renders at most eight rows. Asking for a few more than
-// that leaves room for the "Today" / "Up next" split without ever pulling
-// a meaningful fraction of the table.
-const FOCUS_LIMIT = 40;
+// Today suggests six, at most two per track, and lists the rest under
+// "More from your tracks". Asking for well over six leaves room for a
+// track with many urgent tasks without hiding the other tracks behind it.
+const FOCUS_LIMIT = 100;
 
 // Urgency ranking happens in the backend (Postgres on Supabase, an
 // in-memory sort on guest) so this only ever handles the handful of rows

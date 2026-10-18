@@ -25,9 +25,12 @@ to **pick up to three for today**:
 
 - **Left from yesterday** lists yesterday's picks you didn't finish, first, so
   nothing quietly falls off. Tap **+ Today** to carry one over.
-- **Suggested** is the ranked list that used to be called Focus Now: overdue
-  first, then due soon, then priority, then the topic you're in the middle of.
-  Tap **+ Today** to pick one.
+- **Suggested** is the ranked list that used to be called Focus Now: crossed
+  deadlines first, then due soon, then priority, then the topic you're in the
+  middle of. It shows six, and **at most two from each track**, so one busy
+  track can't push your other goals off Today. A crossed deadline always gets
+  through. The rest are under **More from your tracks**. Tap **+ Today** to
+  pick one.
 
 Three is the limit on what's still open, not on the day: finish one and you can
 pick another. Tap a task to open it in place; **Not today** puts a pick back with the
@@ -35,8 +38,12 @@ rest. With three picked, everything else folds away under **Everything else**.
 
 Picks follow you between your phone and your computer.
 
+Every day line can be found again in **Search**, under **Day lines**, newest
+first. Tapping one opens its track's trail. A line saved with **No track**
+shows up there too.
+
 Under your picks, one quiet line tells you when something else wants a moment:
-cards to review, things waiting in the Inbox, or tasks that have slipped. Those
+cards to review, things waiting on your To do list, or tasks that have slipped. Those
 used to be pages of their own in the sidebar; they're one tap away from here.
 
 ## Closing the day

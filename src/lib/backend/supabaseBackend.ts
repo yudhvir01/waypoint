@@ -121,6 +121,11 @@ export class SupabaseBackend implements Backend {
     if (error) throw error;
   }
 
+  async renameTrack(id: string, name: string): Promise<void> {
+    const { error } = await this.client.from("tracks").update({ name }).eq("id", id);
+    if (error) throw error;
+  }
+
   async deleteTrack(id: string): Promise<void> {
     const { error } = await this.client.from("tracks").delete().eq("id", id);
     if (error) throw error;

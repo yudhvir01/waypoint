@@ -14,7 +14,7 @@ export function useQuickAdd() {
   return useMutation({
     mutationFn: async (text: string): Promise<QuickAddResult> => {
       const parsed = parseQuickAdd(text);
-      const placed = await placeQuickAdd(backend!, parsed);
+      const placed = await placeQuickAdd(backend!);
       await backend!.createTask(placed.topicId, {
         title: parsed.title,
         priority: parsed.priority,

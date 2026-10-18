@@ -35,11 +35,6 @@ export interface StaleTopic {
   openTasks: number;
 }
 
-export interface RatedTopic {
-  topic: Topic;
-  track: Track;
-}
-
 export interface FocusShare {
   taskId: string | null;
   title: string;
@@ -67,8 +62,6 @@ export interface Insights {
   overdue: TaskWithPlace[];
   dueSoon: TaskWithPlace[];
   staleTopics: StaleTopic[];
-  shakyTopics: RatedTopic[];
-  unratedDone: RatedTopic[];
   idleTracks: { track: Track; idleDays: number; openTasks: number }[];
 }
 
@@ -230,15 +223,6 @@ export function computeInsights(snapshot: Snapshot, now = new Date()): Insights 
   }
   const focusLast7 = [...byTask.values()].sort((a, b) => b.minutes - a.minutes);
 
-  const shakyTopics: RatedTopic[] = [];
-  const unratedDone: RatedTopic[] = [];
-  for (const topic of snapshot.topics) {
-    const track = trackById.get(topic.track_id);
-    if (!track || track.status !== "active" || topic.title === "Reviews") continue;
-    if (topic.confidence === "shaky") shakyTopics.push({ topic, track });
-    else if (!topic.confidence && topic.status === "done") unratedDone.push({ topic, track });
-  }
-
   const idleTracks: Insights["idleTracks"] = [];
   for (const track of snapshot.tracks) {
     if (track.status !== "active") continue;
@@ -267,8 +251,6 @@ export function computeInsights(snapshot: Snapshot, now = new Date()): Insights 
     overdue,
     dueSoon,
     staleTopics,
-    shakyTopics,
-    unratedDone,
     idleTracks,
   };
 }

@@ -114,28 +114,56 @@ export function useToggleTask(topicId: string) {
   });
 }
 
-// Moves one task a step up or down among those already on screen. Only
-// the tasks whose position actually changed are written.
+// Puts the tasks already on screen in a new order (a drag, or Move up /
+// Move down). Only the tasks whose position actually changed are written,
+// and the list shows the new order straight away rather than snapping
+// back until the save comes through.
 export function useReorderTasks(topicId: string) {
   const { backend } = useBackend();
+  const queryClient = useQueryClient();
   const invalidate = useTaskInvalidator(topicId);
+  const key = ["tasks", topicId];
+
+  // Reuse the order values the tasks already hold (so anything not loaded
+  // yet stays below them), made strictly increasing in case older rows
+  // share a value.
+  function withOrder(ordered: Task[]): { tasks: Task[]; updates: { id: string; sort_order: number }[] } {
+    const slots = ordered.map((t) => t.sort_order).sort((a, b) => a - b);
+    const updates: { id: string; sort_order: number }[] = [];
+    let prev = -1;
+    const tasks = ordered.map((task, i) => {
+      const value = Math.max(slots[i], prev + 1);
+      prev = value;
+      if (value !== task.sort_order) updates.push({ id: task.id, sort_order: value });
+      return { ...task, sort_order: value };
+    });
+    return { tasks, updates };
+  }
 
   return useMutation({
     mutationFn: (ordered: Task[]) => {
-      // Reuse the order values the tasks already hold (so anything not
-      // loaded yet stays below them), made strictly increasing in case
-      // older rows share a value.
-      const slots = ordered.map((t) => t.sort_order).sort((a, b) => a - b);
-      const updates: { id: string; sort_order: number }[] = [];
-      let prev = -1;
-      ordered.forEach((task, i) => {
-        const value = Math.max(slots[i], prev + 1);
-        prev = value;
-        if (value !== task.sort_order) updates.push({ id: task.id, sort_order: value });
-      });
+      const { updates } = withOrder(ordered);
       return updates.length > 0 ? backend!.reorderTasks(updates) : Promise.resolve();
     },
-    onSuccess: invalidate,
+    onMutate: async (ordered: Task[]) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<InfiniteData<Task[]>>(key);
+      if (previous) {
+        const { tasks } = withOrder(ordered);
+        const pages: Task[][] = [];
+        for (let i = 0; i < tasks.length; i += TASK_PAGE_SIZE) pages.push(tasks.slice(i, i + TASK_PAGE_SIZE));
+        queryClient.setQueryData<InfiniteData<Task[]>>(key, {
+          ...previous,
+          pages: pages.length ? pages : [[]],
+          pageParams: previous.pageParams.slice(0, Math.max(pages.length, 1)),
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _ordered, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    },
+    onSettled: invalidate,
   });
 }
 

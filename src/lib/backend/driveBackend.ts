@@ -181,6 +181,14 @@ export class DriveBackend implements Backend {
     await this.persist();
   }
 
+  async renameTrack(id: string, name: string): Promise<void> {
+    await this.ensureLoaded();
+    const track = this.data.tracks.find((t) => t.id === id);
+    if (!track) return;
+    track.name = name;
+    await this.persist();
+  }
+
   async deleteTrack(id: string): Promise<void> {
     await this.ensureLoaded();
     // The days written along it stay, tied to no track.

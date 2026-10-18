@@ -1,26 +1,6 @@
 // Per-device conveniences. Waypoint has no settings table on any backend,
 // so these live in localStorage and don't follow you to another device.
 
-const SPACED_REVISIT_KEY = "waypoint.spacedRevisit";
-
-// Off unless turned on: finishing a topic then schedules a few review
-// tasks. Tasks the app adds by itself crowd out the ones you chose.
-export function getSpacedRevisit(): boolean {
-  try {
-    return localStorage.getItem(SPACED_REVISIT_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function setSpacedRevisit(enabled: boolean): void {
-  try {
-    localStorage.setItem(SPACED_REVISIT_KEY, enabled ? "1" : "0");
-  } catch {
-    // Private mode / storage blocked: the preference just doesn't stick.
-  }
-}
-
 const FOCUS_MINUTES_KEY = "waypoint.focusMinutes";
 const BREAK_MINUTES_KEY = "waypoint.breakMinutes";
 

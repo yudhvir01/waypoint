@@ -13,7 +13,7 @@ export function buildImportPrompt(today: string): string {
 - A topic holds **tasks**. A task can be done or not, and can have a priority (high, medium, low), a deadline, and a repeat (daily, weekdays, weekly, monthly). Ticking off a repeating task creates the next one.
 - Each morning I pick **up to three tasks** for the day, from a list Waypoint ranks by deadline, then priority, then the topic I'm in. So tasks must be small enough to finish in one sitting, and deadlines and priorities decide what comes up first.
 - Each evening I write one line about what moved, and those lines become the track's trail.
-- Waypoint can add spaced review tasks itself after a topic is finished, and makes flashcards from "question :: answer" lines I write in notes. Neither belongs in the plan.
+- I can set any task to come back for review later, and Waypoint makes flashcards from "question :: answer" lines I write in notes. Neither belongs in the plan.
 
 If I ask how something in Waypoint works, answer from this.
 
@@ -62,7 +62,7 @@ Rules:
   - "#due:YYYY-MM-DD", only from a deadline I gave. Never before today. If I wanted dates leading up to it, pace them to the time I said I have, never planning more work in a week than I can do. Otherwise date just the last task or two before the deadline.
   - "#repeat:daily", "#repeat:weekdays", "#repeat:weekly" or "#repeat:monthly", only for the regular habits I named. Put each habit as one task in the topic it belongs to, or a "Habits" topic if it spans the whole track.
 - Things I already know or have done: mark them "- [x]" if they're part of the path, or leave them out if they're far behind me. Keep any "[x]" already in my notes.
-- Don't add revision or "review X" tasks after each topic: Waypoint does that itself.
+- Don't add revision or "review X" tasks after each topic: I set reviews myself in Waypoint, when I want them.
 
 If I pasted notes or a roadmap:
 - Keep all the meaningful actionable content: skills, technologies, requirements, features, checklist items. Reorganize, don't summarize.

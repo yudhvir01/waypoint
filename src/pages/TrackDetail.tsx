@@ -1,7 +1,21 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  closestCenter,
+  DndContext,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { AppShell } from "../components/AppShell";
 import { Tip } from "../components/Tip";
+import { isTodoTrack, TODO_NAME } from "../lib/inbox";
+import { ReviewLaterDialog } from "../components/ReviewLaterDialog";
+import { DEADLINE_TONE_CLASS, deadlineLabel } from "../lib/deadline";
 import { TrackTrail } from "../components/TrackTrail";
 import { SchedulePopover } from "../components/SchedulePopover";
 import { ActionMenu } from "../components/ActionMenu";
@@ -9,12 +23,10 @@ import { MoveTaskDialog } from "../components/MoveTaskDialog";
 import { useTrack, useUpdateTrackStatus } from "../hooks/useTracks";
 import { useTopicProgress, useTrackProgress, type TrackProgress } from "../hooks/useTrackProgress";
 import {
-  nextConfidence,
   nextTopicStatus,
   useCreateTopic,
   useDeleteTopic,
   useTopics,
-  useUpdateTopicConfidence,
   useUpdateTopicStatus,
   useUpdateTopicTitle,
 } from "../hooks/useTopics";
@@ -31,7 +43,6 @@ import { useBackend } from "../context/BackendProvider";
 import { useFocusTimer } from "../context/FocusTimerProvider";
 import { useFocusTotals } from "../hooks/useFocusSessions";
 import {
-  type Confidence,
   type Recurrence,
   type Task,
   type TaskPriority,
@@ -39,7 +50,6 @@ import {
   type TopicStatus,
 } from "../lib/database.types";
 import { RECURRENCES, RECURRENCE_LABEL } from "../lib/recurrence";
-import { getSpacedRevisit } from "../lib/preferences";
 import { downloadTextFile, safeFileName, trackToMarkdown } from "../lib/exportData";
 import { LIMITS } from "../lib/limits";
 
@@ -130,18 +140,6 @@ const TOPIC_STATUS_DOT: Record<TopicStatus, string> = {
   not_started: "bg-muted-foreground",
   in_progress: "bg-primary",
   done: "bg-success",
-};
-
-const CONFIDENCE_LABEL: Record<Confidence, string> = {
-  shaky: "Shaky",
-  okay: "Okay",
-  solid: "Solid",
-};
-
-const CONFIDENCE_CLASS: Record<Confidence, string> = {
-  shaky: "border-amber-500/40 text-amber-700 dark:text-amber-400",
-  okay: "border-border text-foreground",
-  solid: "border-success/40 text-success",
 };
 
 const PRIORITY_DOT: Record<TaskPriority, string> = {
@@ -311,8 +309,19 @@ function TaskRow({
   const [popover, setPopover] = useState(false);
   const [editing, setEditing] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const deadline = deadlineLabel(task.due_date, task.done);
   const timer = useFocusTimer();
   const focusMinutes = useFocusTotals().get(task.id) ?? 0;
+  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+    disabled: editing,
+  });
+  // Up and down only: a list being reordered shouldn't wander sideways.
+  const dragStyle = {
+    transform: CSS.Transform.toString(transform && { ...transform, x: 0 }),
+    transition,
+  };
 
   if (editing) {
     return (
@@ -337,7 +346,16 @@ function TaskRow({
   }
 
   return (
-    <li className="group ml-6 flex flex-wrap items-center gap-x-2.5 gap-y-1 py-1.5">
+    <li
+      ref={setNodeRef}
+      style={dragStyle}
+      {...listeners}
+      // Holding a row picks it up, so a long press mustn't also select its
+      // text or open the phone's copy menu.
+      className={`group relative ml-6 flex cursor-grab select-none flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md py-1.5 [-webkit-touch-callout:none] active:cursor-grabbing ${
+        isDragging ? "z-10 bg-card shadow-lg ring-1 ring-border" : ""
+      }`}
+    >
       <button
         type="button"
         onClick={() => toggleTask.mutate(task)}
@@ -372,11 +390,7 @@ function TaskRow({
           {focusMinutes >= 60 ? `${Math.floor(focusMinutes / 60)}h ${focusMinutes % 60}m` : `${focusMinutes}m`}
         </span>
       )}
-      {task.due_date && (
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {new Date(task.due_date).toLocaleDateString()}
-        </span>
-      )}
+      {deadline && <span className={`shrink-0 text-xs ${DEADLINE_TONE_CLASS[deadline.tone]}`}>{deadline.text}</span>}
 
       {/* Hover-reveal only makes sense with a mouse — a touch screen has
           no hover at all, which would make Edit/Delete permanently
@@ -406,6 +420,7 @@ function TaskRow({
               onClick: () => toggleTask.mutate(task),
             },
             { label: "Start focus timer", onClick: () => timer.start({ id: task.id, title: task.title }) },
+            { label: "Review later…", onClick: () => setReviewing(true) },
             { label: "Move to…", onClick: () => setMoving(true) },
             ...(onMoveUp ? [{ label: "Move up", onClick: onMoveUp }] : []),
             ...(onMoveDown ? [{ label: "Move down", onClick: onMoveDown }] : []),
@@ -414,15 +429,20 @@ function TaskRow({
         />
       </div>
 
-      {moving && <MoveTaskDialog task={task} onClose={() => setMoving(false)} />}
+      {/* These open inside the draggable row, so a press in them must not
+          reach the row and pick it up. */}
+      <span className="contents" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+        {moving && <MoveTaskDialog task={task} onClose={() => setMoving(false)} />}
+        {reviewing && <ReviewLaterDialog task={task} onClose={() => setReviewing(false)} />}
 
-      {popover && (
-        <SchedulePopover
-          currentDueDate={task.due_date}
-          onClose={() => setPopover(false)}
-          onSave={(patch) => updateSchedule.mutate({ taskId: task.id, dueDate: patch.dueDate })}
-        />
-      )}
+        {popover && (
+          <SchedulePopover
+            currentDueDate={task.due_date}
+            onClose={() => setPopover(false)}
+            onSave={(patch) => updateSchedule.mutate({ taskId: task.id, dueDate: patch.dueDate })}
+          />
+        )}
+      </span>
     </li>
   );
 }
@@ -433,12 +453,15 @@ function TopicItem({
   progress,
   expanded,
   onToggle,
+  flat = false,
 }: {
   topic: Topic;
   trackId: string;
   progress: TrackProgress | undefined;
   expanded: boolean;
   onToggle: () => void;
+  // Just the tasks, no topic heading: how the To do list shows.
+  flat?: boolean;
 }) {
   // Tasks are fetched only once the topic is actually open. Every topic
   // used to load its full task list on mount just to render "3 / 8" in the
@@ -454,13 +477,35 @@ function TopicItem({
   const updateTitle = useUpdateTopicTitle(trackId);
   const deleteTopic = useDeleteTopic(trackId);
   const reorderTasks = useReorderTasks(topic.id);
-  const updateConfidence = useUpdateTopicConfidence(trackId);
   const [editing, setEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState(topic.title);
   const tasks = taskPages?.pages.flat();
   const tasksCount = progress?.total;
   const doneCount = progress?.done ?? 0;
   const allDone = !!tasksCount && doneCount === tasksCount;
+
+  // Keyboard users have Move up / Move down in each task's ⋮ menu.
+  // A mouse drags after moving a few pixels; a finger has to hold still
+  // for a moment first, so swiping through the list still scrolls it.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  );
+
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    // The press that ended a drag would otherwise land as a click on the
+    // row's link and open the task.
+    const stopClick = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener("click", stopClick, { capture: true, once: true });
+    setTimeout(() => window.removeEventListener("click", stopClick, { capture: true }), 100);
+    if (!tasks || !over || active.id === over.id) return;
+    const from = tasks.findIndex((t) => t.id === active.id);
+    const to = tasks.findIndex((t) => t.id === over.id);
+    if (from >= 0 && to >= 0) move(from, to);
+  }
 
   function move(from: number, to: number) {
     if (!tasks || to < 0 || to >= tasks.length) return;
@@ -478,7 +523,8 @@ function TopicItem({
   }
 
   return (
-    <div className="group border-b border-border py-4 last:border-0">
+    <div className={flat ? "[&_.ml-6]:ml-0" : "group border-b border-border py-4 last:border-0"}>
+      {!flat && (
       <div className="flex items-center gap-2.5">
         <button
           type="button"
@@ -545,27 +591,6 @@ function TopicItem({
                 ]}
               />
             </div>
-            {/* Ratings only steer spaced revisit, so they're hidden without it. */}
-            {getSpacedRevisit() && (
-            <button
-              type="button"
-              onClick={() =>
-                updateConfidence.mutate({ topic, confidence: nextConfidence(topic.confidence) })
-              }
-              title={
-                topic.confidence
-                  ? `You rated this ${CONFIDENCE_LABEL[topic.confidence].toLowerCase()}. Click to change.`
-                  : "How well do you know this? Click to rate it."
-              }
-              className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
-                topic.confidence
-                  ? CONFIDENCE_CLASS[topic.confidence]
-                  : "border-dashed border-border text-muted-foreground/70 hover:text-foreground"
-              }`}
-            >
-              {topic.confidence ? CONFIDENCE_LABEL[topic.confidence] : "Rate"}
-            </button>
-            )}
             {!!tasksCount && (
               <span
                 className={`ml-2 shrink-0 font-mono tabular-nums ${
@@ -581,19 +606,29 @@ function TopicItem({
           </>
         )}
       </div>
+      )}
 
       {expanded && tasks && tasks.length > 0 && (
-        <ul className="mt-2.5 flex flex-col">
-          {tasks.map((task, i) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              topicId={topic.id}
-              onMoveUp={i > 0 ? () => move(i, i - 1) : undefined}
-              onMoveDown={i < tasks.length - 1 ? () => move(i, i + 1) : undefined}
-            />
-          ))}
-        </ul>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={() => navigator.vibrate?.(15)}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+            <ul className="mt-2.5 flex flex-col">
+              {tasks.map((task, i) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  topicId={topic.id}
+                  onMoveUp={i > 0 ? () => move(i, i - 1) : undefined}
+                  onMoveDown={i < tasks.length - 1 ? () => move(i, i + 1) : undefined}
+                />
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
       )}
 
       {expanded && hasNextPage && (
@@ -700,7 +735,10 @@ export function TrackDetail() {
   const [exporting, setExporting] = useState(false);
   // A search result links straight to a topic, which only the task list
   // shows; otherwise the track opens on whichever view was used last.
-  const [view, setView] = useState<TrackView>(() => (focusTopicId ? "tasks" : readTrackView()));
+  // ?view=trail comes from a day line found in Search.
+  const [view, setView] = useState<TrackView>(() =>
+    focusTopicId ? "tasks" : searchParams.get("view") === "trail" ? "trail" : readTrackView(),
+  );
 
   function chooseView(next: TrackView) {
     setView(next);
@@ -786,6 +824,38 @@ export function TrackDetail() {
   const progress = progressMap?.get(track.id);
   const pct = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : null;
 
+  // The To do list is one plain list of things to do: no topics, trail or
+  // roadmap, just tasks.
+  if (isTodoTrack(track)) {
+    const open = progress ? progress.total - progress.done : 0;
+    return (
+      <AppShell>
+        <h1 className="text-2xl font-semibold tracking-[-0.02em]">{TODO_NAME}</h1>
+        <p className="mt-1.5 text-[15px] text-muted-foreground">
+          {open > 0 ? `${open} to do. ` : ""}Everything from <b className="font-medium text-foreground">+ Add a task</b> lands
+          here. Hold a task to reorder it, or use ⋮ → Move to… to put it in a track.
+        </p>
+        <div className="mt-6">
+          {topicsLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+          {topicsError && (
+            <p className="text-sm text-destructive">Couldn't load your list. Check your connection and reload.</p>
+          )}
+          {topics?.map((topic) => (
+            <TopicItem
+              key={topic.id}
+              topic={topic}
+              trackId={track.id}
+              progress={topicProgress?.get(topic.id)}
+              expanded
+              onToggle={() => {}}
+              flat
+            />
+          ))}
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
       <div className="flex items-center justify-between gap-3">
@@ -833,8 +903,9 @@ export function TrackDetail() {
             each day.
           </li>
           <li>
-            <b>Tasks</b> lists every topic and its tasks. Tap a task's circle when it's done. Tap the small dot
-            before a topic to mark it started, then done. The pencil renames, and ⋮ has more.
+            <b>Tasks</b> lists every topic and its tasks. Tap a task's circle when it's done, and hold a task to
+            drag it into a new order. Tap the small dot before a topic to mark it started, then done. The pencil
+            renames, and ⋮ has more.
           </li>
           <li>
             <b>Archive</b> hides a finished track without deleting it. <b>Export</b> downloads it as a file.

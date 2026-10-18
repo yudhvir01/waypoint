@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQuickAdd, type QuickAddResult } from "../hooks/useQuickAdd";
-import { useTracks } from "../hooks/useTracks";
-import { INBOX_NAME } from "../lib/inbox";
-import { matchTrack, parseQuickAdd } from "../lib/quickAdd";
-import { RECURRENCE_LABEL } from "../lib/recurrence";
+import { TODO_NAME } from "../lib/inbox";
+import { parseQuickAdd } from "../lib/quickAdd";
+import { fromDateKey, RECURRENCE_LABEL } from "../lib/recurrence";
 import { LIMITS } from "../lib/limits";
+
+// "Due Fri, 23 Oct · in 5 days", so a worked-out date can be checked at a glance.
+function dueText(dateKey: string): string {
+  const due = fromDateKey(dateKey);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+  const when = days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
+  return `Due ${due.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })} · ${when}`;
+}
 
 function Chip({ children, tone = "plain" }: { children: React.ReactNode; tone?: "plain" | "warn" }) {
   return (
@@ -27,10 +36,8 @@ export function QuickAddDialog({ onClose }: { onClose: () => void }) {
   const [last, setLast] = useState<QuickAddResult | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const quickAdd = useQuickAdd();
-  const { data: tracks } = useTracks();
 
   const parsed = useMemo(() => parseQuickAdd(text), [text]);
-  const target = matchTrack(tracks ?? [], parsed.trackHint);
 
   useEffect(() => {
     input.current?.focus();
@@ -63,8 +70,9 @@ export function QuickAddDialog({ onClose }: { onClose: () => void }) {
           Add a task
         </label>
         <p className="mt-1 text-xs text-muted-foreground">
-          Write it in plain words. A day, “every weekday”, <code>!high</code> or <code>#track</code> in it are picked
-          out for you. Without a track it goes to the {INBOX_NAME}.
+          Write it in plain words. When (“tomorrow”, “after 5 days”, “oct 20”), a repeat (“every weekday”) and{" "}
+          <code>!high</code> are picked out for you. It goes on your {TODO_NAME} list; to add a task to a topic, use{" "}
+          <b className="font-medium text-foreground">+ Add task</b> on that track's page.
         </p>
         <input
           id="quick-add"
@@ -75,7 +83,7 @@ export function QuickAddDialog({ onClose }: { onClose: () => void }) {
             setText(e.target.value);
             if (quickAdd.isError) quickAdd.reset();
           }}
-          placeholder="Read chapter 4 friday !high #cpp"
+          placeholder="Remind me to call the bank after 5 days"
           autoComplete="off"
           className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-[15px] outline-none focus:border-ring focus:ring-1 focus:ring-ring"
         />
@@ -83,18 +91,16 @@ export function QuickAddDialog({ onClose }: { onClose: () => void }) {
         <div className="mt-3 flex min-h-[1.5rem] flex-wrap items-center gap-1.5">
           {text.trim() ? (
             <>
-              {parsed.dueDate && <Chip>Due {new Date(parsed.dueDate + "T00:00").toLocaleDateString()}</Chip>}
+              <span className="mr-1 max-w-full truncate text-xs text-foreground">“{parsed.title}”</span>
+              {parsed.dueDate && <Chip>{dueText(parsed.dueDate)}</Chip>}
               {parsed.priority !== "none" && <Chip>{parsed.priority} priority</Chip>}
               {parsed.recurrence && <Chip>↻ {RECURRENCE_LABEL[parsed.recurrence].toLowerCase()}</Chip>}
-              {parsed.trackHint && !target ? (
-                <Chip tone="warn">No track matches #{parsed.trackHint} — goes to {INBOX_NAME}</Chip>
-              ) : (
-                <Chip>→ {target ? target.name : INBOX_NAME}</Chip>
-              )}
+              <Chip>→ {TODO_NAME}</Chip>
             </>
           ) : (
             <span className="text-xs text-muted-foreground">
-              Try: <em>call dentist tomorrow</em>, <em>stretch every weekday</em>, <em>essay oct 20 !high</em>
+              Try: <em>remind me to pay rent after 5 days</em>, <em>stretch every weekday</em>,{" "}
+              <em>essay oct 20 !high</em>
             </span>
           )}
         </div>
@@ -102,7 +108,6 @@ export function QuickAddDialog({ onClose }: { onClose: () => void }) {
         {last && !quickAdd.isError && (
           <p className="mt-3 text-xs text-success" role="status">
             Added “{last.title}” to {last.trackName}.
-            {last.missedHint && ` No track matched #${last.missedHint}.`}
           </p>
         )}
         {quickAdd.isError && (

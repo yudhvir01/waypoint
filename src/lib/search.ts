@@ -1,5 +1,5 @@
 import type { Snapshot } from "./backend/types";
-import type { Note, Task, Topic, Track } from "./database.types";
+import type { Note, Task, Topic, Track, Waypoint } from "./database.types";
 
 export interface TaskHit {
   kind: "task";
@@ -26,11 +26,21 @@ export interface NoteHit {
   score: number;
 }
 
+// A line written when closing a day.
+export interface DayLineHit {
+  kind: "day";
+  line: Waypoint;
+  track: Track | undefined;
+  snippet: string;
+  score: number;
+}
+
 export interface SearchResults {
   tracks: TrackHit[];
   topics: TopicHit[];
   tasks: TaskHit[];
   notes: NoteHit[];
+  days: DayLineHit[];
   total: number;
 }
 
@@ -87,7 +97,7 @@ function snippetAround(text: string, terms: string[]): string {
 
 export function searchSnapshot(snapshot: Snapshot, query: string): SearchResults {
   const terms = tokenize(query);
-  const empty: SearchResults = { tracks: [], topics: [], tasks: [], notes: [], total: 0 };
+  const empty: SearchResults = { tracks: [], topics: [], tasks: [], notes: [], days: [], total: 0 };
   if (terms.length === 0) return empty;
 
   const trackById = new Map(snapshot.tracks.map((t) => [t.id, t]));
@@ -134,6 +144,21 @@ export function searchSnapshot(snapshot: Snapshot, query: string): SearchResults
     });
   }
 
+  const days: DayLineHit[] = [];
+  for (const line of snapshot.waypoints) {
+    const score = scoreText(fold(line.text), terms);
+    if (score === 0) continue;
+    days.push({
+      kind: "day",
+      line,
+      track: line.track_id ? trackById.get(line.track_id) : undefined,
+      snippet: snippetAround(line.text, terms),
+      score,
+    });
+  }
+  // A diary reads by date: newest first, whatever the score.
+  days.sort((a, b) => b.line.day.localeCompare(a.line.day) || b.line.created_at.localeCompare(a.line.created_at));
+
   const byScore = <T extends { score: number }>(list: T[]) =>
     list.sort((a, b) => b.score - a.score).slice(0, PER_GROUP);
   const result = {
@@ -141,8 +166,10 @@ export function searchSnapshot(snapshot: Snapshot, query: string): SearchResults
     topics: byScore(topics),
     tasks: byScore(tasks),
     notes: byScore(notes),
+    days: days.slice(0, PER_GROUP),
     total: 0,
   };
-  result.total = result.tracks.length + result.topics.length + result.tasks.length + result.notes.length;
+  result.total =
+    result.tracks.length + result.topics.length + result.tasks.length + result.notes.length + result.days.length;
   return result;
 }

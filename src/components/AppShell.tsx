@@ -12,6 +12,8 @@ import { QuickAddDialog } from "./QuickAddDialog";
 import { FocusTimerPill } from "./FocusTimerPill";
 import { useDrawerSwipe } from "../hooks/useDrawerSwipe";
 import { useFocusTimer } from "../context/FocusTimerProvider";
+import { useQueryClient } from "@tanstack/react-query";
+import { findTodoTrack, isTodoTrack, renameOldInbox, TODO_NAME } from "../lib/inbox";
 
 function NavLink({ to, children, onNavigate }: { to: string; children: ReactNode; onNavigate?: () => void }) {
   const { pathname } = useLocation();
@@ -40,9 +42,26 @@ function MenuIcon() {
 }
 
 export function AppShell({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
-  const { mode, ownerLabel, signOut } = useBackend();
+  const { mode, ownerLabel, signOut, backend } = useBackend();
   const { data: tracks } = useTracks();
+  const queryClient = useQueryClient();
+  // The To do list was called Inbox before; rename it once it's seen.
+  const renamed = useRef(false);
+  useEffect(() => {
+    if (!backend || !tracks || renamed.current) return;
+    renamed.current = true;
+    renameOldInbox(backend, tracks)
+      .then((changed) => {
+        if (changed) for (const key of ["tracks", "track", "focusNow", "planned", "snapshot"]) queryClient.invalidateQueries({ queryKey: [key] });
+      })
+      .catch(() => {
+        // Tried again next time the app opens.
+      });
+  }, [backend, tracks, queryClient]);
   const { data: progress } = useTrackProgress();
+  const todo = findTodoTrack(tracks);
+  const todoProgress = todo ? progress?.get(todo.id) : undefined;
+  const todoOpen = todoProgress ? todoProgress.total - todoProgress.done : 0;
   const { data: notes } = useNotes();
   const { data: cards } = useCards();
   const dueCards = cards ? cards.filter((c) => isDue(c)).length : 0;
@@ -191,6 +210,12 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
               discovered by accident. */}
           <nav className="mt-5 flex flex-col gap-0.5">
             <NavLink to="/" onNavigate={closeNav}>Today</NavLink>
+            <NavLink to={todo ? `/tracks/${todo.id}` : "/todo"} onNavigate={closeNav}>
+              <span className="flex items-center justify-between">
+                {TODO_NAME}
+                {todoOpen > 0 && <span className="ml-2 font-mono text-xs tabular-nums text-muted-foreground">{todoOpen}</span>}
+              </span>
+            </NavLink>
             <NavLink to="/search" onNavigate={closeNav}>Search</NavLink>
             <NavLink to="/cards" onNavigate={closeNav}>
               <span className="flex items-center justify-between">
@@ -221,7 +246,7 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
             <p className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Tracks
             </p>
-            {tracks?.map((track) => {
+            {tracks?.filter((t) => !isTodoTrack(t)).map((track) => {
               const p = progress?.get(track.id);
               return (
                 <Link
@@ -239,7 +264,7 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
                 </Link>
               );
             })}
-            {tracks?.length === 0 && (
+            {tracks?.every(isTodoTrack) && (
               <p className="px-3 text-sm text-muted-foreground">
                 A track is one goal, like “Learn Rust”. Start one from Today.
               </p>

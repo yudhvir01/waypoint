@@ -1,50 +1,53 @@
 import type { Backend } from "./backend/types";
-import type { Topic, Track } from "./database.types";
-import { INBOX_NAME, QUICK_ADD_TOPIC_TITLE, matchTrack, type QuickAdd } from "./quickAdd";
-import { REVIEWS_TOPIC_TITLE } from "./taskActions";
+import type { Track } from "./database.types";
+import { TODO_NAME } from "./quickAdd";
 
-export { INBOX_NAME };
+export { TODO_NAME };
+
+// What the To do track was called before. Found by either name, and
+// renamed the first time it's seen.
+const OLD_NAME = "Inbox";
+
+export function isTodoTrack(track: Pick<Track, "name"> | null | undefined): boolean {
+  const name = track?.name.toLowerCase();
+  return name === TODO_NAME.toLowerCase() || name === OLD_NAME.toLowerCase();
+}
+
+export function findTodoTrack<T extends Pick<Track, "name">>(tracks: T[] | undefined): T | undefined {
+  return tracks?.find((t) => t.name.toLowerCase() === TODO_NAME.toLowerCase()) ?? tracks?.find(isTodoTrack);
+}
+
+// Gives an Inbox from an older version its new name. Safe to call often:
+// it does nothing once the rename has happened.
+export async function renameOldInbox(backend: Backend, tracks: Track[]): Promise<boolean> {
+  if (tracks.some((t) => t.name.toLowerCase() === TODO_NAME.toLowerCase())) return false;
+  const old = tracks.find((t) => t.name.toLowerCase() === OLD_NAME.toLowerCase());
+  if (!old) return false;
+  await backend.renameTrack(old.id, TODO_NAME);
+  return true;
+}
 
 export interface Placed {
   topicId: string;
   trackName: string;
-  // Set when a #hint was typed but no track matched it.
-  missedHint: string | null;
 }
 
-// The topic to put a task in when you just named a track: the one you're
-// in the middle of, else the next one, else a plain "Tasks" topic.
-function pickTopic(topics: Topic[]): Topic | null {
-  const usable = topics.filter((t) => t.title !== REVIEWS_TOPIC_TITLE);
-  return (
-    usable.find((t) => t.status === "in_progress") ??
-    usable.find((t) => t.status === "not_started") ??
-    usable[0] ??
-    null
-  );
-}
-
-async function inboxTopic(backend: Backend, tracks: Track[]): Promise<Placed> {
-  let track = tracks.find((t) => t.name.toLowerCase() === INBOX_NAME.toLowerCase());
+// The To do list and its one topic, made the first time they're needed.
+// It's a single flat list: the topic is never shown.
+export async function ensureTodo(backend: Backend): Promise<{ trackId: string; topicId: string }> {
+  const tracks = await backend.listTracks("active");
+  await renameOldInbox(backend, tracks);
+  let track = findTodoTrack(tracks);
   if (!track) {
-    track = await backend.createTrack({
-      name: INBOX_NAME,
-      description: "Quick-added tasks waiting to be sorted.",
-    });
+    track = await backend.createTrack({ name: TODO_NAME, description: "Things to do, added with + Add a task." });
   }
   const topics = await backend.listTopics(track.id, 0, 100);
-  const topic = topics[0] ?? (await backend.createTopic(track.id, INBOX_NAME));
-  return { topicId: topic.id, trackName: track.name, missedHint: null };
+  const topic = topics[0] ?? (await backend.createTopic(track.id, TODO_NAME));
+  return { trackId: track.id, topicId: topic.id };
 }
 
-export async function placeQuickAdd(backend: Backend, parsed: QuickAdd): Promise<Placed> {
-  const tracks = await backend.listTracks("active");
-  const match = matchTrack(tracks, parsed.trackHint);
-  if (match) {
-    const topic = pickTopic(await backend.listTopics(match.id, 0, 100));
-    const topicId = topic?.id ?? (await backend.createTopic(match.id, QUICK_ADD_TOPIC_TITLE)).id;
-    return { topicId, trackName: match.name, missedHint: null };
-  }
-  const placed = await inboxTopic(backend, tracks);
-  return { ...placed, missedHint: parsed.trackHint };
+// Quick-added tasks all go to the To do list.
+export async function placeQuickAdd(backend: Backend): Promise<Placed> {
+  const { topicId } = await ensureTodo(backend);
+  return { topicId, trackName: TODO_NAME };
 }

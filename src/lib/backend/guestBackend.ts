@@ -76,6 +76,13 @@ export class GuestBackend implements Backend {
     await db.put("tracks", { ...track, description });
   }
 
+  async renameTrack(id: string, name: string): Promise<void> {
+    const db = await getGuestDB();
+    const track = await db.get("tracks", id);
+    if (!track) return;
+    await db.put("tracks", { ...track, name });
+  }
+
   async deleteTrack(id: string): Promise<void> {
     const db = await getGuestDB();
     const [topics, tasks] = await Promise.all([

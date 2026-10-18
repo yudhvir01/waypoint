@@ -3,6 +3,13 @@ import { Link, useSearchParams } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { useSnapshot } from "../hooks/useSnapshot";
 import { searchSnapshot } from "../lib/search";
+import { fromDateKey } from "../lib/recurrence";
+
+function dayLabel(day: string): string {
+  const date = fromDateKey(day);
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return date.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) });
+}
 
 function Group({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   if (count === 0) return null;
@@ -39,7 +46,7 @@ export function Search() {
           else next.delete("q");
           setParams(next, { replace: true });
         }}
-        placeholder="Search tasks, topics, tracks and notes…"
+        placeholder="Search tasks, topics, tracks, notes and day lines…"
         aria-label="Search"
         className="mt-5 w-full rounded-md border border-input bg-background px-3 py-2 text-[15px] outline-none focus:border-ring focus:ring-1 focus:ring-ring"
       />
@@ -111,6 +118,31 @@ export function Search() {
                 </Link>
               </li>
             ))}
+          </Group>
+
+          <Group title="Day lines" count={results.days.length}>
+            {results.days.map(({ line, track, snippet }) => {
+              const body = (
+                <>
+                  <span className="text-[15px]">{snippet}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    {dayLabel(line.day)}
+                    {track ? ` · ${track.name}` : " · No track"}
+                  </span>
+                </>
+              );
+              return (
+                <li key={line.id}>
+                  {track ? (
+                    <Link to={`/tracks/${track.id}?view=trail`} className={ROW}>
+                      {body}
+                    </Link>
+                  ) : (
+                    <div className={ROW.replace("hover:bg-accent/50", "")}>{body}</div>
+                  )}
+                </li>
+              );
+            })}
           </Group>
         </>
       )}

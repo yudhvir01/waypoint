@@ -9,30 +9,17 @@ import { useAddWaypoint, useDeleteWaypoint, useWaypoints } from "../hooks/useWay
 import { useCards } from "../hooks/useCards";
 import { useTrackProgress } from "../hooks/useTrackProgress";
 import { isDue } from "../lib/cards";
-import { INBOX_NAME } from "../lib/inbox";
+import { findTodoTrack, isTodoTrack, TODO_NAME } from "../lib/inbox";
 import type { Task } from "../lib/database.types";
 import { RECURRENCE_LABEL } from "../lib/recurrence";
 import { useFocusTimer } from "../context/FocusTimerProvider";
 import { TaskDetailSheet } from "../components/TaskDetailSheet";
 import { LIMITS } from "../lib/limits";
 import { Tip } from "../components/Tip";
+import { DEADLINE_TONE_CLASS, deadlineLabel } from "../lib/deadline";
+import { isReviewTask } from "../lib/taskActions";
 import { useImportTrack } from "../hooks/useImportTrack";
 import { parseImportMarkdown } from "../lib/markdownImport";
-
-function dueLabel(dueDate: string | null): { text: string; className: string } | null {
-  if (!dueDate) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(dueDate);
-  due.setHours(0, 0, 0, 0);
-  const delta = Math.round((due.getTime() - today.getTime()) / 86_400_000);
-
-  if (delta < 0) return { text: `${-delta}d overdue`, className: "text-destructive" };
-  if (delta === 0) return { text: "Due today", className: "text-destructive" };
-  if (delta === 1) return { text: "Due tomorrow", className: "text-amber-600 dark:text-amber-400" };
-  if (delta <= 6) return { text: `Due in ${delta}d`, className: "text-amber-600 dark:text-amber-400" };
-  return { text: `Due ${due.toLocaleDateString()}`, className: "text-muted-foreground" };
-}
 
 const PRIORITY_DOT: Record<Task["priority"], string> = {
   high: "bg-destructive",
@@ -44,6 +31,26 @@ const PRIORITY_DOT: Record<Task["priority"], string> = {
 // Overdue and still open — what Review's "Slipped" lists.
 function isSlipped(task: FocusTask): boolean {
   return !task.done && !!task.due_date && task.due_date < todayKey();
+}
+
+const SUGGESTED = 6;
+const PER_TRACK = 2;
+
+// Suggested takes at most two tasks from each track, so one busy track
+// (or the one you happen to be in the middle of) can't push your other
+// goals off Today. A crossed deadline always gets through: that one
+// genuinely needs you. The order within the ranking is kept.
+function balanceByTrack(ranked: FocusTask[]): FocusTask[] {
+  const perTrack = new Map<string, number>();
+  const shown: FocusTask[] = [];
+  for (const task of ranked) {
+    if (shown.length >= SUGGESTED) break;
+    const count = perTrack.get(task.topic.track.id) ?? 0;
+    if (count >= PER_TRACK && !isSlipped(task)) continue;
+    perTrack.set(task.topic.track.id, count + 1);
+    shown.push(task);
+  }
+  return shown;
 }
 
 function TaskRow({
@@ -59,7 +66,7 @@ function TaskRow({
 }) {
   const toggleTask = useToggleFocusTask();
   const timer = useFocusTimer();
-  const due = task.done ? null : dueLabel(task.due_date);
+  const due = deadlineLabel(task.due_date, task.done);
   const focusing = timer.state.phase === "focus" && timer.state.taskId === task.id;
 
   return (
@@ -113,11 +120,20 @@ function TaskRow({
               title={`${task.priority[0].toUpperCase()}${task.priority.slice(1)} priority`}
             />
           )}
-          {due && <span className={`shrink-0 ${due.className}`}>{due.text} ·</span>}
           <span className="min-w-0 truncate">
-            {task.topic.track.name} &rarr; {task.topic.title}
+            {/* The To do list has no topics to speak of. */}
+            {isTodoTrack(task.topic.track) ? (
+              TODO_NAME
+            ) : task.topic.title === task.topic.track.name ? (
+              task.topic.track.name
+            ) : (
+              <>
+                {task.topic.track.name} &rarr; {task.topic.title}
+              </>
+            )}
           </span>
         </div>
+        {due && <p className={`mt-0.5 text-xs ${DEADLINE_TONE_CLASS[due.tone]}`}>{due.text}</p>}
       </button>
       {!task.done && (
         <RowAction label="Start a focus timer on this task" onClick={() => timer.start({ id: task.id, title: task.title })}>
@@ -187,10 +203,19 @@ function TodayPlan() {
   const pickedIds = new Set(picks.map((t) => t.id));
   const carried = (planned ?? []).filter((t) => t.planned_on !== today && !t.done && !pickedIds.has(t.id));
   const carriedIds = new Set(carried.map((t) => t.id));
-  const rest = (ranked ?? []).filter((t) => !pickedIds.has(t.id) && !carriedIds.has(t.id));
+  // A review set for later stays out of the way until its day comes.
+  const rest = (ranked ?? []).filter(
+    (t) =>
+      !pickedIds.has(t.id) &&
+      !carriedIds.has(t.id) &&
+      !(isReviewTask(t) && !!t.due_date && t.due_date > today),
+  );
   const openPicks = picks.filter((t) => !t.done).length;
   const canPick = !plannedError && openPicks < MAX_PICKS;
 
+  const suggested = plannedError ? rest.slice(0, 8) : balanceByTrack(rest);
+  const suggestedIds = new Set(suggested.map((t) => t.id));
+  const more = rest.filter((t) => !suggestedIds.has(t.id));
   const all = [...picks, ...carried, ...rest];
   const open = openId ? all.find((t) => t.id === openId) : undefined;
 
@@ -275,10 +300,28 @@ function TodayPlan() {
         <div>
           <SectionLabel>{plannedError ? "Focus now" : "Suggested"}</SectionLabel>
           <ul className="mt-2">
-            {rest.slice(0, plannedError ? 8 : 6).map((task) => (
+            {suggested.map((task) => (
               <TaskRow key={task.id} task={task} onOpen={() => setOpenId(task.id)} trailing={pickAction(task)} />
             ))}
           </ul>
+          {canPick && more.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowRest((v) => !v)}
+                className="mt-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {showRest ? "Show less" : `More from your tracks · ${more.length}`}
+              </button>
+              {showRest && (
+                <ul className="mt-2">
+                  {more.map((task) => (
+                    <TaskRow key={task.id} task={task} onOpen={() => setOpenId(task.id)} trailing={pickAction(task)} />
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
         </div>
       )}
 
@@ -335,14 +378,14 @@ function DayLinks() {
   const { data: progress } = useTrackProgress();
 
   const dueCards = cards ? cards.filter((c) => isDue(c)).length : 0;
-  const inbox = tracks?.find((t) => t.name === INBOX_NAME);
-  const inboxProgress = inbox ? progress?.get(inbox.id) : undefined;
-  const inboxOpen = inboxProgress ? inboxProgress.total - inboxProgress.done : 0;
+  const todo = findTodoTrack(tracks);
+  const todoProgress = todo ? progress?.get(todo.id) : undefined;
+  const todoOpen = todoProgress ? todoProgress.total - todoProgress.done : 0;
   const slipped = (ranked ?? []).filter(isSlipped).length;
 
   const links: { to: string; label: string }[] = [];
   if (dueCards > 0) links.push({ to: "/cards", label: `${dueCards} card${dueCards === 1 ? "" : "s"} to review` });
-  if (inbox && inboxOpen > 0) links.push({ to: `/tracks/${inbox.id}`, label: `${inboxOpen} in the Inbox` });
+  if (todo && todoOpen > 0) links.push({ to: `/tracks/${todo.id}`, label: `${todoOpen} on your ${TODO_NAME} list` });
   if (slipped > 0) links.push({ to: "/review", label: `${slipped} slipped` });
   if (links.length === 0) return null;
 

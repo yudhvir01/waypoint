@@ -127,6 +127,7 @@ export interface Backend {
   // The track's description doubles as where it's headed — the
   // destination at the top of its trail.
   updateTrackDescription(id: string, description: string | null): Promise<void>;
+  renameTrack(id: string, name: string): Promise<void>;
   // Permanently removes a track with its topics and tasks. Notes written on
   // its tasks are kept, as standalone notes, and logged focus time stays,
   // tied to nothing. There is no undo.

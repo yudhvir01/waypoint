@@ -16,6 +16,7 @@ import { GoogleCallback } from "./pages/GoogleCallback";
 import { ResetPassword } from "./pages/ResetPassword";
 import { Dashboard } from "./pages/Dashboard";
 import { TrackDetail } from "./pages/TrackDetail";
+import { TodoRedirect } from "./pages/TodoRedirect";
 import { Settings } from "./pages/Settings";
 import { Archived } from "./pages/Archived";
 import { Search } from "./pages/Search";
@@ -138,6 +139,7 @@ function App() {
                   <Route path="/tracks/:trackId" element={<TrackDetail />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/archived" element={<Archived />} />
+                  <Route path="/todo" element={<TodoRedirect />} />
                   <Route path="/search" element={<Search />} />
                   <Route path="/review" element={<Review />} />
                   <Route path="/cards" element={<Cards />} />
