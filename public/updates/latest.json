@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "builtAt": 1792337383534,
-  "version": "2.4.4",
+  "builtAt": 1792339598851,
+  "version": "2.4.5",
   "bundle": {
-    "url": "/updates/waypoint-1792337383534.zip",
-    "checksum": "73ebd381b19aaed6eb04b5fb0501782b32188d450b0f50209d403cee04d9960d"
+    "url": "/updates/waypoint-1792339598851.zip",
+    "checksum": "7c0bc0e171e3799a27f4873cf49c632316bf986a61d75a6ac08c91c111da453e"
   },
   "minNativeVersion": 2,
   "apk": {
@@ -13,5 +13,5 @@
     "url": "/downloads/waypoint.apk",
     "sha256": "fbcf11468fab816ab89ed9a48db0790cbd0b825da38d335576d2223901943f2f"
   },
-  "notes": "A welcome screen and tips that explain the app, clearer buttons, and every page in the menu. In notes: look up words with Define, Check writing for grammar, note suggestions after [[, and tighter spacing."
+  "notes": "Hold a task to drag it into order. Review later… brings a task back when you choose. Missed deadlines say how many days ago. Today shows at most two tasks per track. Add a task understands 'remind me … after 5 days' and files into your new To do list (formerly Inbox). Day lines show up in Search."
 }
