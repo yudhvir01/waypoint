@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "builtAt": 1792312088075,
-  "version": "2.4.3",
+  "builtAt": 1792337383534,
+  "version": "2.4.4",
   "bundle": {
-    "url": "/updates/waypoint-1792312088075.zip",
-    "checksum": "d97684eea9fd46f2de5e5c9d64b6b53f2b64ac34ad26377aa62f73a3e9fabb2b"
+    "url": "/updates/waypoint-1792337383534.zip",
+    "checksum": "73ebd381b19aaed6eb04b5fb0501782b32188d450b0f50209d403cee04d9960d"
   },
   "minNativeVersion": 2,
   "apk": {
@@ -13,5 +13,5 @@
     "url": "/downloads/waypoint.apk",
     "sha256": "fbcf11468fab816ab89ed9a48db0790cbd0b825da38d335576d2223901943f2f"
   },
-  "notes": "New Waypoint compass app icon and splash screen. Install the app update to get them."
+  "notes": "A welcome screen and tips that explain the app, clearer buttons, and every page in the menu. In notes: look up words with Define, Check writing for grammar, note suggestions after [[, and tighter spacing."
 }
