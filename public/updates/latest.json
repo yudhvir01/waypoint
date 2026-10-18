@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "builtAt": 1792339598851,
-  "version": "2.4.5",
+  "builtAt": 1792345822052,
+  "version": "2.4.6",
   "bundle": {
-    "url": "/updates/waypoint-1792339598851.zip",
-    "checksum": "7c0bc0e171e3799a27f4873cf49c632316bf986a61d75a6ac08c91c111da453e"
+    "url": "/updates/waypoint-1792345822052.zip",
+    "checksum": "18a21f2a9d2919a172254ff5c73b5751c4b91d08cd05d2a8e0b5c9d486f6a699"
   },
   "minNativeVersion": 2,
   "apk": {
@@ -13,5 +13,5 @@
     "url": "/downloads/waypoint.apk",
     "sha256": "fbcf11468fab816ab89ed9a48db0790cbd0b825da38d335576d2223901943f2f"
   },
-  "notes": "Hold a task to drag it into order. Review later… brings a task back when you choose. Missed deadlines say how many days ago. Today shows at most two tasks per track. Add a task understands 'remind me … after 5 days' and files into your new To do list (formerly Inbox). Day lines show up in Search."
+  "notes": "Everything you do shows at once: ticking, deleting, adding and typing no longer wait for the save, which happens in the background."
 }
