@@ -3,6 +3,16 @@ title: Your Day and the Trail
 ---
 # Your Day and the Trail
 
+## TL;DR
+
+- Morning: **Today** asks you to pick up to three tasks, starting with what you
+  left yesterday.
+- Evening: **Close the day** asks for one line about what moved. That line is a
+  **waypoint**.
+- Each track's **Trail** shows where it's headed, the topics ahead, **you are
+  here**, and every line you've written on it, back to the day you started.
+- On your own Supabase project, re-run `supabase/setup.sql` once to get these.
+
 Waypoint has a beginning and an end to each day. In the morning you pick a few
 things to do. In the evening you write one line about what moved. Over weeks,
 those lines become the trail on each of your tracks: where it's headed, where you

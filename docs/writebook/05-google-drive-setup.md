@@ -3,6 +3,15 @@ title: Setting Up Google Sign-In
 ---
 # Setting Up Google Sign-In
 
+## TL;DR
+
+- **For whoever deploys Waypoint**, not for people using it. On
+  waypoint.yudhvir.in this is already done; just tap **Sign in with Google**.
+- **Sign in with Google** stores everything as one file in a "Waypoint" folder
+  in the person's own Drive. Nothing else in their Drive is visible to the app.
+- Setup: a Google Cloud OAuth client, the small `google-token` Edge Function
+  that holds the client secret, and two build-time env vars.
+
 Signing in with Google saves your tracks as one file in a "Waypoint" folder in
 your own Google Drive. Like the Supabase option, this is one-time setup for
 whoever is deploying the app — anyone who signs in afterward just clicks

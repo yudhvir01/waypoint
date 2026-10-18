@@ -14,5 +14,14 @@ meantime.
 | `01-welcome.md` | Welcome |
 | `02-connecting-your-supabase-project.md` | Connecting Your Supabase Project |
 | `03-the-markdown-import-format.md` | The Markdown Import Format |
+| `04-search-review-and-repeating-tasks.md` | Search, Review & Repeating Tasks |
 | `05-google-drive-setup.md` | Setting Up Google Sign-In |
+| `06-flashcards.md` | Flashcards |
+| `07-quick-add.md` | Quick Add |
+| `08-linking-notes.md` | Linking Notes |
+| `09-focus-timer.md` | The Focus Timer |
+| `10-on-your-phone.md` | On Your Phone |
 | `11-your-day-and-the-trail.md` | Your Day and the Trail |
+
+Every chapter opens with a `## TL;DR` list, which the app shows as a box at the
+top, followed by the detail.

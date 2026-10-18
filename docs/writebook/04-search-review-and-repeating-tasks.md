@@ -3,6 +3,18 @@ title: Search, Review & Repeating Tasks
 ---
 # Search, Review & Repeating Tasks
 
+## TL;DR
+
+- **Ctrl/⌘ + K** searches tracks, topics, tasks and notes at once.
+- **Review** shows what slipped (with one-tap fixes), what's gone quiet and
+  what's coming up.
+- Tasks can repeat daily, on weekdays, weekly or monthly; ticking one off
+  creates the next.
+- Rate a topic **Shaky / Okay / Solid**; with spaced revisit on (Settings →
+  Learning), finished topics come back as review tasks.
+- **Export** a track as Markdown, or download and restore a full **.json**
+  backup from Settings.
+
 Once a few tracks are filled in, the questions change from "what do I write
 down?" to "where did I put that?" and "am I actually making progress?".
 

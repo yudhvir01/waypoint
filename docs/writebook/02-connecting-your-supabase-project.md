@@ -3,6 +3,17 @@ title: Connecting Your Supabase Project
 ---
 # Connecting Your Supabase Project
 
+## TL;DR
+
+- Create a free project at supabase.com.
+- Paste `supabase/setup.sql` into its **SQL Editor** and run it.
+- Copy the **Project ID** and the **anon / public** key (never the
+  `service_role` key).
+- In Waypoint, paste both into **Connect your Supabase project**, then create
+  your account.
+- On every other device, connect the same project and log in with the same
+  account.
+
 Waypoint's login screen offers three ways in: try it as a guest with no setup (your
 data stays only in that browser), sign in with Google (your data lives in a
 Waypoint folder in your own Drive), or connect your own

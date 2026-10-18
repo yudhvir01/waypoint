@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { marked } from "marked";
 import { stripFrontMatter } from "../lib/frontMatter";
+import { boxTldr } from "../lib/guideHtml";
 import { useBackend } from "../context/BackendProvider";
 import { GuideApp } from "./GuideApp";
 import { SiteFooter, SiteHeader } from "../components/SiteChrome";
@@ -32,7 +33,7 @@ const CHAPTERS = [
   { slug: "google-drive-setup", raw: googleDriveRaw },
 ].map(({ slug, raw }) => {
   const { title, body } = stripFrontMatter(raw);
-  const html = marked.parse(body, { async: false });
+  const html = boxTldr(marked.parse(body, { async: false }));
   // First paragraph, tags stripped, doubles as the index blurb.
   const first = /<p>([\s\S]*?)<\/p>/.exec(html)?.[1] ?? "";
   const summary = new DOMParser().parseFromString(first, "text/html").body.textContent?.trim() ?? "";

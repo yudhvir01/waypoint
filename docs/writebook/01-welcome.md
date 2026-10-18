@@ -3,6 +3,17 @@ title: Welcome
 ---
 # Welcome
 
+## TL;DR
+
+- Waypoint is a logbook for what you're learning and building: **tracks**
+  hold **topics**, topics hold **tasks**.
+- Each morning **Today** helps you pick up to three tasks; each evening you
+  write one line about what moved. Those lines become each track's trail.
+- Waypoint has no database of its own. Use it as a **guest** (this browser
+  only), with **your own Supabase project**, or with **Google Drive**.
+- Notes, flashcards, search, review, repeating tasks, a focus timer, quick add
+  and export sit around that core, each with its own chapter.
+
 Waypoint is a logbook for everything you're learning and building. Each morning
 you pick up to three things to do. Each evening you write one line about what
 moved. Those lines become the trail on every track: where it's headed, where

@@ -3,6 +3,15 @@ title: On Your Phone
 ---
 # On Your Phone
 
+## TL;DR
+
+- **Android:** install it from the website (recommended) or download the APK. **iPhone:** Safari → Share → Add to Home Screen.
+- The app's screens update by themselves in the background; it switches to the
+  new version when you next leave the app.
+- **Swipe right** from the left side to open the sidebar, **swipe left** to
+  close it. It works in the app and in this guide.
+- Something wrong? **Settings → About → Update details**.
+
 Waypoint works in any browser, installs like an app, and has an Android app.
 This chapter covers getting it onto a phone, how it keeps itself up to date,
 and the gestures.
@@ -64,13 +73,18 @@ version again. To check yourself, use **Settings → About → Check for
 updates**. Your data stays through an update: it's the same app with the same
 storage.
 
+**Installed from Google Play?** Then Google Play updates the app itself, like
+any other app, and Waypoint never downloads an install file. The screens and
+features still update quietly in the background as above.
+
 Before anything is installed the app checks the file against a fingerprint
 published with the update and that it's really Waypoint, and Android refuses it
 unless it was signed with the same key as the app you have.
 
 ## Gestures
 
-On a phone the sidebar is a drawer:
+On a phone the sidebar is a drawer, in the app and in this guide (where it
+lists the chapters):
 
 - **Swipe right** from the left side of the screen to open it. It follows your
   finger, and settles open or shut depending on how far you went or how fast you

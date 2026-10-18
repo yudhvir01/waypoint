@@ -3,6 +3,15 @@ title: Linking Notes
 ---
 # Linking Notes
 
+## TL;DR
+
+- Write `[[Name]]` in a note to link to a note, task, topic or track of that
+  name.
+- **Ctrl/Cmd + click** follows the link; a link to nothing yet creates the
+  note when you open it.
+- Under each note: **Links** (what it points at) and **Linked from** (notes
+  that point at it).
+
 Write a name in double square brackets and it becomes a link:
 
 ```

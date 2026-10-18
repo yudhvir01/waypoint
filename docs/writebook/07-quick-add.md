@@ -3,6 +3,15 @@ title: Quick Add
 ---
 # Quick Add
 
+## TL;DR
+
+- Press **C** anywhere (or **+ Quick add**) and type one line.
+- Dates (`friday`, `in 3 days`), repeats (`every week`), priority (`!high`) and
+  a track (`#uni`) are picked out of the text and shown as chips.
+- With no track, the task goes to the **Inbox**; move it later with **Move
+  to…** in its ⋮ menu.
+- Quick-added tasks never get spaced-revisit reviews.
+
 Capturing a thought shouldn't mean choosing a track, a topic, a date and a
 priority first. Press **C** anywhere in the app (when you're not typing in a
 field), or use **+ Quick add** at the top of the sidebar, and write one line.

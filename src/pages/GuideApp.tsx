@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { marked } from "marked";
 import { stripFrontMatter } from "../lib/frontMatter";
+import { boxTldr } from "../lib/guideHtml";
 import { useBackend } from "../context/BackendProvider";
+import { useDrawerSwipe } from "../hooks/useDrawerSwipe";
 
 import welcomeRaw from "../../docs/writebook/01-welcome.md?raw";
 import connectRaw from "../../docs/writebook/02-connecting-your-supabase-project.md?raw";
@@ -30,7 +32,7 @@ const CHAPTERS = [
   { slug: "google-drive-setup", raw: googleDriveRaw },
 ].map(({ slug, raw }) => {
   const { title, body } = stripFrontMatter(raw);
-  return { slug, title, html: marked.parse(body, { async: false }) };
+  return { slug, title, html: boxTldr(marked.parse(body, { async: false })) };
 });
 
 function MenuIcon() {
@@ -50,6 +52,10 @@ export function GuideApp() {
   // default on a phone, where it would otherwise squeeze the actual
   // chapter content into a sliver — see the drawer treatment below.
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
+  const drawerRef = useRef<HTMLElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  // Same finger swipe as the app's own sidebar; it only acts on a phone.
+  useDrawerSwipe({ open: sidebarOpen, setOpen: setSidebarOpen, drawer: drawerRef, overlay: overlayRef });
 
   const activeSlug = hash ? hash.slice(1) : CHAPTERS[0].slug;
   const chapter = CHAPTERS.find((c) => c.slug === activeSlug) ?? CHAPTERS[0];
@@ -65,14 +71,18 @@ export function GuideApp() {
           always-present 256px sidebar would leave almost nothing for the
           actual chapter text. At md+ it's the original inline column that
           the hamburger below just widens/collapses in place. */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-          aria-hidden="true"
-        />
-      )}
+      {/* Always rendered on phones so a swipe can fade it with the finger;
+          it only takes taps while the drawer is open. */}
+      <div
+        ref={overlayRef}
+        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 md:hidden ${
+          sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
+      />
       <aside
+        ref={drawerRef}
         className={`fixed inset-y-0 left-0 z-50 w-72 overflow-hidden border-r border-border bg-card transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:transition-[width] ${
           sidebarOpen ? "translate-x-0 md:w-64" : "-translate-x-full md:w-0 md:translate-x-0 md:border-r-0"
         }`}

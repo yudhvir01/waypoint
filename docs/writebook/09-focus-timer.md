@@ -3,6 +3,16 @@ title: The Focus Timer
 ---
 # The Focus Timer
 
+## TL;DR
+
+- Start a timer from a task (**Focus on this**, or the ▶ on Today) or with
+  **Start focus** in the sidebar.
+- 25-minute focus, then you choose whether to start a 5-minute break. Change
+  both in **Settings → Focus timer**.
+- The end of a block is announced with a sound, a notification and a pop-up;
+  in the Android app the notification arrives even with the app closed.
+- Time is logged against the task and shown on **Review**.
+
 A timer for working in blocks, tied to the task you're on.
 
 ## Starting one

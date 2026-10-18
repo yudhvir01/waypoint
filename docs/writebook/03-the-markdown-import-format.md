@@ -3,6 +3,17 @@ title: The Markdown Import Format
 ---
 # The Markdown Import Format
 
+## TL;DR
+
+- Write a whole track as Markdown and import it in one go: **+ Add track →
+  Import Markdown**.
+- `#` is the track, any heading with list items under it is a topic, and every
+  bullet is a task (`- [x]` means already done).
+- Tag tasks with `#priority:high`, `#due:2026-09-10` and `#repeat:weekly`.
+- Messy notes? **Copy AI prompt** in the import box, give it to any AI chat with
+  your notes, and paste back what it writes.
+- You always see a preview with warnings before anything is created.
+
 Instead of clicking through the UI to build out a whole track by hand, you can
 write it as a plain Markdown file and import it in one go — useful if you're
 bringing in an existing Obsidian note, or you just think better in a text editor.
@@ -123,8 +134,28 @@ Search)", and so on — the "Objective" heading is skipped (no list items
 directly under it), and the duplicate "Tech Stack" / "Features" names are
 disambiguated automatically.
 
+## Messy notes? Let an AI write it
+
+You don't have to write this format by hand. In the import box, tap **Copy AI
+prompt**, paste it into any AI chat (ChatGPT, Claude, Gemini…) along with your
+notes, a syllabus or just a goal, and paste back what it writes. The prompt
+explains everything Waypoint can use:
+
+- a one-sentence **destination** under the track name (it becomes "Headed to" on
+  the trail),
+- topics and tasks **in the order you'd do them**, each task small enough for one
+  sitting,
+- priorities, deadlines and **repeats** for habits like "practise daily",
+- and, if you tell it your dates, real `#due:` deadlines.
+
+Check the preview as usual before importing.
+
 ## Importing
 
 From the dashboard, choose **+ Add track → Import Markdown**, paste the file,
 and review the preview — it shows exactly what will be created, plus any
 warnings — before you confirm.
+
+Very long names are shortened to fit (a track name to 200 characters, a topic to
+500, a task to 1,000), with a warning on the preview, so nothing fails to
+import because a line ran on.

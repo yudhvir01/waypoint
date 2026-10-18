@@ -3,6 +3,15 @@ title: Flashcards
 ---
 # Flashcards
 
+## TL;DR
+
+- Write `question :: answer` on one line in any note and it becomes a card.
+- Open **Cards** to review; rate each **Again / Hard / Good / Easy** (keys
+  1–4).
+- Edit the answer and the card keeps its schedule; edit the question and it's a
+  new card; delete the line and the card goes.
+- Sessions are capped at 20 cards, so nothing piles up.
+
 Most flashcard apps make you stop and build cards, and that chore is what
 people give up on. Waypoint has no card editor. You write in a note, and the
 notes make the cards.
