@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "builtAt": 1792302153649,
-  "version": "2.3.1",
+  "builtAt": 1792305356841,
+  "version": "2.4.0",
   "bundle": {
-    "url": "/updates/waypoint-1792302153649.zip",
-    "checksum": "d830c6f7ad66128e9ae15946b6b2306ccabed77861ae5654f310c2f171d5163f"
+    "url": "/updates/waypoint-1792305356841.zip",
+    "checksum": "511a70a91c71ef850fa1fb38ac2fa024c8ba2c97ce7d12dc9257db8320e1c438"
   },
   "minNativeVersion": 2,
   "apk": {
@@ -13,5 +13,5 @@
     "url": "/downloads/waypoint.apk",
     "sha256": "3974affb3088b5dd368bdf3e80f2a2a1ef4969ec6ea224a0ba86443df2d2a635"
   },
-  "notes": "The AI import prompt now covers repeating tasks, the destination and topic order"
+  "notes": "Delete account, forgot password, length limits, correct day for suggestions, safer link previews"
 }
