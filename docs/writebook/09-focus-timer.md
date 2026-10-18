@@ -5,8 +5,8 @@ title: The Focus Timer
 
 ## TL;DR
 
-- Start a timer from a task (**Focus on this**, or the ▶ on Today) or with
-  **Start focus** in the sidebar.
+- Start a timer from a task (**Focus on this**, or **▶ Focus** on Today) or with
+  **Start a focus timer** in the sidebar.
 - 25-minute focus, then you choose whether to start a 5-minute break. Change
   both in **Settings → Focus timer**.
 - The end of a block is announced with a sound, a notification and a pop-up;
@@ -18,9 +18,9 @@ A timer for working in blocks, tied to the task you're on.
 ## Starting one
 
 - On **Today**, tap a task to open it, then tap **Focus on this**. Or press
-  the **▶** at the end of its row.
+  **▶ Focus** at the end of its row.
 - On a track's page, use **Start focus timer** in a task's ⋮ menu.
-- Or use **Start focus** in the sidebar for a block that isn't about any
+- Or use **Start a focus timer** in the sidebar for a block that isn't about any
   particular task.
 
 A small timer appears in the bottom-right corner of every page and keeps

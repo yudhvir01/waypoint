@@ -6,7 +6,7 @@ title: Flashcards
 ## TL;DR
 
 - Write `question :: answer` on one line in any note and it becomes a card.
-- Open **Cards** to review; rate each **Again / Hard / Good / Easy** (keys
+- Open **Flashcards** in the sidebar to review; rate each **Again / Hard / Good / Easy** (keys
   1–4).
 - Edit the answer and the card keeps its schedule; edit the question and it's a
   new card; delete the line and the card goes.
@@ -35,11 +35,11 @@ many cards it holds, and cards for a note are kept in step with it:
 - Bold, links and other formatting are ignored; only the text counts.
 
 Notes you wrote before cards existed are picked up the first time you open
-**Cards** with none yet: use **Find cards in my notes**.
+**Flashcards** with none yet: use **Find cards in my notes**.
 
 ## Reviewing
 
-Open **Cards** in the sidebar (the number is how many are due today). Show the
+Open **Flashcards** in the sidebar (the number is how many are due today). Show the
 answer, then say how it went:
 
 | Button | Key | What happens |

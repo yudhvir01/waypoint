@@ -6,7 +6,7 @@ title: The Markdown Import Format
 ## TL;DR
 
 - Write a whole track as Markdown and import it in one go: **+ Add track →
-  Import Markdown**.
+  Paste a plan**.
 - `#` is the track, any heading with list items under it is a topic, and every
   bullet is a task (`- [x]` means already done).
 - Tag tasks with `#priority:high`, `#due:2026-09-10` and `#repeat:weekly`.
@@ -163,7 +163,7 @@ fresh one each time rather than reusing an old copy.
 
 ## Importing
 
-From the dashboard, choose **+ Add track → Import Markdown**, paste the file,
+From the dashboard, choose **+ Add track → Paste a plan**, paste the file,
 and review the preview — it shows exactly what will be created, plus any
 warnings — before you confirm.
 

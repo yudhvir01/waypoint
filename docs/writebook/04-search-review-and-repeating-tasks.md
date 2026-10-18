@@ -10,7 +10,7 @@ title: Search, Review & Repeating Tasks
   what's coming up.
 - Tasks can repeat daily, on weekdays, weekly or monthly; ticking one off
   creates the next.
-- Rate a topic **Shaky / Okay / Solid**; with spaced revisit on (Settings →
+- Rate a topic **Shaky / Okay / Solid**; with **Remind me to revisit finished topics** on (Settings →
   Learning), finished topics come back as review tasks.
 - **Export** a track as Markdown, or download and restore a full **.json**
   backup from Settings.
@@ -76,7 +76,8 @@ your own call, not a quiz.
 
 ## Spaced revisit
 
-Off unless you turn it on, in **Settings → Learning**, because tasks the app
+Off unless you turn it on, as **Remind me to revisit finished topics** in
+**Settings → Learning**, because tasks the app
 adds by itself crowd out the ones you chose. When it's on, finishing every task
 in a topic adds review tasks to that track, due 3, 7 and
 21 days later by default, e.g. "Review: Pointers (day 7)". They live in a
@@ -92,7 +93,7 @@ done, not something to revisit.
 
 - **Move up / Move down** in a task's ⋮ menu changes its order within the topic.
 - **Export** on a track's page downloads it as Markdown, in exactly the format
-  **Import Markdown** reads, so it round-trips.
+  **Paste a plan** reads, so it round-trips.
 - **Settings → Your data → Download .json** saves everything (tracks, topics,
   tasks, notes, ratings, the lines on your trails) as one backup file. Images and audio embedded in
   notes aren't part of it.

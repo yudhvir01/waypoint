@@ -72,11 +72,25 @@ Around those three things, Waypoint is also a notebook and a place to look back:
   short daily sessions.
 - **Search** across everything, **Review** (what slipped, what's gone quiet,
   what's coming), **repeating tasks** and a **focus timer**.
-- **Quick add**: press **C**, write a line, and the date, repeat and priority are
+- **Add a task**: press **C** or tap **+ Add a task**, write a line, and the date, repeat and priority are
   picked out of it.
 - **Export and backup**, so nothing is stuck inside the app.
 
 Each of those has its own chapter in this guide.
+
+## Finding your way around
+
+The first time you open Waypoint, the welcome screen explains the idea in
+three steps and offers **Try a sample track**: a short track where each task
+is one thing to try (picking a task for today, starting a focus timer,
+writing the day's line, linking notes, making a flashcard). Archive it from
+its page when you're done.
+
+Every place in the app is in the menu: **Today**, **Search**, **Flashcards**,
+**Review your week**, **Start a focus timer**, your tracks and your notes.
+Buttons say what they do in words (**+ Today**, **▶ Focus**, **Not today**),
+and the first time you open Today, a track or a note, a short tip explains
+what you can do there. **Got it** hides it for good on that device.
 
 ## Get it on your phone
 

@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { BinIcon } from "../components/BinIcon";
 import { NoteEditor } from "../components/NoteEditor";
+import { Tip } from "../components/Tip";
 import { useBackend } from "../context/BackendProvider";
 import { useDeleteNote, useNote, useNoteAutosave, type SaveStatus } from "../hooks/useNotes";
 import { useQuery } from "@tanstack/react-query";
@@ -185,6 +186,24 @@ function NoteBody({ note }: { note: NoteWithContext }) {
         className="mt-6 block w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-3xl font-semibold tracking-[-0.02em] outline-none placeholder:text-muted-foreground/50"
       />
 
+      <Tip id="note" title="What you can do in a note" className="mt-5">
+        <ul>
+          <li>
+            <b>Select text</b> to make it bold, change its size or colour, highlight it, or tap <b>Define</b> to
+            look up a word.
+          </li>
+          <li>
+            Type <b>[[</b> to link to another note. You'll get a list of your notes to pick from.
+          </li>
+          <li>
+            <b>Check writing</b> finds spelling and grammar mistakes. <b>Image</b> and <b>Audio</b> attach files.
+          </li>
+          <li>
+            A line like <code>What is RAII? :: Resource Acquisition Is Initialization</code> becomes a flashcard.
+          </li>
+        </ul>
+      </Tip>
+
       <div className="mt-5">
         <NoteEditor
           initialContent={note.content}
@@ -219,12 +238,7 @@ function NoteBody({ note }: { note: NoteWithContext }) {
               Review cards
             </Link>
           </>
-        ) : (
-          <>
-            Tips: a line written as <code>question :: answer</code> becomes a flashcard, and{" "}
-            <code>[[Some title]]</code> links to a note, task, topic or track (Ctrl/Cmd+click to open).
-          </>
-        )}
+        ) : null}
       </p>
     </>
   );

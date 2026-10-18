@@ -60,8 +60,12 @@ export function QuickAddDialog({ onClose }: { onClose: () => void }) {
         className="w-full max-w-lg rounded-lg border border-border bg-card p-4 shadow-xl"
       >
         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground" htmlFor="quick-add">
-          Quick add
+          Add a task
         </label>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Write it in plain words. A day, “every weekday”, <code>!high</code> or <code>#track</code> in it are picked
+          out for you. Without a track it goes to the {INBOX_NAME}.
+        </p>
         <input
           id="quick-add"
           ref={input}

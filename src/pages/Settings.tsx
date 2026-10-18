@@ -156,10 +156,10 @@ function LearningSection() {
   return (
     <Section title="Learning">
       <Row
-        label="Spaced revisit"
-        description={`When you finish every task in a topic, add review tasks for it after ${REVIEW_OFFSETS_DAYS.join(
+        label="Remind me to revisit finished topics"
+        description={`When a topic is done, add tasks to go over it again after ${REVIEW_OFFSETS_DAYS.join(
           ", ",
-        )} days (sooner if you rated it shaky, later if solid), in a “Reviews” topic on that track. At most ${MAX_OPEN_REVIEWS_PER_TRACK} stay open per track. Also shows a Rate button on topics. Off by default; saved on this device only.`}
+        )} days, so it sticks. You can rate each topic shaky or solid to bring them sooner or later. At most ${MAX_OPEN_REVIEWS_PER_TRACK} per track. Saved on this device.`}
         control={
           <label className="flex cursor-pointer items-center gap-2 text-sm">
             <input

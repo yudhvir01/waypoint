@@ -13,12 +13,13 @@ import { FocusTimerPill } from "./FocusTimerPill";
 import { useDrawerSwipe } from "../hooks/useDrawerSwipe";
 import { useFocusTimer } from "../context/FocusTimerProvider";
 
-function NavLink({ to, children }: { to: string; children: ReactNode }) {
+function NavLink({ to, children, onNavigate }: { to: string; children: ReactNode; onNavigate?: () => void }) {
   const { pathname } = useLocation();
   const active = pathname === to;
   return (
     <Link
       to={to}
+      onClick={onNavigate}
       className={`rounded-md px-3 py-1.5 text-[15px] transition-colors ${
         active
           ? "bg-accent font-medium text-primary"
@@ -84,6 +85,7 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
   }, []);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const closeNav = () => setMobileNavOpen(false);
   const drawerRef = useRef<HTMLElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   useDrawerSwipe({ open: mobileNavOpen, setOpen: setMobileNavOpen, drawer: drawerRef, overlay: overlayRef });
@@ -180,25 +182,27 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
             }}
             className="mt-7 flex items-center justify-between rounded-md border border-border px-3 py-1.5 text-left text-[15px] text-foreground transition-colors hover:border-primary hover:bg-accent"
           >
-            <span>+ Quick add</span>
-            <kbd className="rounded border border-border px-1 font-mono text-[11px] text-muted-foreground">C</kbd>
+            <span>+ Add a task</span>
+            {/* The shortcut only means something with a keyboard. */}
+            <kbd className="hidden rounded border border-border px-1 font-mono text-[11px] text-muted-foreground md:inline">C</kbd>
           </button>
 
+          {/* Every place in the app is listed here, so nothing has to be
+              discovered by accident. */}
           <nav className="mt-5 flex flex-col gap-0.5">
-            {/* Cards, the Inbox and Review are reached from Today, which
-                says when one of them needs you, rather than living here. */}
-            <NavLink to="/">
+            <NavLink to="/" onNavigate={closeNav}>Today</NavLink>
+            <NavLink to="/search" onNavigate={closeNav}>Search</NavLink>
+            <NavLink to="/cards" onNavigate={closeNav}>
               <span className="flex items-center justify-between">
-                Today
+                Flashcards
                 {dueCards > 0 && (
-                  <span
-                    className="ml-2 h-1.5 w-1.5 rounded-full bg-primary"
-                    title={`${dueCards} card${dueCards === 1 ? "" : "s"} to review`}
-                  />
+                  <span className="ml-2 rounded-full bg-primary px-1.5 text-[11px] font-medium text-primary-foreground">
+                    {dueCards} due
+                  </span>
                 )}
               </span>
             </NavLink>
-            <NavLink to="/search">Search</NavLink>
+            <NavLink to="/review" onNavigate={closeNav}>Review your week</NavLink>
             {timer.state.phase === "idle" && (
               <button
                 type="button"
@@ -208,7 +212,7 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
                 }}
                 className="rounded-md px-3 py-1.5 text-left text-[15px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
-                Start focus
+                Start a focus timer
               </button>
             )}
           </nav>
@@ -223,6 +227,7 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
                 <Link
                   key={track.id}
                   to={`/tracks/${track.id}`}
+                  onClick={closeNav}
                   className="flex items-center justify-between rounded-md px-3 py-1.5 text-[15px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
                   <span className="truncate">{track.name}</span>
@@ -235,7 +240,9 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
               );
             })}
             {tracks?.length === 0 && (
-              <p className="px-3 text-sm text-muted-foreground">No tracks yet</p>
+              <p className="px-3 text-sm text-muted-foreground">
+                A track is one goal, like “Learn Rust”. Start one from Today.
+              </p>
             )}
           </div>
 
@@ -286,7 +293,9 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
               </div>
             ))}
             {standaloneNotes?.length === 0 && (
-              <p className="px-3 text-sm text-muted-foreground">No notes yet</p>
+              <p className="px-3 text-sm text-muted-foreground">
+                For anything worth keeping. Tap + to write one.
+              </p>
             )}
           </div>
 
@@ -294,16 +303,16 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
             to="/archived"
             className="mt-3 rounded-md px-3 py-1 text-xs text-muted-foreground/60 transition-colors hover:text-muted-foreground"
           >
-            Archived
+            Archived tracks
           </Link>
 
           <div className="mt-auto flex flex-col gap-0.5 pt-6">
-            <NavLink to="/settings">Settings</NavLink>
+            <NavLink to="/settings" onNavigate={closeNav}>Settings</NavLink>
             <Link
               to="/guide"
               className="rounded-md px-3 py-1.5 text-[15px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
-              Guide
+              Help &amp; guide
             </Link>
             <button
               type="button"

@@ -15,6 +15,9 @@ import { RECURRENCE_LABEL } from "../lib/recurrence";
 import { useFocusTimer } from "../context/FocusTimerProvider";
 import { TaskDetailSheet } from "../components/TaskDetailSheet";
 import { LIMITS } from "../lib/limits";
+import { Tip } from "../components/Tip";
+import { useImportTrack } from "../hooks/useImportTrack";
+import { parseImportMarkdown } from "../lib/markdownImport";
 
 function dueLabel(dueDate: string | null): { text: string; className: string } | null {
   if (!dueDate) return null;
@@ -69,7 +72,8 @@ function TaskRow({
         type="button"
         onClick={() => toggleTask.mutate(task)}
         aria-label={task.done ? "Mark not done" : "Mark done"}
-        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors ${
+        title={task.done ? "Mark not done" : "Mark done"}
+        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
           task.done ? "border-primary bg-primary text-primary-foreground" : "border-input hover:border-primary"
         }`}
       >
@@ -103,23 +107,22 @@ function TaskRow({
           )}
         </p>
         <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${PRIORITY_DOT[task.priority]}`} />
-          <span className="truncate">
+          {task.priority !== "none" && (
+            <span
+              className={`h-1.5 w-1.5 shrink-0 rounded-full ${PRIORITY_DOT[task.priority]}`}
+              title={`${task.priority[0].toUpperCase()}${task.priority.slice(1)} priority`}
+            />
+          )}
+          {due && <span className={`shrink-0 ${due.className}`}>{due.text} ·</span>}
+          <span className="min-w-0 truncate">
             {task.topic.track.name} &rarr; {task.topic.title}
           </span>
         </div>
       </button>
-      {due && <span className={`mt-0.5 shrink-0 text-xs ${due.className}`}>{due.text}</span>}
       {!task.done && (
-        <button
-          type="button"
-          onClick={() => timer.start({ id: task.id, title: task.title })}
-          aria-label="Start focus timer"
-          title="Start a focus timer on this task"
-          className="mt-0.5 shrink-0 rounded px-1 text-xs text-muted-foreground/60 transition-colors hover:text-primary"
-        >
-          ▶
-        </button>
+        <RowAction label="Start a focus timer on this task" onClick={() => timer.start({ id: task.id, title: task.title })}>
+          ▶ Focus
+        </RowAction>
       )}
       {trailing}
     </li>
@@ -133,7 +136,7 @@ function RowAction({ label, onClick, children }: { label: string; onClick: () =>
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="mt-0.5 shrink-0 rounded px-1 text-xs text-muted-foreground/60 transition-colors hover:text-primary"
+      className="shrink-0 whitespace-nowrap rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary"
     >
       {children}
     </button>
@@ -195,12 +198,29 @@ function TodayPlan() {
   const pickAction = (task: FocusTask) =>
     canPick ? (
       <RowAction label="Pick for today" onClick={() => pick(task)}>
-        <span className="text-base leading-none">+</span>
+        + Today
       </RowAction>
     ) : null;
 
   return (
     <div className="flex flex-col gap-9">
+      {all.length > 0 && (
+        <Tip id="today" title="How Today works">
+          <ul>
+            <li>
+              Tap <b>+ Today</b> on up to three tasks you'll do today. They move to the top.
+            </li>
+            <li>
+              Tap the <b>circle</b> when a task is finished, or <b>▶ Focus</b> to time yourself working on it.
+            </li>
+            <li>Tap a task's name for its details: deadline, priority, repeat and notes.</li>
+            <li>
+              In the evening, write one line under <b>Close the day</b> about what moved.
+            </li>
+          </ul>
+        </Tip>
+      )}
+
       {plannedError && (
         <p className="text-sm text-muted-foreground">
           Picking tasks for the day needs the latest <code>setup.sql</code> — re-run it in your Supabase project.
@@ -227,8 +247,8 @@ function TodayPlan() {
                     onOpen={() => setOpenId(task.id)}
                     trailing={
                       !task.done && (
-                        <RowAction label="Not today" onClick={() => plan.mutate({ taskIds: [task.id], day: null })}>
-                          ✕
+                        <RowAction label="Take off today's list" onClick={() => plan.mutate({ taskIds: [task.id], day: null })}>
+                          Not today
                         </RowAction>
                       )
                     }
@@ -306,8 +326,8 @@ function TodayPlan() {
   );
 }
 
-// The other things that want a moment of the day, as one quiet line
-// instead of pages of their own in the sidebar.
+// The other things that want a moment of the day, as one quiet line.
+// Each also has its own place in the sidebar; this says when it needs you.
 function DayLinks() {
   const { data: ranked } = useFocusNow();
   const { data: cards } = useCards();
@@ -389,6 +409,11 @@ function CloseTheDay() {
   return (
     <div>
       <SectionLabel>{written.length > 0 ? "Today's waypoint" : "Close the day"}</SectionLabel>
+      {written.length === 0 && (
+        <p className="mt-1 text-sm text-muted-foreground">
+          One line about what you did or learned. It's saved on the track's trail, so you can look back later.
+        </p>
+      )}
 
       {written.length > 0 && (
         <ul className="mt-3 flex flex-col gap-3">
@@ -546,14 +571,14 @@ function NewTrackMenu({ compact = false }: { compact?: boolean }) {
             onClick={() => setMode("manual")}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
           >
-            Create track
+            Start my own track
           </button>
           <button
             type="button"
             onClick={() => setMode("import")}
             className="rounded-md border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
           >
-            Import Markdown
+            Paste a plan (from AI or a file)
           </button>
         </div>
       );
@@ -576,7 +601,7 @@ function NewTrackMenu({ compact = false }: { compact?: boolean }) {
         onClick={() => setMode("manual")}
         className="rounded px-2.5 py-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
-        Create manually
+        Type a name
       </button>
       <span className="text-border">·</span>
       <button
@@ -584,8 +609,106 @@ function NewTrackMenu({ compact = false }: { compact?: boolean }) {
         onClick={() => setMode("import")}
         className="rounded px-2.5 py-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
-        Import Markdown
+        Paste a plan
       </button>
+    </div>
+  );
+}
+
+// A track that teaches the app by being used: each task is one thing to
+// try. Its one deadline is today, so it shows up on Today straight away.
+function sampleTrack(today: string): string {
+  return `# Getting started with Waypoint
+Know your way around, then start a track of your own.
+
+## Your first day
+- [ ] Tap + Today on this task to pick it for today #priority:high
+- [ ] Tap a task's name to see its details and notes
+- [ ] Start a timer on a task with ▶ Focus
+- [ ] Write one line under Close the day this evening #due:${today}
+
+## Make it yours
+- [ ] Start a track for something you're learning or building
+- [ ] Write a note and type [[ to link it to another note
+- [ ] In a note, write a line like "What is 2 + 2? :: 4" to make a flashcard
+- [ ] Archive this sample track from its page when you're done
+`;
+}
+
+const WELCOME_STEPS: { title: string; text: string }[] = [
+  {
+    title: "Make a track for each goal",
+    text: "Like “Learn Rust” or “Plan the wedding”. Split it into topics, and topics into small tasks.",
+  },
+  {
+    title: "Each morning, pick up to three tasks",
+    text: "Today suggests what's due or important. Pick what you'll actually finish.",
+  },
+  {
+    title: "Each evening, write one line",
+    text: "What moved today. Those lines become each track's trail, so you can see how far you've come.",
+  },
+];
+
+function Welcome() {
+  const importTrack = useImportTrack();
+  const [error, setError] = useState(false);
+
+  async function trySample() {
+    setError(false);
+    try {
+      await importTrack.mutateAsync(parseImportMarkdown(sampleTrack(todayKey())));
+    } catch {
+      setError(true);
+    }
+  }
+
+  return (
+    <div className="py-10">
+      <h1 className="text-2xl font-semibold tracking-[-0.02em]">Welcome to Waypoint</h1>
+      <p className="mt-2 text-[15px] text-muted-foreground">
+        A simple place to plan what you're learning or building, one day at a time. Here's the whole idea:
+      </p>
+
+      <ol className="mt-7 flex flex-col gap-5">
+        {WELCOME_STEPS.map((step, i) => (
+          <li key={step.title} className="flex gap-4">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+              {i + 1}
+            </span>
+            <div>
+              <p className="text-[15px] font-medium">{step.title}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">{step.text}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <div className="mt-9 rounded-lg border border-border bg-card p-5">
+        <p className="text-[15px] font-medium">Not sure where to start?</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Add a short sample track that shows you around. Each task is one thing to try, and you can archive
+          it when you're done.
+        </p>
+        <button
+          type="button"
+          onClick={() => void trySample()}
+          disabled={importTrack.isPending}
+          className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
+        >
+          {importTrack.isPending ? "Adding…" : "Try a sample track"}
+        </button>
+        {error && <p className="mt-2 text-xs text-destructive">Couldn't add it. Check your connection and try again.</p>}
+      </div>
+
+      <p className="mt-8 text-sm text-muted-foreground">Or start with your own goal:</p>
+      <div className="mt-3">
+        <NewTrackMenu compact />
+      </div>
+      <p className="mt-3 text-xs text-muted-foreground">
+        <b className="font-medium text-foreground">Paste a plan</b> gives you a prompt for ChatGPT, Claude or any AI:
+        it asks about your goal, then writes the whole track for you to paste back.
+      </p>
     </div>
   );
 }
@@ -603,15 +726,7 @@ export function Dashboard() {
   if (!tracksLoading && !tracksError && tracks?.length === 0) {
     return (
       <AppShell>
-        <div className="flex flex-col items-start py-16">
-          <h1 className="text-2xl font-semibold">Your workspace is empty</h1>
-          <p className="mt-2 text-[15px] text-muted-foreground">
-            Create your first track, or import one from Markdown.
-          </p>
-          <div className="mt-6">
-            <NewTrackMenu compact />
-          </div>
-        </div>
+        <Welcome />
       </AppShell>
     );
   }

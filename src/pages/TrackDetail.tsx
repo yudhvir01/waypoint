@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
+import { Tip } from "../components/Tip";
 import { TrackTrail } from "../components/TrackTrail";
 import { SchedulePopover } from "../components/SchedulePopover";
 import { ActionMenu } from "../components/ActionMenu";
@@ -824,6 +825,22 @@ export function TrackDetail() {
           </button>
         ))}
       </div>
+
+      <Tip id="track" title="Two ways to see a track" className="mt-4">
+        <ul>
+          <li>
+            <b>Trail</b> shows where the track is headed, where you are now, and the lines you wrote at the end of
+            each day.
+          </li>
+          <li>
+            <b>Tasks</b> lists every topic and its tasks. Tap a task's circle when it's done. Tap the small dot
+            before a topic to mark it started, then done. The pencil renames, and ⋮ has more.
+          </li>
+          <li>
+            <b>Archive</b> hides a finished track without deleting it. <b>Export</b> downloads it as a file.
+          </li>
+        </ul>
+      </Tip>
 
       {view === "trail" && (
         <div className="mt-8">

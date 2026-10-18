@@ -118,7 +118,7 @@ export function Review() {
 
   return (
     <AppShell wide>
-      <h1 className="text-2xl font-semibold tracking-[-0.02em]">Review</h1>
+      <h1 className="text-2xl font-semibold tracking-[-0.02em]">Review your week</h1>
       <p className="mt-1.5 text-[15px] text-muted-foreground">
         What slipped, what's gone quiet, and what's coming. Your trail on each track holds the rest.
       </p>

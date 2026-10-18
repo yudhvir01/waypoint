@@ -24,13 +24,13 @@ are, and how far you've come.
 to **pick up to three for today**:
 
 - **Left from yesterday** lists yesterday's picks you didn't finish, first, so
-  nothing quietly falls off. Tap **+** to carry one over.
+  nothing quietly falls off. Tap **+ Today** to carry one over.
 - **Suggested** is the ranked list that used to be called Focus Now: overdue
   first, then due soon, then priority, then the topic you're in the middle of.
-  Tap **+** to pick one.
+  Tap **+ Today** to pick one.
 
 Three is the limit on what's still open, not on the day: finish one and you can
-pick another. Tap a task to open it in place; **✕** puts a pick back with the
+pick another. Tap a task to open it in place; **Not today** puts a pick back with the
 rest. With three picked, everything else folds away under **Everything else**.
 
 Picks follow you between your phone and your computer.

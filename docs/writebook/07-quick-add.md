@@ -5,7 +5,7 @@ title: Quick Add
 
 ## TL;DR
 
-- Press **C** anywhere (or **+ Quick add**) and type one line.
+- Press **C** anywhere (or **+ Add a task**) and type one line.
 - Dates (`friday`, `in 3 days`), repeats (`every week`), priority (`!high`) and
   a track (`#uni`) are picked out of the text and shown as chips.
 - With no track, the task goes to the **Inbox**; move it later with **Move
@@ -14,7 +14,7 @@ title: Quick Add
 
 Capturing a thought shouldn't mean choosing a track, a topic, a date and a
 priority first. Press **C** anywhere in the app (when you're not typing in a
-field), or use **+ Quick add** at the top of the sidebar, and write one line.
+field), or use **+ Add a task** at the top of the sidebar, and write one line.
 
 ## What it understands
 

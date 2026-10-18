@@ -92,7 +92,7 @@ export function ImportMarkdownDialog({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-sm font-semibold">Import from Markdown</h2>
+          <h2 className="text-sm font-semibold">Paste a plan</h2>
           <button
             type="button"
             onClick={onClose}

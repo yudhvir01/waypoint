@@ -174,9 +174,9 @@ export function Cards() {
 
   return (
     <AppShell>
-      <h1 className="text-2xl font-semibold tracking-[-0.02em]">Cards</h1>
+      <h1 className="text-2xl font-semibold tracking-[-0.02em]">Flashcards</h1>
       <p className="mt-1.5 text-[15px] text-muted-foreground">
-        Flashcards made from your notes.
+        Made from <code>question :: answer</code> lines in your notes, and shown again just before you'd forget.
         {session && session.dueTotal > 0 && ` ${session.dueTotal} due today.`}
       </p>
 

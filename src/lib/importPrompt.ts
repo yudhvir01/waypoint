@@ -34,7 +34,7 @@ Ask once. If an answer is unclear or skipped, make a sensible choice rather than
 
 ## Step 2: write the track
 
-Write the whole track inside ONE code block marked \`markdown\`, so I can copy it. Before the block, at most one short sentence. After it, at most two short sentences: tell me to paste it into Waypoint under + Add track → Import Markdown, and give one tip that fits this plan. Several tracks means one code block each; tell me to import them one at a time.
+Write the whole track inside ONE code block marked \`markdown\`, so I can copy it. Before the block, at most one short sentence. After it, at most two short sentences: tell me to paste it into Waypoint under + Add track → Paste a plan (or Paste a plan on the welcome screen), and give one tip that fits this plan. Several tracks means one code block each; tell me to import them one at a time.
 
 Inside the block, use exactly this format:
 
