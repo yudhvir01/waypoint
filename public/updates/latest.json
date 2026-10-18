@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "builtAt": 1792310923115,
-  "version": "2.4.1",
+  "builtAt": 1792311732887,
+  "version": "2.4.2",
   "bundle": {
-    "url": "/updates/waypoint-1792310923115.zip",
-    "checksum": "04f0b6ba4e53f34186ee25da7d4eeb7c899bc131ecbbd04874a29cf8bce8732a"
+    "url": "/updates/waypoint-1792311732887.zip",
+    "checksum": "d2d9ad3f75001ed2af1765207ab5dfbb226a0e861a3c7c5035f617ded68be5c0"
   },
   "minNativeVersion": 2,
   "apk": {
@@ -13,5 +13,5 @@
     "url": "/downloads/waypoint.apk",
     "sha256": "3974affb3088b5dd368bdf3e80f2a2a1ef4969ec6ea224a0ba86443df2d2a635"
   },
-  "notes": "Swipe open the guide's chapter list, and every guide chapter now starts with a TL;DR."
+  "notes": "The AI import prompt now asks a few questions first, and you can paste its whole answer back."
 }
