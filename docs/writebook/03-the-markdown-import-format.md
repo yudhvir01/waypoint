@@ -10,8 +10,9 @@ title: The Markdown Import Format
 - `#` is the track, any heading with list items under it is a topic, and every
   bullet is a task (`- [x]` means already done).
 - Tag tasks with `#priority:high`, `#due:2026-09-10` and `#repeat:weekly`.
-- Messy notes? **Copy AI prompt** in the import box, give it to any AI chat with
-  your notes, and paste back what it writes.
+- No file yet? **Copy AI prompt** in the import box and paste it into any AI
+  chat. It asks a few questions (goal, deadline, time, habits), then writes a
+  track you paste straight back, chat and all.
 - You always see a preview with warnings before anything is created.
 
 Instead of clicking through the UI to build out a whole track by hand, you can
@@ -134,21 +135,31 @@ Search)", and so on — the "Objective" heading is skipped (no list items
 directly under it), and the duplicate "Tech Stack" / "Features" names are
 disambiguated automatically.
 
-## Messy notes? Let an AI write it
+## Let an AI write it
 
 You don't have to write this format by hand. In the import box, tap **Copy AI
-prompt**, paste it into any AI chat (ChatGPT, Claude, Gemini…) along with your
-notes, a syllabus or just a goal, and paste back what it writes. The prompt
-explains everything Waypoint can use:
+prompt** and paste it into ChatGPT, Claude, Gemini or any other AI chat, with
+your notes, a syllabus, or just the thing you want to learn.
 
-- a one-sentence **destination** under the track name (it becomes "Headed to" on
-  the trail),
-- topics and tasks **in the order you'd do them**, each task small enough for one
-  sitting,
-- priorities, deadlines and **repeats** for habits like "practise daily",
-- and, if you tell it your dates, real `#due:` deadlines.
+The AI first asks you a few short questions, each one feeding a part of
+Waypoint:
 
-Check the preview as usual before importing.
+| It asks | It becomes |
+| --- | --- |
+| What's the goal, and what does done look like? | the track name and its **Headed to** sentence |
+| What do you already know or have done? | tasks marked done, or left out |
+| Is there a deadline? Dates leading up to it? | `#due:` dates, paced to your time |
+| How much time do you have per day or week? | task size and spacing |
+| Anything you want to do regularly? | `#repeat:` tasks |
+| What matters most? | `#priority:` tags |
+
+Answer what you like, or say "skip". It then writes the track in a code block
+with a copy button. Copy it, or the whole reply, into the import box: Waypoint
+takes the track out of the code block and ignores the chat around it. Several
+goals come back as several blocks; import them one at a time.
+
+The prompt carries today's date, so deadlines come out as real dates. Copy a
+fresh one each time rather than reusing an old copy.
 
 ## Importing
 

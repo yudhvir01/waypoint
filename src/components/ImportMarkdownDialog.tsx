@@ -1,7 +1,8 @@
 import { useRef, useState, type DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { parseImportMarkdown, type ParsedImport } from "../lib/markdownImport";
-import { IMPORT_AI_PROMPT } from "../lib/importPrompt";
+import { buildImportPrompt } from "../lib/importPrompt";
+import { todayKey } from "../hooks/useToday";
 import { useImportTrack } from "../hooks/useImportTrack";
 
 const PREVIEW_TOPIC_LIMIT = 50;
@@ -48,7 +49,7 @@ export function ImportMarkdownDialog({ onClose }: { onClose: () => void }) {
 
   async function handleCopyPrompt() {
     try {
-      await navigator.clipboard.writeText(IMPORT_AI_PROMPT);
+      await navigator.clipboard.writeText(buildImportPrompt(todayKey()));
       setCopyError(false);
       setPromptCopied(true);
       setTimeout(() => setPromptCopied(false), 2000);
@@ -107,8 +108,9 @@ export function ImportMarkdownDialog({ onClose }: { onClose: () => void }) {
             <>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-                  Got messy notes instead of this format? Copy the prompt below
-                  and hand it to an AI along with your notes.
+                  No file in this format? Copy the AI prompt into ChatGPT, Claude or
+                  any AI, with your notes or just a goal. It asks a few questions,
+                  then writes a track to paste here.
                 </p>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <input

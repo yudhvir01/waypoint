@@ -92,6 +92,36 @@ interface TopicCandidate extends ParsedTopic {
   topLevelAncestor: string | null;
 }
 
+// An AI chat puts its answer in a code block (that's what gives it a Copy
+// button), often with a sentence or two around it. When a paste has a
+// block that opens with a "# Track" heading, that block is the track and
+// the chat around it is ignored. One track per import, so any further
+// blocks are left for the next paste.
+function unwrapTrackBlock(lines: string[], warnings: string[]): string[] {
+  const blocks: string[][] = [];
+  let current: string[] | null = null;
+  for (const line of lines) {
+    if (FENCE.test(line.trim())) {
+      if (current) {
+        blocks.push(current);
+        current = null;
+      } else {
+        current = [];
+      }
+      continue;
+    }
+    current?.push(line);
+  }
+  const tracks = blocks.filter((b) => /^#\s/.test(b.find((l) => l.trim())?.trim() ?? ""));
+  if (tracks.length === 0) return lines;
+  if (tracks.length > 1) {
+    warnings.push(
+      `This paste holds ${tracks.length} tracks; only the first is imported. Import the others one at a time.`,
+    );
+  }
+  return tracks[0];
+}
+
 export function parseImportMarkdown(input: string): ParsedImport {
   if (input.length > MAX_IMPORT_BYTES) {
     throw new Error(
@@ -99,8 +129,8 @@ export function parseImportMarkdown(input: string): ParsedImport {
     );
   }
 
-  const lines = input.replace(/\r\n/g, "\n").split("\n");
   const warnings: string[] = [];
+  const lines = unwrapTrackBlock(input.replace(/\r\n/g, "\n").split("\n"), warnings);
 
   let trackName: string | null = null;
   const descriptionLines: string[] = [];
