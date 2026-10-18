@@ -39,25 +39,27 @@ async function listAllTasks(backend: Backend, topicId: string): Promise<Task[]> 
 
 // Adds "Review: <task>" to the task's own topic, due on the chosen day.
 // If that review is already waiting, it's moved to the new day rather
-// than added twice.
-export async function scheduleTaskReview(backend: Backend, task: Task, dueDate: string): Promise<void> {
+// than added twice. id, when given, is the id a new review is saved under.
+export async function scheduleTaskReview(backend: Backend, task: Task, dueDate: string, id?: string): Promise<void> {
   const title = reviewTitle(task.title);
   const waiting = (await listAllTasks(backend, task.topic_id)).find((t) => !t.done && t.title === title);
   if (waiting) {
     await backend.updateTaskSchedule(waiting.id, { dueDate });
     return;
   }
-  await backend.createTask(task.topic_id, { title, priority: task.priority, dueDate });
+  await backend.createTask(task.topic_id, { id, title, priority: task.priority, dueDate });
 }
 
 // Ticking a repeating task leaves its next occurrence behind. This lives
 // above the Backend so all three storage options behave the same, and so
 // the dashboard and a track page can't drift apart.
-export async function toggleTaskWithFollowUps(backend: Backend, task: Task): Promise<void> {
+// nextId, when given, is the id the next occurrence is saved under.
+export async function toggleTaskWithFollowUps(backend: Backend, task: Task, nextId?: string): Promise<void> {
   // The follow-up goes in *before* the tick so the topic never looks
   // finished in between (which would advance its status and bounce back).
   if (!task.done && task.recurrence) {
     await backend.createTask(task.topic_id, {
+      id: nextId,
       title: task.title,
       priority: task.priority,
       dueDate: nextOccurrence(task.due_date, task.recurrence),

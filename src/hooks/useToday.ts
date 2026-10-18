@@ -1,7 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useBackend } from "../context/BackendProvider";
 import type { FocusTask } from "../lib/backend/types";
+import * as cache from "../lib/cache";
 import { toDateKey } from "../lib/recurrence";
+import { useWrite } from "./useWrite";
 
 // A day is opened by picking at most this many tasks. Few enough that
 // finishing them is likely, which is the point.
@@ -33,14 +35,21 @@ export function usePlannedTasks() {
 }
 
 export function usePlanTasks() {
-  const { backend } = useBackend();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ taskIds, day }: { taskIds: string[]; day: string | null }) => backend!.planTasks(taskIds, day),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["planned"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+  return useWrite({
+    run: (backend, { taskIds, day }: { taskIds: string[]; day: string | null }) => backend.planTasks(taskIds, day),
+    show: (qc, { taskIds, day }) => {
+      const ids = new Set(taskIds);
+      cache.patchTasks(qc, ids, { planned_on: day });
+      qc.setQueriesData<FocusTask[]>({ queryKey: ["planned"] }, (old) => {
+        if (!old) return old;
+        const kept = old.filter((t) => !ids.has(t.id));
+        if (!day) return kept;
+        // Picked tasks come from Today, which knows where each one lives.
+        const today = qc.getQueryData<FocusTask[]>(["focusNow"]) ?? [];
+        const picked = today.filter((t) => ids.has(t.id)).map((t) => ({ ...t, planned_on: day }));
+        return [...kept, ...picked];
+      });
     },
+    refresh: ["planned", "tasks", "focusNow"],
   });
 }

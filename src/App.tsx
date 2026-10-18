@@ -9,6 +9,8 @@ import { ThemeProvider } from "./context/ThemeProvider";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { NativeAppLifecycle } from "./components/NativeAppLifecycle";
 import { AppUpdater } from "./components/AppUpdater";
+import { SaveNotice } from "./components/SaveNotice";
+import { writesPending } from "./hooks/useWrite";
 import { RequireAuth, RedirectIfAuthed, NotFoundRedirect, HomeRoute } from "./components/RouteGuards";
 import { Login } from "./pages/Login";
 import { Landing } from "./pages/Landing";
@@ -42,13 +44,16 @@ const TermsOfService = lazy(() =>
   import("./pages/TermsOfService").then((m) => ({ default: m.TermsOfService })),
 );
 
-const queryClient = new QueryClient({
+const queryClient: QueryClient = new QueryClient({
   defaultOptions: {
     queries: {
       // Every navigation re-rendering AppShell refetched the sidebar and
       // its progress counts. Holding results briefly collapses that into
       // one request per minute rather than one per route change.
-      staleTime: 60_000,
+      // While changes are still on their way to the backend, a refetch
+      // would bring back the old data over them, so nothing counts as
+      // stale until they're saved (and refetched on purpose).
+      staleTime: (): number => (writesPending(queryClient) ? Infinity : 60_000),
       gcTime: 5 * 60_000,
       refetchOnWindowFocus: false,
       // A wrong anon key or a missing table is not worth three retries —
@@ -73,6 +78,7 @@ function App() {
             <BrowserRouter>
               <NativeAppLifecycle />
               <AppUpdater />
+              <SaveNotice />
               <div
                 className="fixed z-50"
                 style={{

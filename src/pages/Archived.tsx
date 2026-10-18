@@ -7,22 +7,18 @@ import type { Track } from "../lib/database.types";
 function ConfirmDelete({
   track,
   taskCount,
-  pending,
-  error,
   onCancel,
   onConfirm,
 }: {
   track: Track;
   taskCount: number | undefined;
-  pending: boolean;
-  error: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4"
-      onClick={pending ? undefined : onCancel}
+      onClick={onCancel}
     >
       <div
         role="alertdialog"
@@ -45,13 +41,11 @@ function ConfirmDelete({
           Notes you wrote on its tasks are kept as standalone notes, and the focus time you logged stays in
           your totals.
         </p>
-        {error && <p className="mt-3 text-sm text-destructive">Couldn't delete it. Try again.</p>}
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
             autoFocus
             onClick={onCancel}
-            disabled={pending}
             className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60"
           >
             Cancel
@@ -59,10 +53,9 @@ function ConfirmDelete({
           <button
             type="button"
             onClick={onConfirm}
-            disabled={pending}
             className="rounded-md bg-destructive px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
           >
-            {pending ? "Deleting…" : "Delete permanently"}
+            Delete permanently
           </button>
         </div>
       </div>
@@ -100,17 +93,13 @@ export function Archived() {
               <button
                 type="button"
                 onClick={() => updateStatus.mutate({ id: track.id, status: "active" })}
-                disabled={updateStatus.isPending}
                 className="rounded-md border border-border px-2.5 py-1 text-xs font-medium transition-colors hover:border-primary disabled:opacity-60"
               >
                 Unarchive
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  deleteTrack.reset();
-                  setToDelete(track);
-                }}
+                onClick={() => setToDelete(track)}
                 className="rounded-md px-2.5 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
               >
                 Delete…
@@ -124,10 +113,11 @@ export function Archived() {
         <ConfirmDelete
           track={toDelete}
           taskCount={progress?.get(toDelete.id)?.total}
-          pending={deleteTrack.isPending}
-          error={deleteTrack.isError}
           onCancel={() => setToDelete(null)}
-          onConfirm={() => deleteTrack.mutate(toDelete.id, { onSuccess: () => setToDelete(null) })}
+          onConfirm={() => {
+            deleteTrack.mutate(toDelete.id);
+            setToDelete(null);
+          }}
         />
       )}
     </AppShell>

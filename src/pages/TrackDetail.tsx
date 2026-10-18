@@ -161,13 +161,11 @@ interface TaskFormValues {
 function TaskForm({
   initial,
   submitLabel,
-  pending,
   onSubmit,
   onCancel,
 }: {
   initial?: TaskFormValues;
   submitLabel: string;
-  pending: boolean;
   onSubmit: (values: TaskFormValues) => void;
   onCancel: () => void;
 }) {
@@ -235,7 +233,7 @@ function TaskForm({
         </button>
         <button
           type="submit"
-          disabled={pending || !title.trim()}
+          disabled={!title.trim()}
           className="shrink-0 rounded-md bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
         >
           {submitLabel}
@@ -260,9 +258,9 @@ function TaskForm({
   );
 }
 
-function NewTaskForm({ topicId }: { topicId: string }) {
+function NewTaskForm({ topic }: { topic: Topic }) {
   const [open, setOpen] = useState(false);
-  const createTask = useCreateTask(topicId);
+  const createTask = useCreateTask(topic);
 
   if (!open) {
     return (
@@ -280,10 +278,9 @@ function NewTaskForm({ topicId }: { topicId: string }) {
     <div className="ml-6 mt-1">
       <TaskForm
         submitLabel="+"
-        pending={createTask.isPending}
         onCancel={() => setOpen(false)}
-        onSubmit={async (values) => {
-          await createTask.mutateAsync(values);
+        onSubmit={(values) => {
+          createTask.mutate(values);
           setOpen(false);
         }}
       />
@@ -293,19 +290,17 @@ function NewTaskForm({ topicId }: { topicId: string }) {
 
 function TaskRow({
   task,
-  topicId,
   onMoveUp,
   onMoveDown,
 }: {
   task: Task;
-  topicId: string;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
 }) {
-  const toggleTask = useToggleTask(topicId);
-  const updateSchedule = useUpdateTaskSchedule(topicId);
-  const updateTask = useUpdateTask(topicId);
-  const deleteTask = useDeleteTask(topicId);
+  const toggleTask = useToggleTask();
+  const updateSchedule = useUpdateTaskSchedule();
+  const updateTask = useUpdateTask();
+  const deleteTask = useDeleteTask();
   const [popover, setPopover] = useState(false);
   const [editing, setEditing] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -328,7 +323,6 @@ function TaskRow({
       <li className="ml-6 py-1">
         <TaskForm
           submitLabel="Save"
-          pending={updateTask.isPending}
           initial={{
             title: task.title,
             priority: task.priority,
@@ -336,8 +330,8 @@ function TaskRow({
             recurrence: task.recurrence ?? null,
           }}
           onCancel={() => setEditing(false)}
-          onSubmit={async (values) => {
-            await updateTask.mutateAsync({ taskId: task.id, ...values });
+          onSubmit={(values) => {
+            updateTask.mutate({ taskId: task.id, ...values });
             setEditing(false);
           }}
         />
@@ -449,14 +443,12 @@ function TaskRow({
 
 function TopicItem({
   topic,
-  trackId,
   progress,
   expanded,
   onToggle,
   flat = false,
 }: {
   topic: Topic;
-  trackId: string;
   progress: TrackProgress | undefined;
   expanded: boolean;
   onToggle: () => void;
@@ -473,9 +465,9 @@ function TopicItem({
     hasNextPage,
     isFetchingNextPage,
   } = useTasks(topic.id, expanded);
-  const updateStatus = useUpdateTopicStatus(trackId);
-  const updateTitle = useUpdateTopicTitle(trackId);
-  const deleteTopic = useDeleteTopic(trackId);
+  const updateStatus = useUpdateTopicStatus();
+  const updateTitle = useUpdateTopicTitle();
+  const deleteTopic = useDeleteTopic();
   const reorderTasks = useReorderTasks(topic.id);
   const [editing, setEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState(topic.title);
@@ -515,10 +507,10 @@ function TopicItem({
     reorderTasks.mutate(next);
   }
 
-  async function saveTitle(e: FormEvent) {
+  function saveTitle(e: FormEvent) {
     e.preventDefault();
     if (!titleDraft.trim()) return;
-    await updateTitle.mutateAsync({ id: topic.id, title: titleDraft.trim() });
+    updateTitle.mutate({ id: topic.id, title: titleDraft.trim() });
     setEditing(false);
   }
 
@@ -547,7 +539,7 @@ function TopicItem({
             />
             <button
               type="submit"
-              disabled={updateTitle.isPending || !titleDraft.trim()}
+              disabled={!titleDraft.trim()}
               className="shrink-0 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
             >
               Save
@@ -621,7 +613,6 @@ function TopicItem({
                 <TaskRow
                   key={task.id}
                   task={task}
-                  topicId={topic.id}
                   onMoveUp={i > 0 ? () => move(i, i - 1) : undefined}
                   onMoveDown={i < tasks.length - 1 ? () => move(i, i + 1) : undefined}
                 />
@@ -642,7 +633,7 @@ function TopicItem({
         </button>
       )}
 
-      {expanded && <NewTaskForm topicId={topic.id} />}
+      {expanded && <NewTaskForm topic={topic} />}
     </div>
   );
 }
@@ -652,10 +643,10 @@ function NewTopicForm({ trackId }: { trackId: string }) {
   const [title, setTitle] = useState("");
   const createTopic = useCreateTopic(trackId);
 
-  async function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    await createTopic.mutateAsync(title.trim());
+    createTopic.mutate({ title: title.trim() });
     setTitle("");
     setOpen(false);
   }
@@ -685,7 +676,6 @@ function NewTopicForm({ trackId }: { trackId: string }) {
       />
       <button
         type="submit"
-        disabled={createTopic.isPending}
         className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
       >
         Add
@@ -789,9 +779,9 @@ export function TrackDetail() {
     }
   }
 
-  async function handleArchive() {
+  function handleArchive() {
     if (!trackId) return;
-    await updateTrackStatus.mutateAsync({ id: trackId, status: "archived" });
+    updateTrackStatus.mutate({ id: trackId, status: "archived" });
     navigate("/", { replace: true });
   }
 
@@ -844,7 +834,6 @@ export function TrackDetail() {
             <TopicItem
               key={topic.id}
               topic={topic}
-              trackId={track.id}
               progress={topicProgress?.get(topic.id)}
               expanded
               onToggle={() => {}}
@@ -987,7 +976,6 @@ export function TrackDetail() {
           <TopicItem
             key={topic.id}
             topic={topic}
-            trackId={track.id}
             progress={topicProgress?.get(topic.id)}
             expanded={expandedSet.has(topic.id)}
             onToggle={() => toggleTopic(topic.id)}

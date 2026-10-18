@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { NoteEditor } from "./NoteEditor";
 import { useBackend } from "../context/BackendProvider";
 import { useFocusTimer } from "../context/FocusTimerProvider";
 import { useNoteAutosave } from "../hooks/useNotes";
+import { afterWrites } from "../hooks/useWrite";
 import { useUpdateTask } from "../hooks/useTasks";
 import type { Recurrence, Task, TaskPriority } from "../lib/database.types";
 import { RECURRENCES, RECURRENCE_LABEL } from "../lib/recurrence";
@@ -24,12 +25,14 @@ export interface TaskPlace {
 // here, so writing something about a task never means leaving the list.
 function TaskNote({ taskId }: { taskId: string }) {
   const { backend } = useBackend();
+  const qc = useQueryClient();
   const { data: note, isLoading, isError } = useQuery({
     queryKey: ["taskNote", taskId],
     enabled: !!backend,
     staleTime: 0,
     gcTime: 0,
-    queryFn: () => backend!.getOrCreateTaskNote(taskId),
+    // A task added a moment ago may not be saved yet.
+    queryFn: () => afterWrites(qc).then(() => backend!.getOrCreateTaskNote(taskId)),
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading notes…</p>;
@@ -44,9 +47,11 @@ function NoteBody({ noteId, content }: { noteId: string; content: string }) {
       <div className="min-h-[9rem] rounded-md border border-border px-3 py-2">
         <NoteEditor initialContent={content} onChange={(html) => queue({ content: html })} />
       </div>
-      <p className="mt-1.5 text-xs text-muted-foreground" role="status">
-        {status === "saved" ? "Saved" : status === "saving" ? "Saving…" : "Couldn't save — check your connection"}
-      </p>
+      {status !== "saved" && (
+        <p className="mt-1.5 text-xs text-muted-foreground" role="status">
+          {status === "offline" ? "Offline — saves when you're back online" : "Couldn't save — check your connection"}
+        </p>
+      )}
     </div>
   );
 }
@@ -67,7 +72,7 @@ export function TaskDetailSheet({
   const [reviewing, setReviewing] = useState(false);
   const deadline = deadlineLabel(task.due_date, task.done);
   const timer = useFocusTimer();
-  const updateTask = useUpdateTask(task.topic_id);
+  const updateTask = useUpdateTask();
   const panel = useRef<HTMLDivElement>(null);
   const titleBox = useRef<HTMLTextAreaElement>(null);
   const [title, setTitle] = useState(task.title);

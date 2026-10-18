@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { ImportMarkdownDialog } from "../components/ImportMarkdownDialog";
 import { useCreateTrack, useTracks } from "../hooks/useTracks";
-import { useFocusNow, useToggleFocusTask, type FocusTask } from "../hooks/useFocusNow";
+import { useFocusNow, type FocusTask } from "../hooks/useFocusNow";
+import { useToggleTask } from "../hooks/useTasks";
 import { MAX_PICKS, todayKey, usePlannedTasks, usePlanTasks, yesterdayKey } from "../hooks/useToday";
 import { useAddWaypoint, useDeleteWaypoint, useWaypoints } from "../hooks/useWaypoints";
 import { useCards } from "../hooks/useCards";
@@ -64,7 +65,7 @@ function TaskRow({
   // nothing.
   trailing?: ReactNode;
 }) {
-  const toggleTask = useToggleFocusTask();
+  const toggleTask = useToggleTask();
   const timer = useFocusTimer();
   const due = deadlineLabel(task.due_date, task.done);
   const focusing = timer.state.phase === "focus" && timer.state.taskId === task.id;
@@ -171,7 +172,7 @@ function TodayPlan() {
   const { data: planned, isError: plannedError } = usePlannedTasks();
   const { data: ranked, isLoading, isError, refetch } = useFocusNow();
   const plan = usePlanTasks();
-  const toggleTask = useToggleFocusTask();
+  const toggleTask = useToggleTask();
   const [openId, setOpenId] = useState<string | null>(null);
   const [showRest, setShowRest] = useState(false);
 
@@ -438,11 +439,11 @@ function CloseTheDay() {
     );
   }
 
-  async function save(e: FormEvent) {
+  function save(e: FormEvent) {
     e.preventDefault();
     const line = text.trim();
     if (!line) return;
-    await addWaypoint.mutateAsync({ trackId, day: today, text: line });
+    addWaypoint.mutate({ trackId, day: today, text: line });
     setText("");
     setWritingAnother(false);
   }
@@ -529,7 +530,7 @@ function CloseTheDay() {
               )}
               <button
                 type="submit"
-                disabled={!text.trim() || addWaypoint.isPending}
+                disabled={!text.trim()}
                 className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
               >
                 Save the day
@@ -569,10 +570,10 @@ function NewTrackMenu({ compact = false }: { compact?: boolean }) {
   const [name, setName] = useState("");
   const createTrack = useCreateTrack();
 
-  async function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    await createTrack.mutateAsync({ name: name.trim() });
+    createTrack.mutate({ name: name.trim() });
     setName("");
     setMode(null);
     setOpen(false);
@@ -596,7 +597,6 @@ function NewTrackMenu({ compact = false }: { compact?: boolean }) {
         />
         <button
           type="submit"
-          disabled={createTrack.isPending}
           className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
         >
           Add

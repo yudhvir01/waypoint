@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { useQuickAdd, type QuickAddResult } from "../hooks/useQuickAdd";
+import { useQuickAdd } from "../hooks/useQuickAdd";
 import { TODO_NAME } from "../lib/inbox";
 import { parseQuickAdd } from "../lib/quickAdd";
 import { fromDateKey, RECURRENCE_LABEL } from "../lib/recurrence";
@@ -33,7 +33,7 @@ function Chip({ children, tone = "plain" }: { children: React.ReactNode; tone?: 
 // things can be captured in a row; Escape closes it.
 export function QuickAddDialog({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState("");
-  const [last, setLast] = useState<QuickAddResult | null>(null);
+  const [last, setLast] = useState<{ title: string; trackName: string } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const quickAdd = useQuickAdd();
 
@@ -43,16 +43,13 @@ export function QuickAddDialog({ onClose }: { onClose: () => void }) {
     input.current?.focus();
   }, []);
 
-  async function submit(e: FormEvent) {
+  function submit(e: FormEvent) {
     e.preventDefault();
-    if (!text.trim() || quickAdd.isPending) return;
-    try {
-      setLast(await quickAdd.mutateAsync(text));
-      setText("");
-      input.current?.focus();
-    } catch {
-      // The error is shown from quickAdd.isError below; the text stays.
-    }
+    if (!text.trim()) return;
+    quickAdd.mutate({ text, id: crypto.randomUUID() });
+    setLast({ title: parsed.title, trackName: TODO_NAME });
+    setText("");
+    input.current?.focus();
   }
 
   return (
@@ -128,7 +125,7 @@ export function QuickAddDialog({ onClose }: { onClose: () => void }) {
             </button>
             <button
               type="submit"
-              disabled={!text.trim() || quickAdd.isPending}
+              disabled={!text.trim()}
               className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
             >
               Add

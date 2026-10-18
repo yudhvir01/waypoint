@@ -70,7 +70,8 @@ function SlippedActions({ taskIds }: { taskIds: string[] }) {
   const [confirm, setConfirm] = useState<"today" | "clear" | null>(null);
 
   function run(dueDate: string | null) {
-    reschedule.mutate({ taskIds, dueDate }, { onSettled: () => setConfirm(null) });
+    reschedule.mutate({ taskIds, dueDate });
+    setConfirm(null);
   }
 
   const btn =
@@ -86,7 +87,6 @@ function SlippedActions({ taskIds }: { taskIds: string[] }) {
         <span>{text}</span>
         <button
           type="button"
-          disabled={reschedule.isPending}
           onClick={() => run(confirm === "today" ? toDateKey(new Date()) : null)}
           className="rounded-md bg-primary px-2.5 py-1 font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
         >

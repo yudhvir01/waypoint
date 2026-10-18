@@ -160,6 +160,7 @@ function SelectionMenu({ editor }: { editor: Editor }) {
   // The menu was placed for its toolbar alone; once a definition makes it
   // taller, place it again so it doesn't cover the selected text.
   useEffect(() => {
+    if (editor.isDestroyed) return;
     editor.view.dispatch(editor.state.tr.setMeta(selectionMenuKey, "updatePosition"));
   }, [editor, lookup]);
 
@@ -491,13 +492,17 @@ export function NoteEditor({
     onUpdate: ({ editor: e }) => onChange(e.isEmpty ? "" : e.getHTML()),
   });
 
+  // A note opened while its page was still loading can be shown after a
+  // moment hidden, and useEditor replaces the editor then. These effects
+  // run once more against the old, destroyed one before the new one
+  // arrives, so they skip it.
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || editor.isDestroyed) return;
     editor.commands.setWikiLinkHandler(onOpenLink ?? null);
   }, [editor, onOpenLink]);
 
   useEffect(() => {
-    if (!editor || !focusStartRef) return;
+    if (!editor || editor.isDestroyed || !focusStartRef) return;
     focusStartRef.current = () => editor.commands.focus("start");
     return () => {
       focusStartRef.current = null;

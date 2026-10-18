@@ -278,12 +278,12 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
               </p>
               <button
                 type="button"
-                onClick={async () => {
-                  const note = await createNote.mutateAsync();
+                onClick={() => {
+                  const input = { id: crypto.randomUUID() };
+                  createNote.mutate(input);
                   setMobileNavOpen(false);
-                  navigate(`/notes/${note.id}`);
+                  navigate(`/notes/${input.id}`);
                 }}
-                disabled={createNote.isPending}
                 aria-label="New note"
                 title="New note"
                 className="rounded p-0.5 text-lg leading-none text-muted-foreground transition-colors hover:text-primary disabled:opacity-60"
@@ -305,8 +305,8 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
                 </Link>
                 <button
                   type="button"
-                  onClick={async () => {
-                    await deleteNote.mutateAsync(note.id);
+                  onClick={() => {
+                    deleteNote.mutate(note.id);
                     if (pathname === `/notes/${note.id}`) navigate("/", { replace: true });
                   }}
                   aria-label={`Delete note ${note.title || "Untitled"}`}

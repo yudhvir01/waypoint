@@ -62,6 +62,13 @@ use it:
   there, not on anyone else's server, and follow you to any device you sign into.
 - **Google** — saves into a "Waypoint" folder in your own Drive. Only that folder is ever touched, never the rest of your Drive.
 
+Whichever you pick, nothing waits on it. Ticking a task, deleting something,
+adding a note or typing in one shows at once, and the save happens behind the
+scenes, in the order you did things. You only hear about it when something's
+wrong: if a save fails, a message says so and the change is undone; if you're
+offline, changes wait and save once you're back. Closing the browser tab
+while changes are still saving asks you first.
+
 ## More than a task list
 
 Around those three things, Waypoint is also a notebook and a place to look back:

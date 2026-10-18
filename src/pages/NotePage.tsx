@@ -5,16 +5,19 @@ import { BinIcon } from "../components/BinIcon";
 import { NoteEditor } from "../components/NoteEditor";
 import { Tip } from "../components/Tip";
 import { useBackend } from "../context/BackendProvider";
-import { useDeleteNote, useNote, useNoteAutosave, type SaveStatus } from "../hooks/useNotes";
-import { useQuery } from "@tanstack/react-query";
+import { useCreateNote, useDeleteNote, useNote, useNoteAutosave, type SaveStatus } from "../hooks/useNotes";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { NoteWithContext } from "../lib/backend/types";
 import { extractCards } from "../lib/cards";
 import { useLinkIndex } from "../hooks/useLinkIndex";
+import { afterWrites } from "../hooks/useWrite";
 import { findBacklinks, linkTitles, resolveLink } from "../lib/links";
 
+// Nothing is said while all is well: edits are kept the moment they're
+// typed and saved behind the scenes.
 const STATUS_LABEL: Record<SaveStatus, string> = {
-  saved: "Saved",
-  saving: "Saving…",
+  saved: "",
+  offline: "Offline — saves when you're back online",
   error: "Couldn't save — check your connection",
 };
 
@@ -22,24 +25,18 @@ const KIND_LABEL = { note: "Note", task: "Task", topic: "Topic", track: "Track" 
 
 // What this note points at, what points at it, and a way to follow either.
 function NoteLinks({ noteId, title, html }: { noteId: string; title: string; html: string }) {
-  const { backend } = useBackend();
   const navigate = useNavigate();
   const { data: index } = useLinkIndex();
-  const [creating, setCreating] = useState<string | null>(null);
+  const createNote = useCreateNote();
 
   const outgoing = linkTitles(html);
   const backlinks = index ? findBacklinks(noteId, title, index.notes) : [];
   if (outgoing.length === 0 && backlinks.length === 0) return null;
 
-  async function createAndOpen(linkTitle: string) {
-    if (!backend) return;
-    setCreating(linkTitle);
-    try {
-      const created = await backend.createNote({ title: linkTitle });
-      navigate(`/notes/${created.id}`);
-    } finally {
-      setCreating(null);
-    }
+  function createAndOpen(linkTitle: string) {
+    const input = { id: crypto.randomUUID(), title: linkTitle };
+    createNote.mutate(input);
+    navigate(`/notes/${input.id}`);
   }
 
   return (
@@ -64,11 +61,11 @@ function NoteLinks({ noteId, title, html }: { noteId: string; title: string; htm
                       <span className="min-w-0 truncate text-muted-foreground">{linkTitle}</span>
                       <button
                         type="button"
-                        disabled={!index || creating === linkTitle}
-                        onClick={() => void createAndOpen(linkTitle)}
+                        disabled={!index}
+                        onClick={() => createAndOpen(linkTitle)}
                         className="shrink-0 text-xs text-primary hover:underline disabled:opacity-60"
                       >
-                        {creating === linkTitle ? "Creating…" : "Create note"}
+                        Create note
                       </button>
                     </>
                   )}
@@ -102,12 +99,12 @@ function NoteLinks({ noteId, title, html }: { noteId: string; title: string; htm
 function NoteBody({ note }: { note: NoteWithContext }) {
   const navigate = useNavigate();
   const deleteNote = useDeleteNote();
-  const { queue, flush, status } = useNoteAutosave(note.id);
+  const { queue, flush, discard, status } = useNoteAutosave(note.id);
   const [title, setTitle] = useState(note.title);
   const [cardCount, setCardCount] = useState(() => extractCards(note.content).length);
   const [html, setHtml] = useState(note.content);
   const { data: linkIndex } = useLinkIndex();
-  const { backend } = useBackend();
+  const createNote = useCreateNote();
   const focusBody = useRef<(() => void) | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   // A long title wraps onto more lines instead of running off the edge:
@@ -121,7 +118,8 @@ function NoteBody({ note }: { note: NoteWithContext }) {
   const isBlank = !note.title && !note.content;
 
   async function handleDelete() {
-    await deleteNote.mutateAsync(note.id);
+    discard();
+    deleteNote.mutate(note.id);
     navigate(note.context ? `/tracks/${note.context.trackId}` : "/", { replace: true });
   }
 
@@ -145,7 +143,7 @@ function NoteBody({ note }: { note: NoteWithContext }) {
             role="status"
           >
             {status === "error" ? (
-              <button type="button" onClick={() => void flush()} className="underline">
+              <button type="button" onClick={flush} className="underline">
                 {STATUS_LABEL.error} — retry
               </button>
             ) : (
@@ -155,7 +153,6 @@ function NoteBody({ note }: { note: NoteWithContext }) {
           <button
             type="button"
             onClick={handleDelete}
-            disabled={deleteNote.isPending}
             aria-label="Delete note"
             title="Delete note"
             className="rounded p-1 text-muted-foreground transition-colors hover:text-destructive disabled:opacity-60"
@@ -212,16 +209,16 @@ function NoteBody({ note }: { note: NoteWithContext }) {
             setCardCount(extractCards(next).length);
             setHtml(next);
           }}
-          onOpenLink={async (linkTitle) => {
+          onOpenLink={(linkTitle) => {
             const target = linkIndex ? resolveLink(linkTitle, linkIndex) : null;
+            flush();
             if (target) {
-              await flush();
               navigate(target.path);
-            } else if (backend) {
+            } else {
               // A link to nothing yet becomes a note of that name.
-              await flush();
-              const created = await backend.createNote({ title: linkTitle });
-              navigate(`/notes/${created.id}`);
+              const input = { id: crypto.randomUUID(), title: linkTitle };
+              createNote.mutate(input);
+              navigate(`/notes/${input.id}`);
             }
           }}
           focusStartRef={focusBody}
@@ -266,12 +263,14 @@ export function NotePage() {
 export function TaskNoteRedirect() {
   const { taskId } = useParams<{ taskId: string }>();
   const { backend } = useBackend();
+  const qc = useQueryClient();
   const { data, isLoading, isError } = useQuery({
     queryKey: ["taskNote", taskId],
     enabled: !!backend && !!taskId,
     staleTime: 0,
     gcTime: 0,
-    queryFn: () => backend!.getOrCreateTaskNote(taskId!),
+    // A task added a moment ago may not be saved yet.
+    queryFn: () => afterWrites(qc).then(() => backend!.getOrCreateTaskNote(taskId!)),
   });
 
   if (data) return <Navigate to={`/notes/${data.id}`} replace />;

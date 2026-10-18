@@ -12,7 +12,7 @@ function daysUntil(dueDate: string, today: Date): number {
   return Math.round((due.getTime() - today.getTime()) / 86_400_000);
 }
 
-function focusTier(task: Task, today: Date): number {
+export function focusTier(task: Pick<Task, "due_date" | "priority">, today: Date): number {
   if (task.due_date) {
     const delta = daysUntil(task.due_date, today);
     if (delta < 0) return 0;

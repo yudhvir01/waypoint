@@ -63,7 +63,6 @@ export function MoveTaskDialog({ task, onClose }: { task: Task; onClose: () => v
         {!isLoading && topics.length === 0 && (
           <p className="mt-2 text-xs text-muted-foreground">That track has no topics yet.</p>
         )}
-        {move.isError && <p className="mt-2 text-xs text-destructive">Couldn't move it. Try again.</p>}
 
         <div className="mt-5 flex justify-end gap-2">
           <button
@@ -75,11 +74,14 @@ export function MoveTaskDialog({ task, onClose }: { task: Task; onClose: () => v
           </button>
           <button
             type="button"
-            disabled={!chosenId || unchanged || move.isPending}
-            onClick={() => move.mutate({ taskId: task.id, topicId: chosenId }, { onSuccess: onClose })}
+            disabled={!chosenId || unchanged}
+            onClick={() => {
+              move.mutate({ taskId: task.id, topicId: chosenId, trackId });
+              onClose();
+            }}
             className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
           >
-            {move.isPending ? "Moving…" : "Move"}
+            Move
           </button>
         </div>
       </div>

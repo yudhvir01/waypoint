@@ -78,6 +78,9 @@ export class DriveBackend implements Backend {
   // same headRevisionId and race to save — the second one always waits
   // for the first to finish and update it first.
   private writeChain: Promise<void> = Promise.resolve();
+  // A save that's waiting its turn and hasn't read `data` yet. Any change
+  // made meanwhile rides along with it instead of costing another upload.
+  private nextSave: Promise<void> | null = null;
   // Downloading an attachment needs an authenticated request every time
   // (Drive never hands back a URL that works without one) — cached so a
   // note re-rendering doesn't re-download and re-leak an object URL on
@@ -119,11 +122,13 @@ export class DriveBackend implements Backend {
     return this.loadPromise;
   }
 
-  // Every mutating method ends by calling this. Queued behind
-  // `writeChain` rather than called directly, so overlapping calls save
-  // one at a time instead of racing.
+  // Every mutating method ends by calling this. Saves run one at a time
+  // behind `writeChain` rather than racing, and changes made while a save
+  // is waiting share it, so ten quick ticks are one upload, not ten.
   private persist(): Promise<void> {
-    this.writeChain = this.writeChain.then(async () => {
+    if (this.nextSave) return this.nextSave;
+    const save = this.writeChain.then(async () => {
+      this.nextSave = null;
       const content = JSON.stringify(this.data);
       if (!this.fileId) {
         const created = await createDataFile(this.session, this.folderId!, content);
@@ -134,7 +139,10 @@ export class DriveBackend implements Backend {
         this.headRevisionId = saved.headRevisionId;
       }
     });
-    return this.writeChain;
+    this.nextSave = save;
+    // One failed save mustn't stop every later one from running.
+    this.writeChain = save.catch(() => {});
+    return save;
   }
 
   async listTracks(status: TrackStatus): Promise<Track[]> {
@@ -149,10 +157,10 @@ export class DriveBackend implements Backend {
     return this.data.tracks.find((t) => t.id === id) ?? null;
   }
 
-  async createTrack(input: { name: string; description?: string | null }): Promise<Track> {
+  async createTrack(input: { id?: string; name: string; description?: string | null }): Promise<Track> {
     await this.ensureLoaded();
     const track: Track = {
-      id: newId(),
+      id: input.id ?? newId(),
       user_id: this.session.email,
       name: input.name,
       description: input.description ?? null,
@@ -209,11 +217,11 @@ export class DriveBackend implements Backend {
     return all.slice(page * pageSize, page * pageSize + pageSize);
   }
 
-  async createTopic(trackId: string, title: string): Promise<Topic> {
+  async createTopic(trackId: string, title: string, id?: string): Promise<Topic> {
     await this.ensureLoaded();
     const existing = this.data.topics.filter((t) => t.track_id === trackId);
     const topic: Topic = {
-      id: newId(),
+      id: id ?? newId(),
       track_id: trackId,
       user_id: this.session.email,
       title,
@@ -273,7 +281,7 @@ export class DriveBackend implements Backend {
     if (!topic) throw new Error("That topic no longer exists.");
     const existing = this.data.tasks.filter((t) => t.topic_id === topicId);
     const task: Task = {
-      id: newId(),
+      id: input.id ?? newId(),
       topic_id: topicId,
       track_id: topic.track_id,
       title: input.title,
@@ -419,9 +427,9 @@ export class DriveBackend implements Backend {
     return { ...note, context: buildNoteContext(note, task, topic, track) };
   }
 
-  async createNote(input: { title?: string; content?: string } = {}): Promise<Note> {
+  async createNote(input: { id?: string; title?: string; content?: string } = {}): Promise<Note> {
     await this.ensureLoaded();
-    const note = newNote(newId(), this.session.email, nowIso(), input);
+    const note = newNote(input.id ?? newId(), this.session.email, nowIso(), input);
     this.data.notes.push(note);
     await this.persist();
     return note;
@@ -467,10 +475,10 @@ export class DriveBackend implements Backend {
     return [...this.data.waypoints].sort(newestDayFirst);
   }
 
-  async addWaypoint(input: { trackId: string | null; day: string; text: string }): Promise<Waypoint> {
+  async addWaypoint(input: { id?: string; trackId: string | null; day: string; text: string }): Promise<Waypoint> {
     await this.ensureLoaded();
     const waypoint: Waypoint = {
-      id: newId(),
+      id: input.id ?? newId(),
       user_id: this.session.email,
       track_id: input.trackId,
       day: input.day,

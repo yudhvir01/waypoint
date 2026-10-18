@@ -47,10 +47,10 @@ export class GuestBackend implements Backend {
     return (await db.get("tracks", id)) ?? null;
   }
 
-  async createTrack(input: { name: string; description?: string | null }): Promise<Track> {
+  async createTrack(input: { id?: string; name: string; description?: string | null }): Promise<Track> {
     const db = await getGuestDB();
     const track: Track = {
-      id: newGuestId(),
+      id: input.id ?? newGuestId(),
       user_id: GUEST_USER_ID,
       name: input.name,
       description: input.description ?? null,
@@ -119,11 +119,11 @@ export class GuestBackend implements Backend {
     return rows.slice(page * pageSize, page * pageSize + pageSize);
   }
 
-  async createTopic(trackId: string, title: string): Promise<Topic> {
+  async createTopic(trackId: string, title: string, id?: string): Promise<Topic> {
     const db = await getGuestDB();
     const existing = await db.getAllFromIndex("topics", "trackId", trackId);
     const topic: Topic = {
-      id: newGuestId(),
+      id: id ?? newGuestId(),
       track_id: trackId,
       user_id: GUEST_USER_ID,
       title,
@@ -184,7 +184,7 @@ export class GuestBackend implements Backend {
     if (!topic) throw new Error("That topic no longer exists.");
     const existing = await db.getAllFromIndex("tasks", "topicId", topicId);
     const task: Task = {
-      id: newGuestId(),
+      id: input.id ?? newGuestId(),
       topic_id: topicId,
       track_id: topic.track_id,
       title: input.title,
@@ -344,9 +344,9 @@ export class GuestBackend implements Backend {
     return { ...note, context: buildNoteContext(note, task, topic, track) };
   }
 
-  async createNote(input: { title?: string; content?: string } = {}): Promise<Note> {
+  async createNote(input: { id?: string; title?: string; content?: string } = {}): Promise<Note> {
     const db = await getGuestDB();
-    const note = newNote(newGuestId(), GUEST_USER_ID, nowIso(), input);
+    const note = newNote(input.id ?? newGuestId(), GUEST_USER_ID, nowIso(), input);
     await db.put("notes", note);
     return note;
   }
@@ -379,10 +379,10 @@ export class GuestBackend implements Backend {
     return (await db.getAll("waypoints")).sort(newestDayFirst);
   }
 
-  async addWaypoint(input: { trackId: string | null; day: string; text: string }): Promise<Waypoint> {
+  async addWaypoint(input: { id?: string; trackId: string | null; day: string; text: string }): Promise<Waypoint> {
     const db = await getGuestDB();
     const waypoint: Waypoint = {
-      id: newGuestId(),
+      id: input.id ?? newGuestId(),
       user_id: GUEST_USER_ID,
       track_id: input.trackId,
       day: input.day,

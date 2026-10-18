@@ -1,6 +1,9 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useBackend } from "../context/BackendProvider";
+import type { FocusTask } from "../lib/backend/types";
 import type { Topic, TopicStatus } from "../lib/database.types";
+import * as cache from "../lib/cache";
+import { useWrite } from "./useWrite";
 
 // An imported roadmap can be hundreds of topics long, and PostgREST stops
 // at 1000 rows, so the track page pages through them.
@@ -20,14 +23,22 @@ export function useTopics(trackId: string | undefined) {
 }
 
 export function useCreateTopic(trackId: string) {
-  const { backend } = useBackend();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (title: string) => backend!.createTopic(trackId, title),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["topics", trackId] });
+  return useWrite({
+    run: (backend, input: { id?: string; title: string }) => backend.createTopic(trackId, input.title, input.id),
+    show: (qc, input) => {
+      input.id ??= crypto.randomUUID();
+      cache.addTopic(qc, {
+        id: input.id,
+        track_id: trackId,
+        user_id: "",
+        title: input.title,
+        status: "not_started",
+        confidence: null,
+        sort_order: 0,
+        created_at: new Date().toISOString(),
+      });
     },
+    refresh: ["topics", "topicProgress"],
   });
 }
 
@@ -41,43 +52,31 @@ export function nextTopicStatus(status: TopicStatus): TopicStatus {
   return STATUS_CYCLE[status];
 }
 
-export function useUpdateTopicStatus(trackId: string) {
-  const { backend } = useBackend();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: TopicStatus }) =>
-      backend!.updateTopicStatus(id, status),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["topics", trackId] });
-    },
+export function useUpdateTopicStatus() {
+  return useWrite({
+    run: (backend, { id, status }: { id: string; status: TopicStatus }) => backend.updateTopicStatus(id, status),
+    show: (qc, { id, status }) => cache.patchTopic(qc, id, { status }),
+    refresh: ["topics", "focusNow"],
   });
 }
 
-export function useUpdateTopicTitle(trackId: string) {
-  const { backend } = useBackend();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, title }: { id: string; title: string }) => backend!.updateTopicTitle(id, title),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["topics", trackId] });
+export function useUpdateTopicTitle() {
+  return useWrite({
+    run: (backend, { id, title }: { id: string; title: string }) => backend.updateTopicTitle(id, title),
+    show: (qc, { id, title }) => {
+      cache.patchTopic(qc, id, { title });
+      qc.setQueriesData<FocusTask[]>({ queryKey: ["focusNow"] }, (old) =>
+        old?.map((t) => (t.topic.id === id ? { ...t, topic: { ...t.topic, title } } : t)),
+      );
     },
+    refresh: ["topics", "focusNow", "planned"],
   });
 }
 
-export function useDeleteTopic(trackId: string) {
-  const { backend } = useBackend();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => backend!.deleteTopic(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["topics", trackId] });
-      queryClient.invalidateQueries({ queryKey: ["focusNow"] });
-      queryClient.invalidateQueries({ queryKey: ["planned"] });
-      queryClient.invalidateQueries({ queryKey: ["trackProgress"] });
-      queryClient.invalidateQueries({ queryKey: ["topicProgress", trackId] });
-    },
+export function useDeleteTopic() {
+  return useWrite({
+    run: (backend, id: string) => backend.deleteTopic(id),
+    show: (qc, id) => cache.removeTopic(qc, id),
+    refresh: ["topics", "tasks", "focusNow", "planned", "trackProgress", "topicProgress", "snapshot", "notes"],
   });
 }

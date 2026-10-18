@@ -65,9 +65,9 @@ function Destination({ track }: { track: Track }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(track.description ?? "");
 
-  async function save(e: FormEvent) {
+  function save(e: FormEvent) {
     e.preventDefault();
-    await update.mutateAsync({ id: track.id, description: draft.trim() || null });
+    update.mutate({ id: track.id, description: draft.trim() || null });
     setEditing(false);
   }
 
@@ -87,7 +87,6 @@ function Destination({ track }: { track: Track }) {
         <div className="mt-2 flex gap-3">
           <button
             type="submit"
-            disabled={update.isPending}
             className="rounded-md bg-primary px-3 py-1 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
           >
             Save
@@ -136,11 +135,11 @@ function TodayLineForm({ trackId }: { trackId: string }) {
   const addWaypoint = useAddWaypoint();
   const [text, setText] = useState("");
 
-  async function save(e: FormEvent) {
+  function save(e: FormEvent) {
     e.preventDefault();
     const line = text.trim();
     if (!line) return;
-    await addWaypoint.mutateAsync({ trackId, day: todayKey(), text: line });
+    addWaypoint.mutate({ trackId, day: todayKey(), text: line });
     setText("");
   }
 
@@ -155,7 +154,7 @@ function TodayLineForm({ trackId }: { trackId: string }) {
       />
       <button
         type="submit"
-        disabled={!text.trim() || addWaypoint.isPending}
+        disabled={!text.trim()}
         className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:opacity-50"
       >
         Add

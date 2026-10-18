@@ -99,10 +99,10 @@ export class SupabaseBackend implements Backend {
     return (data as Track) ?? null;
   }
 
-  async createTrack(input: { name: string; description?: string | null }): Promise<Track> {
+  async createTrack(input: { id?: string; name: string; description?: string | null }): Promise<Track> {
     const { data, error } = await this.client
       .from("tracks")
-      .insert({ user_id: this.userId, name: input.name, description: input.description || null })
+      .insert({ ...(input.id ? { id: input.id } : {}), user_id: this.userId, name: input.name, description: input.description || null })
       .select()
       .single();
     if (error) throw error;
@@ -144,12 +144,12 @@ export class SupabaseBackend implements Backend {
     return (data ?? []) as Topic[];
   }
 
-  async createTopic(trackId: string, title: string): Promise<Topic> {
+  async createTopic(trackId: string, title: string, id?: string): Promise<Topic> {
     const { data, error } = await this.client
       .from("topics")
       // sort_order is assigned by the database (append to the end of the
       // track), so it stays correct no matter which page is cached.
-      .insert({ track_id: trackId, title })
+      .insert({ ...(id ? { id } : {}), track_id: trackId, title })
       .select()
       .single();
     if (error) throw error;
@@ -193,6 +193,7 @@ export class SupabaseBackend implements Backend {
     const { data, error } = await this.client
       .from("tasks")
       .insert({
+        ...(input.id ? { id: input.id } : {}),
         topic_id: topicId,
         title: input.title,
         priority: input.priority ?? "none",
@@ -510,10 +511,10 @@ export class SupabaseBackend implements Backend {
     };
   }
 
-  async createNote(input: { title?: string; content?: string } = {}): Promise<Note> {
+  async createNote(input: { id?: string; title?: string; content?: string } = {}): Promise<Note> {
     const { data, error } = await this.client
       .from("notes")
-      .insert({ user_id: this.userId, title: input.title ?? "", content: input.content ?? "" })
+      .insert({ ...(input.id ? { id: input.id } : {}), user_id: this.userId, title: input.title ?? "", content: input.content ?? "" })
       .select()
       .single();
     if (error) throw error;
@@ -580,10 +581,10 @@ export class SupabaseBackend implements Backend {
     return (data ?? []) as Waypoint[];
   }
 
-  async addWaypoint(input: { trackId: string | null; day: string; text: string }): Promise<Waypoint> {
+  async addWaypoint(input: { id?: string; trackId: string | null; day: string; text: string }): Promise<Waypoint> {
     const { data, error } = await this.client
       .from("waypoints")
-      .insert({ user_id: this.userId, track_id: input.trackId, day: input.day, text: input.text })
+      .insert({ ...(input.id ? { id: input.id } : {}), user_id: this.userId, track_id: input.trackId, day: input.day, text: input.text })
       .select()
       .single();
     if (error) throw error;

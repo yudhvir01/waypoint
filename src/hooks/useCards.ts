@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBackend } from "../context/BackendProvider";
 import type { CardSchedule } from "../lib/backend/types";
 import { extractCards } from "../lib/cards";
+import { useWrite } from "./useWrite";
 
 export function useCards() {
   const { backend } = useBackend();
@@ -17,12 +18,12 @@ export function useCards() {
   });
 }
 
+// The review screen moves to the next card on its own, so nothing is
+// refetched after: that would reshuffle the cards still to go.
 export function useReviewCard() {
-  const { backend } = useBackend();
-
-  return useMutation({
-    mutationFn: ({ id, schedule }: { id: string; schedule: CardSchedule }) =>
-      backend!.reviewCard(id, schedule),
+  return useWrite({
+    run: (backend, { id, schedule }: { id: string; schedule: CardSchedule }) => backend.reviewCard(id, schedule),
+    refresh: [],
   });
 }
 

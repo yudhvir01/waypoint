@@ -35,6 +35,9 @@ export interface ImportedNote {
 }
 
 export interface CreateTaskInput {
+  // Made on the device when given, so the task can be shown (and linked
+  // to) before the save comes back. Left out, the backend picks one.
+  id?: string;
   title: string;
   priority?: TaskPriority;
   dueDate?: string | null;
@@ -122,7 +125,7 @@ export interface Backend {
   // Tracks
   listTracks(status: TrackStatus): Promise<Track[]>;
   getTrack(id: string): Promise<Track | null>;
-  createTrack(input: { name: string; description?: string | null }): Promise<Track>;
+  createTrack(input: { id?: string; name: string; description?: string | null }): Promise<Track>;
   updateTrackStatus(id: string, status: TrackStatus): Promise<void>;
   // The track's description doubles as where it's headed — the
   // destination at the top of its trail.
@@ -135,7 +138,7 @@ export interface Backend {
 
   // Topics — paginated, page is 0-based.
   listTopics(trackId: string, page: number, pageSize: number): Promise<Topic[]>;
-  createTopic(trackId: string, title: string): Promise<Topic>;
+  createTopic(trackId: string, title: string, id?: string): Promise<Topic>;
   updateTopicStatus(id: string, status: TopicStatus): Promise<void>;
   updateTopicTitle(id: string, title: string): Promise<void>;
   updateTopicConfidence(id: string, confidence: Confidence | null): Promise<void>;
@@ -164,7 +167,7 @@ export interface Backend {
   // Notes
   listNotes(): Promise<Note[]>;
   getNote(id: string): Promise<NoteWithContext | null>;
-  createNote(input?: { title?: string; content?: string }): Promise<Note>;
+  createNote(input?: { id?: string; title?: string; content?: string }): Promise<Note>;
   updateNote(id: string, patch: { title?: string; content?: string }): Promise<void>;
   deleteNote(id: string): Promise<void>;
   // The note attached to a task, created (titled with the task) the first
@@ -181,7 +184,7 @@ export interface Backend {
 
   // Daily lines, newest day first.
   listWaypoints(): Promise<Waypoint[]>;
-  addWaypoint(input: { trackId: string | null; day: string; text: string }): Promise<Waypoint>;
+  addWaypoint(input: { id?: string; trackId: string | null; day: string; text: string }): Promise<Waypoint>;
   deleteWaypoint(id: string): Promise<void>;
 
   // Focus time logged by the timer.
