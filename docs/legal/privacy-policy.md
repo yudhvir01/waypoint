@@ -137,16 +137,20 @@ listed above and what's needed to run the app.
 
 ## Your choices and how to remove your data
 
-- **Guest:** clear your browser's site data for this domain, or use the
-  in-app option to move to a different backend.
+Every backend has **Settings → Delete account** in the app; see
+[how to delete your account](/delete-account) for exactly what it removes.
+
+- **Guest:** it deletes everything stored in that browser. Clearing your
+  browser's site data for this domain does the same.
 - **Supabase (your own project):** delete rows or drop the project yourself
   — you have full control.
-- **Supabase (a project we operate):** contact us at the address below and
-  we'll delete your account and its data.
-- **Google Drive:** delete the "Waypoint" folder in your Drive, and revoke
-  Waypoint's access at [myaccount.google.com → Security → Third-party
-  access](https://myaccount.google.com/permissions). This also invalidates
-  the refresh token stored in your browser.
+- **Supabase (a project we operate):** it deletes your account, all of its
+  data and its attachments straight away. If you can't sign in, contact us
+  at the address below and we'll do it for you.
+- **Google Drive:** it moves the "Waypoint" folder in your Drive to the
+  trash and revokes Waypoint's access. You can also do this by hand:
+  delete the folder, and revoke access at [myaccount.google.com → Security
+  → Third-party access](https://myaccount.google.com/permissions).
 
 ## Children's privacy
 

@@ -9,6 +9,7 @@ import { useUpdateTask } from "../hooks/useTasks";
 import type { Recurrence, Task, TaskPriority } from "../lib/database.types";
 import { RECURRENCES, RECURRENCE_LABEL } from "../lib/recurrence";
 import { formatClock as clock } from "../lib/focusTimer";
+import { LIMITS } from "../lib/limits";
 
 export interface TaskPlace {
   trackId: string;
@@ -148,6 +149,7 @@ export function TaskDetailSheet({
           <textarea
             ref={titleBox}
             value={title}
+            maxLength={LIMITS.taskTitle}
             rows={1}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={commitTitle}

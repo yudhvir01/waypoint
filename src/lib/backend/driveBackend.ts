@@ -581,6 +581,19 @@ export class DriveBackend implements Backend {
     return inUse;
   }
 
+  // The data file and every attachment live in the one "Waypoint"
+  // folder, so trashing it removes them all. Drive keeps trash for 30
+  // days, then deletes it for good. The Google sign-in is revoked too, so
+  // Waypoint has no access left.
+  async deleteAccount(): Promise<void> {
+    const folderId = this.folderId ?? (await ensureWaypointFolder(this.session));
+    await trashFile(this.session, folderId);
+    this.data = emptyData();
+    for (const url of this.attachmentUrls.values()) URL.revokeObjectURL(url);
+    this.attachmentUrls.clear();
+    await this.session.revoke();
+  }
+
   async deleteAttachment(id: string): Promise<void> {
     await trashFile(this.session, id);
     const url = this.attachmentUrls.get(id);

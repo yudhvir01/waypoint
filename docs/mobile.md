@@ -156,7 +156,9 @@ no checksum, the notice falls back to opening the download in the browser.
 
 The manifest's `apk.sha256` is computed by `release:web` from
 `public/downloads/waypoint.apk`, so **sign and place the APK before running it**.
-The app declares `REQUEST_INSTALL_PACKAGES` for this.
+The site APK (the `sideload` flavor) declares `REQUEST_INSTALL_PACKAGES` for
+this. The Play Store build has neither the permission nor the plugin; see
+[Two Android builds](#two-android-builds).
 
 ### Focus timer notifications
 
@@ -171,8 +173,11 @@ its own tones and shows the pop-up. A notification that has been delivered is
 removed when the person answers the pop-up.
 
 The app declares `POST_NOTIFICATIONS` (asked for the first time a timer is
-started) and `USE_EXACT_ALARM`, which Android grants automatically to timer
-apps so the notification fires on the minute. The status-bar icon is
+started). The site APK also declares `USE_EXACT_ALARM`, which Android grants
+automatically to timer apps so the notification fires on the minute. Play only
+allows that permission for alarm-clock and calendar apps, so the Play build
+relies on `SCHEDULE_EXACT_ALARM` (from the notifications plugin): exact when
+the person allows "Alarms & reminders", otherwise a few minutes late at worst. The status-bar icon is
 `res/drawable/ic_stat_waypoint.xml`. A browser cannot schedule anything once its
 tab is closed, so this is Android-only.
 
@@ -188,6 +193,29 @@ That builds the native bundle, zips it into `public/updates/`, and writes
 `latest.json`. Only the newest zip is kept. Installed apps pick it up the next
 time they check.
 
+### Two Android builds
+
+`android/app/build.gradle` has two product flavors of the same app
+(`com.yudhvirsingh.waypoint`):
+
+| | `sideload` (site APK) | `play` (Play Store) |
+|---|---|---|
+| Updates the app itself | yes, `ApkInstallerPlugin` | no, Play does |
+| `REQUEST_INSTALL_PACKAGES`, `USE_EXACT_ALARM` | yes (`src/sideload/AndroidManifest.xml`) | no |
+| Web bundle updates (`latest.json`) | yes | yes |
+| Build | `./gradlew assembleSideloadRelease` | `./gradlew bundlePlayRelease` |
+
+The web code asks `AppDistributionPlugin` which one it is running in
+(`src/lib/distribution.ts`). A Play build never offers the site APK: when a
+bundle needs a newer native shell it points to the Play Store listing instead.
+
+Play installs are signed by Google's app-signing key, not the upload key. Add
+that key's SHA-256 (Play Console → Test and release → App integrity → App
+signing) to `public/.well-known/assetlinks.json`, or Google sign-in won't
+return to the Play app. Both builds share one `versionCode` numbering:
+`minNativeVersion` in `ota.config.json` is compared against it to decide
+whether a web bundle can run.
+
 ### Publishing a new APK
 
 Needed only for native changes (a new Capacitor plugin, a permission, a
@@ -198,7 +226,7 @@ Capacitor upgrade). On a machine with the Android SDK and JDK 21:
 
    ```bash
    npm run cap:sync
-   cd android && ./gradlew assembleRelease && cd ..
+   cd android && ./gradlew assembleSideloadRelease && cd ..
    ```
 
 3. Sign it and place it on the site:
@@ -224,7 +252,7 @@ Capacitor upgrade). On a machine with the Android SDK and JDK 21:
    ```bash
    T=$(date +%s%3N)
    WAYPOINT_BUILD_TIME=$T npm run cap:sync        # step 2, with the timestamp
-   # ... assembleRelease, scripts/sign-apk.sh ...
+   # ... assembleSideloadRelease, scripts/sign-apk.sh ...
    npm run release:web -- --built-at $T
    ```
 

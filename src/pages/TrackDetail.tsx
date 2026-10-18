@@ -40,6 +40,7 @@ import {
 import { RECURRENCES, RECURRENCE_LABEL } from "../lib/recurrence";
 import { getSpacedRevisit } from "../lib/preferences";
 import { downloadTextFile, safeFileName, trackToMarkdown } from "../lib/exportData";
+import { LIMITS } from "../lib/limits";
 
 function RepeatIcon() {
   return (
@@ -194,6 +195,7 @@ function TaskForm({
         <input
           autoFocus
           value={title}
+          maxLength={LIMITS.taskTitle}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Task title…"
           className="min-w-[10rem] flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
@@ -492,6 +494,7 @@ function TopicItem({
             <input
               autoFocus
               value={titleDraft}
+              maxLength={LIMITS.topicTitle}
               onChange={(e) => setTitleDraft(e.target.value)}
               className="min-w-0 flex-1 rounded-md border border-input bg-background px-2 py-1 text-[15px] outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             />
@@ -638,6 +641,7 @@ function NewTopicForm({ trackId }: { trackId: string }) {
       <input
         autoFocus
         value={title}
+        maxLength={LIMITS.topicTitle}
         onChange={(e) => setTitle(e.target.value)}
         onBlur={() => !title && setOpen(false)}
         placeholder="Topic title (e.g. Pointers)"

@@ -43,29 +43,50 @@ const FETCH_TIMEOUT_MS = 6_000;
 const MAX_BODY_BYTES = 1_000_000; // 1 MB is far more than any <head> needs
 const MAX_REDIRECTS = 3;
 
+function isBlockedV4(a: number, b: number): boolean {
+  if (a === 0) return true; // "this network"
+  if (a === 10) return true; // private
+  if (a === 100 && b >= 64 && b <= 127) return true; // carrier-grade NAT
+  if (a === 127) return true; // loopback
+  if (a === 169 && b === 254) return true; // link-local (incl. cloud metadata)
+  if (a === 172 && b >= 16 && b <= 31) return true; // private
+  if (a === 192 && b === 0) return true; // IETF protocol assignments
+  if (a === 192 && b === 168) return true; // private
+  if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking
+  if (a >= 224) return true; // multicast and reserved
+  return false;
+}
+
 // Blocks the address literally being loopback/private/link-local. Doesn't
 // catch a public hostname that *resolves* to one (see module comment).
+// The URL parser has already normalized the host: decimal, octal and hex
+// IPv4 forms arrive as dotted quads, and IPv6 as compressed lowercase hex
+// without brackets.
 function isBlockedHost(hostname: string): boolean {
-  const h = hostname.toLowerCase();
-  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local")) return true;
+  const h = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal")) {
+    return true;
+  }
 
   // IPv4 literal
   const v4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (v4) {
-    const [a, b] = [Number(v4[1]), Number(v4[2])];
-    if (a === 127) return true; // loopback
-    if (a === 10) return true; // private
-    if (a === 172 && b >= 16 && b <= 31) return true; // private
-    if (a === 192 && b === 168) return true; // private
-    if (a === 169 && b === 254) return true; // link-local (incl. cloud metadata)
-    if (a === 0) return true;
-    return false;
-  }
+  if (v4) return isBlockedV4(Number(v4[1]), Number(v4[2]));
 
-  // IPv6 literal (bracketed hostnames arrive without brackets here)
+  // IPv6 literal
   if (h.includes(":")) {
-    if (h === "::1") return true; // loopback
-    if (h.startsWith("fe80:") || h.startsWith("fc") || h.startsWith("fd")) return true; // link-local / unique-local
+    if (h === "::" || h === "::1") return true; // unspecified / loopback
+    if (/^fe[89ab]/.test(h) || h.startsWith("fc") || h.startsWith("fd") || h.startsWith("ff")) {
+      return true; // link-local / unique-local / multicast
+    }
+    // An IPv4 address carried inside IPv6 (::ffff:a.b.c.d, which the parser
+    // rewrites to ::ffff:XXXX:XXXX, plus NAT64 64:ff9b::) is judged as the
+    // IPv4 address it reaches.
+    const embedded = h.match(/^(?:::ffff:|64:ff9b::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+    if (embedded) {
+      const high = parseInt(embedded[1], 16);
+      return isBlockedV4(high >> 8, high & 0xff);
+    }
+    if (h.startsWith("::ffff:") || h.startsWith("64:ff9b:")) return true;
     return false;
   }
 
@@ -80,6 +101,10 @@ function parseSafeUrl(raw: string): URL | null {
     return null;
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  // Web pages live on the default ports; anything else is more likely a
+  // probe of some other service than a link worth previewing.
+  if (url.port !== "" && url.port !== "80" && url.port !== "443") return null;
+  if (url.username || url.password) return null;
   if (isBlockedHost(url.hostname)) return null;
   return url;
 }
@@ -220,9 +245,40 @@ async function fetchYouTubeOEmbed(
   }
 }
 
+// A limit per caller IP, so the endpoint can't be used as a free
+// high-volume proxy. Counted in the database (rate_limit_hit in
+// setup.sql) because requests are spread over many function instances,
+// each with its own memory. If the count can't be reached, the preview
+// goes ahead: a missing card is worse than an occasional extra fetch.
+const RATE_MAX = 30;
+const RATE_WINDOW_SECONDS = 60;
+const supabaseUrl = Deno.env.get("SUPABASE_URL");
+const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+async function rateLimited(req: Request): Promise<boolean> {
+  if (!supabaseUrl || !serviceKey) return false;
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/rpc/rate_limit_hit`, {
+      method: "POST",
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ p_key: `link-preview:${ip}`, p_max: RATE_MAX, p_window_seconds: RATE_WINDOW_SECONDS }),
+    });
+    if (!res.ok) return false;
+    return (await res.json()) === false;
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  if (await rateLimited(req)) return json({ error: "rate_limited", message: "Too many previews; try again in a minute." }, 429);
 
   let body: unknown;
   try {

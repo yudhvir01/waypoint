@@ -12,7 +12,9 @@ public class MainActivity extends BridgeActivity {
   // Local plugins are registered before the bridge starts.
   @Override
   public void onCreate(Bundle savedInstanceState) {
-    registerPlugin(ApkInstallerPlugin.class);
+    registerPlugin(AppDistributionPlugin.class);
+    // Play doesn't allow an app to install its own updates.
+    if (BuildConfig.SELF_UPDATE) registerPlugin(ApkInstallerPlugin.class);
     super.onCreate(savedInstanceState);
   }
 

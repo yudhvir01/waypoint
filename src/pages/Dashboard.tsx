@@ -14,6 +14,7 @@ import type { Task } from "../lib/database.types";
 import { RECURRENCE_LABEL } from "../lib/recurrence";
 import { useFocusTimer } from "../context/FocusTimerProvider";
 import { TaskDetailSheet } from "../components/TaskDetailSheet";
+import { LIMITS } from "../lib/limits";
 
 function dueLabel(dueDate: string | null): { text: string; className: string } | null {
   if (!dueDate) return null;
@@ -519,6 +520,7 @@ function NewTrackMenu({ compact = false }: { compact?: boolean }) {
         <input
           autoFocus
           value={name}
+          maxLength={LIMITS.trackName}
           onChange={(e) => setName(e.target.value)}
           onBlur={() => !name && setMode(null)}
           placeholder="Track name"

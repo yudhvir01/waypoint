@@ -4,6 +4,7 @@ import { useTracks } from "../hooks/useTracks";
 import { INBOX_NAME } from "../lib/inbox";
 import { matchTrack, parseQuickAdd } from "../lib/quickAdd";
 import { RECURRENCE_LABEL } from "../lib/recurrence";
+import { LIMITS } from "../lib/limits";
 
 function Chip({ children, tone = "plain" }: { children: React.ReactNode; tone?: "plain" | "warn" }) {
   return (
@@ -65,6 +66,7 @@ export function QuickAddDialog({ onClose }: { onClose: () => void }) {
           id="quick-add"
           ref={input}
           value={text}
+          maxLength={LIMITS.taskTitle}
           onChange={(e) => {
             setText(e.target.value);
             if (quickAdd.isError) quickAdd.reset();

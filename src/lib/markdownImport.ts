@@ -1,5 +1,6 @@
 import type { Recurrence, TaskPriority } from "./database.types";
 import { isRecurrence } from "./recurrence";
+import { LIMITS } from "./limits";
 
 export interface ParsedTask {
   title: string;
@@ -231,10 +232,28 @@ export function parseImportMarkdown(input: string): ParsedImport {
 
   const description = descriptionLines.join(" ").replace(/\*\*(.*?)\*\*/g, "$1").trim() || null;
 
+  // Anything past the database's limits is cut, rather than failing the
+  // whole import over one runaway line.
+  let shortened = 0;
+  const clip = (text: string, max: number): string => {
+    if (text.length <= max) return text;
+    shortened++;
+    return `${text.slice(0, max - 1).trimEnd()}…`;
+  };
+  const topicsOut = nonEmptyTopics.map(({ title, tasks }) => ({
+    title: clip(title, LIMITS.topicTitle),
+    tasks: tasks.map((task) => ({ ...task, title: clip(task.title, LIMITS.taskTitle) })),
+  }));
+  const trackNameOut = clip(trackName, LIMITS.trackName);
+  const descriptionOut = description === null ? null : clip(description, LIMITS.trackDescription);
+  if (shortened > 0) {
+    warnings.push(`${shortened} name${shortened === 1 ? " was" : "s were"} too long and got shortened.`);
+  }
+
   return {
-    trackName,
-    description,
-    topics: nonEmptyTopics.map(({ title, tasks }) => ({ title, tasks })),
+    trackName: trackNameOut,
+    description: descriptionOut,
+    topics: topicsOut,
     warnings,
   };
 }

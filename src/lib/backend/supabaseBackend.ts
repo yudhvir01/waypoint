@@ -5,6 +5,7 @@ import { diffCards, newCardSchedule } from "../cards";
 import { remapSnapshot } from "./localRestore";
 import { attachmentIdsIn, removeUnreferencedAttachments } from "./attachmentCleanup";
 import { topicStatusChanges } from "./localRanking";
+import { toDateKey } from "../recurrence";
 import {
   type Attachment,
   type AttachmentKind,
@@ -672,7 +673,16 @@ export class SupabaseBackend implements Backend {
     const { error } = await this.client.storage
       .from(ATTACHMENTS_BUCKET)
       .upload(path, file, { contentType: file.type || undefined });
-    if (error) throw error;
+    if (error) {
+      // The only write a person can be refused under their own folder is
+      // the per-account ceiling in setup.sql (attachment_quota_ok).
+      if (/row-level security/i.test(error.message)) {
+        throw new Error(
+          "You've reached the attachment limit for this account (2,000 files or 1 GB). Remove some images or audio from your notes first.",
+        );
+      }
+      throw error;
+    }
     return { id: path, kind, name: file.name, contentType: file.type };
   }
 
@@ -705,6 +715,24 @@ export class SupabaseBackend implements Backend {
 
   // Removing a path that doesn't exist isn't an error in Storage, and
   // setup.sql's owner-delete policy keeps this to the user's own folder.
+  async deleteAccount(): Promise<void> {
+    // Files first: once the auth user is gone this session can't reach
+    // them any more. Listed in pages, since list() returns at most `limit`;
+    // the round cap covers the 2,000-file quota with room to spare and
+    // stops a remove that silently does nothing from looping forever.
+    const bucket = this.client.storage.from(ATTACHMENTS_BUCKET);
+    for (let round = 0; round < 10; round++) {
+      const { data, error } = await bucket.list(this.userId, { limit: 1000 });
+      if (error) throw error;
+      const paths = (data ?? []).map((f) => `${this.userId}/${f.name}`);
+      if (paths.length === 0) break;
+      const { error: removeError } = await bucket.remove(paths);
+      if (removeError) throw removeError;
+    }
+    const { error } = await this.client.rpc("delete_my_account");
+    if (error) throw error;
+  }
+
   async deleteAttachment(id: string): Promise<void> {
     const { error } = await this.client.storage.from(ATTACHMENTS_BUCKET).remove([id]);
     if (error) throw error;
@@ -731,7 +759,7 @@ export class SupabaseBackend implements Backend {
   }
 
   async focusTasks(limit: number): Promise<FocusTask[]> {
-    const { data, error } = await this.client.rpc("focus_tasks", { p_limit: limit });
+    const { data, error } = await this.client.rpc("focus_tasks", { p_limit: limit, p_today: toDateKey(new Date()) });
     if (error) throw error;
     return ((data ?? []) as FocusRow[]).map((row) => ({
       id: row.id,

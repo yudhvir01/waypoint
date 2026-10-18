@@ -69,6 +69,9 @@ interface BackendContextValue {
   returnToLanding: () => void;
   disconnectSupabaseProject: () => void;
   signOut: () => Promise<void>;
+  // Deletes the account and everything in it, then returns to the
+  // landing page. Throws, leaving everything signed in, if it fails.
+  deleteAccount: () => Promise<void>;
 }
 
 const BackendContext = createContext<BackendContextValue | undefined>(undefined);
@@ -211,6 +214,22 @@ export function BackendProvider({ children }: { children: ReactNode }) {
     returnToLanding();
   }
 
+  async function deleteAccount() {
+    if (!backend) return;
+    await backend.deleteAccount();
+    if (mode === "supabase" && client) {
+      // The user no longer exists server-side; only this device's copy
+      // of the session is left to drop.
+      await client.auth.signOut({ scope: "local" }).catch(() => undefined);
+    }
+    if (mode === "drive") {
+      await signOutOfGoogle();
+      setDriveSession(null);
+    }
+    queryClient.clear();
+    returnToLanding();
+  }
+
   const ownerLabel =
     mode === "guest"
       ? "Guest"
@@ -236,6 +255,7 @@ export function BackendProvider({ children }: { children: ReactNode }) {
     returnToLanding,
     disconnectSupabaseProject,
     signOut,
+    deleteAccount,
   };
 
   return <BackendContext.Provider value={value}>{children}</BackendContext.Provider>;

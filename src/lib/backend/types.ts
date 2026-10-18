@@ -202,6 +202,11 @@ export interface Backend {
   // attachmentCleanup.ts, once attachmentsInUse has cleared it.
   deleteAttachment(id: string): Promise<void>;
 
+  // Deletes everything this account stores, the account itself where
+  // there is one (Supabase), and its attachment files. Signing out
+  // afterwards is the caller's job.
+  deleteAccount(): Promise<void>;
+
   // Aggregates
   trackProgress(): Promise<Map<string, TrackProgress>>;
   topicProgress(trackId: string): Promise<Map<string, TrackProgress>>;

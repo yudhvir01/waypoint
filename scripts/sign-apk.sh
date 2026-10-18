@@ -12,11 +12,11 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 env_file="${WAYPOINT_SIGNING_ENV:-$HOME/.config/waypoint/release-signing.env}"
-in="${1:-$root/android/app/build/outputs/apk/release/app-release-unsigned.apk}"
+in="${1:-$root/android/app/build/outputs/apk/sideload/release/app-sideload-release-unsigned.apk}"
 out="${2:-$root/public/downloads/waypoint.apk}"
 
 [ -f "$env_file" ] || { echo "Missing $env_file" >&2; exit 1; }
-[ -f "$in" ] || { echo "Missing $in (build with ./gradlew assembleRelease first)" >&2; exit 1; }
+[ -f "$in" ] || { echo "Missing $in (build with ./gradlew assembleSideloadRelease first)" >&2; exit 1; }
 # shellcheck disable=SC1090
 set -a; . "$env_file"; set +a
 

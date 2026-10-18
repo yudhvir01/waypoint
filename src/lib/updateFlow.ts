@@ -1,4 +1,5 @@
 import { apkUpdater } from "./apkUpdater";
+import { PLAY_STORE_URL, getDistribution } from "./distribution";
 import { checkForUpdates, type UpdateResult } from "./otaUpdater";
 
 const DISMISSED_KEY = "waypoint.dismissedApk";
@@ -24,6 +25,18 @@ export function rememberDismissed(versionCode: number): void {
 // which downloads it with progress and hands it to Android's installer.
 export async function runUpdateCheck(options: { manual: boolean }): Promise<UpdateResult> {
   const result = await checkForUpdates();
+  if (result.kind === "native" && (await getDistribution()) === "play") {
+    // The Play build gets new versions from Play, and the APK in the
+    // manifest is the site's, signed differently. Only when this bundle
+    // can't run without a newer app is there anything to say: send them
+    // to the store listing.
+    if (!result.required) return { kind: "up-to-date" };
+    await apkUpdater.offer(
+      { apkUrl: PLAY_STORE_URL, versionName: result.versionName, versionCode: result.versionCode, sha256: null, required: true },
+      { autoStart: false },
+    );
+    return { ...result, apkUrl: PLAY_STORE_URL, sha256: null };
+  }
   if (result.kind === "native") {
     const dismissed = !result.required && result.versionCode <= dismissedApkCode();
     // Someone who pressed the button wants it; someone who said "not now"

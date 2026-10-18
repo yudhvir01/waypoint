@@ -183,10 +183,35 @@ on conflict (id) do update
       file_size_limit = excluded.file_size_limit,
       allowed_mime_types = excluded.allowed_mime_types;
 
+-- Per-account ceiling on attachments: 2,000 files and 1 GiB. Reads
+-- storage.objects as its owner, since no one has a SELECT policy on it;
+-- the range on name (rather than foldername) lets the (bucket_id, name)
+-- index find just this person's files.
+create or replace function public.attachment_quota_ok()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select count(*) < 2000 and coalesce(sum((o.metadata ->> 'size')::bigint), 0) < 1073741824
+    from storage.objects o
+   where o.bucket_id = 'attachments'
+     and o.name collate "C" >= (select auth.uid())::text || '/'
+     and o.name collate "C" <  (select auth.uid())::text || '0';
+$$;
+
+revoke execute on function public.attachment_quota_ok() from public, anon;
+grant execute on function public.attachment_quota_ok() to authenticated;
+
 drop policy if exists "attachments_owner_write" on storage.objects;
 create policy "attachments_owner_write" on storage.objects
   for insert to authenticated
-  with check (bucket_id = 'attachments' and (storage.foldername(name))[1] = (select auth.uid())::text);
+  with check (
+    bucket_id = 'attachments'
+    and (storage.foldername(name))[1] = (select auth.uid())::text
+    and public.attachment_quota_ok()
+  );
 
 drop policy if exists "attachments_owner_delete" on storage.objects;
 create policy "attachments_owner_delete" on storage.objects
@@ -350,6 +375,37 @@ alter table public.topics alter column sort_order drop default;
 alter table public.tasks  alter column sort_order drop default;
 alter table public.topics alter column sort_order drop not null;
 alter table public.tasks  alter column sort_order drop not null;
+
+-- ---------------------------------------------------------------------
+-- Length limits
+--
+-- Generous ceilings, far beyond anything typed by hand, so one account
+-- can't fill the database through the API. The app and the Markdown
+-- import keep to the same numbers (src/lib/limits.ts).
+-- ---------------------------------------------------------------------
+do $$
+declare
+  c record;
+begin
+  for c in
+    select * from (values
+      ('tracks', 'tracks_name_length',        'char_length(name) <= 200'),
+      ('tracks', 'tracks_description_length', 'description is null or char_length(description) <= 1000'),
+      ('topics', 'topics_title_length',       'char_length(title) <= 500'),
+      ('tasks',  'tasks_title_length',        'char_length(title) <= 1000'),
+      ('notes',  'notes_title_length',        'char_length(title) <= 500'),
+      ('notes',  'notes_content_length',      'char_length(content) <= 1000000'),
+      ('cards',  'cards_front_length',        'char_length(front) <= 5000'),
+      ('cards',  'cards_back_length',         'char_length(back) <= 5000')
+    ) as v(tbl, name, expr)
+  loop
+    if not exists (select 1 from pg_constraint where conname = c.name) then
+      -- not valid: enforced for every new write, without failing this
+      -- script on a project that already holds a longer row.
+      execute format('alter table public.%I add constraint %I check (%s) not valid', c.tbl, c.name, c.expr);
+    end if;
+  end loop;
+end $$;
 
 -- ---------------------------------------------------------------------
 -- Indexes
@@ -673,7 +729,11 @@ $$;
 -- The result gained a column (recurrence), and Postgres won't change a
 -- function's return type in place, hence the drop.
 drop function if exists public.focus_tasks(integer);
-create or replace function public.focus_tasks(p_limit integer default 50)
+-- p_today is the caller's own calendar day. The database runs on UTC, so
+-- without it "overdue" and "due soon" are a day off for anyone far from
+-- UTC around midnight (00:00-05:30 in India). Older app versions don't
+-- send it and get the server's day, as before.
+create or replace function public.focus_tasks(p_limit integer default 50, p_today date default null)
 returns table (
   id uuid,
   topic_id uuid,
@@ -695,7 +755,10 @@ security invoker
 set search_path = public
 as $$
 with
-  args as (select greatest(1, least(coalesce(p_limit, 50), 200)) as lim),
+  args as (
+    select greatest(1, least(coalesce(p_limit, 50), 200)) as lim,
+           coalesce(p_today, current_date) as today
+  ),
   -- The tiers are driven by the user's active tracks, so paused and
   -- archived ones are never opened. That is what keeps the cost tied to
   -- how much is on screen rather than to how much has been archived.
@@ -707,7 +770,7 @@ with
     select x.* from live a cross join lateral (
       select ts.*, 0 as tier from public.tasks ts
        where ts.track_id = a.id and ts.done = false
-         and ts.due_date < current_date
+         and ts.due_date < (select today from args)
        order by ts.due_date asc limit (select lim from args)
     ) x order by x.due_date asc limit (select lim from args)
   ),
@@ -715,7 +778,7 @@ with
     select x.* from live a cross join lateral (
       select ts.*, 1 as tier from public.tasks ts
        where ts.track_id = a.id and ts.done = false
-         and ts.due_date >= current_date and ts.due_date <= current_date + 2
+         and ts.due_date >= (select today from args) and ts.due_date <= (select today from args) + 2
        order by ts.due_date asc limit (select lim from args)
     ) x order by x.due_date asc limit (select lim from args)
   ),
@@ -724,7 +787,7 @@ with
       select ts.*, 2 as tier from public.tasks ts
        where ts.track_id = a.id and ts.done = false
          and ts.priority = 'high'
-         and (ts.due_date is null or ts.due_date > current_date + 2)
+         and (ts.due_date is null or ts.due_date > (select today from args) + 2)
        order by ts.created_at asc limit (select lim from args)
     ) x order by x.created_at asc limit (select lim from args)
   ),
@@ -733,7 +796,7 @@ with
       select ts.*, 3 as tier from public.tasks ts
        where ts.track_id = a.id and ts.done = false
          and ts.priority = 'medium'
-         and (ts.due_date is null or ts.due_date > current_date + 2)
+         and (ts.due_date is null or ts.due_date > (select today from args) + 2)
        order by ts.created_at asc limit (select lim from args)
     ) x order by x.created_at asc limit (select lim from args)
   ),
@@ -742,7 +805,7 @@ with
       select ts.*, 4 as tier from public.tasks ts
        where ts.track_id = a.id and ts.done = false
          and ts.priority not in ('high', 'medium')
-         and (ts.due_date is null or ts.due_date > current_date + 2)
+         and (ts.due_date is null or ts.due_date > (select today from args) + 2)
        -- Topics in progress come first, so a track with a thousand
        -- tasks cannot crowd them out of the per-track limit.
        order by (select tp.status = 'in_progress' from public.topics tp where tp.id = ts.topic_id) desc,
@@ -846,6 +909,79 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------
+-- Rate limits for the public Edge Functions
+--
+-- link-preview has to be callable without a session (guest and Drive
+-- users have none), so it counts calls per caller IP here. Every function
+-- instance shares this table, which an in-memory counter can't do. Only
+-- the service role (the function itself) can call it.
+-- ---------------------------------------------------------------------
+create table if not exists public.rate_limits (
+  key          text not null,
+  window_start timestamptz not null,
+  hits         integer not null default 0,
+  primary key (key, window_start)
+);
+
+alter table public.rate_limits enable row level security;
+
+-- True while `p_key` has made at most `p_max` calls in the current
+-- window of `p_window_seconds`.
+create or replace function public.rate_limit_hit(p_key text, p_max integer, p_window_seconds integer)
+returns boolean
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_window timestamptz := to_timestamp(floor(extract(epoch from now()) / p_window_seconds) * p_window_seconds);
+  v_hits   integer;
+begin
+  insert into public.rate_limits (key, window_start, hits)
+  values (p_key, v_window, 1)
+  on conflict (key, window_start) do update set hits = public.rate_limits.hits + 1
+  returning hits into v_hits;
+  -- Old windows are cleared now and then rather than on every call.
+  if random() < 0.01 then
+    delete from public.rate_limits where window_start < now() - interval '1 hour';
+  end if;
+  return v_hits <= p_max;
+end;
+$$;
+
+revoke execute on function public.rate_limit_hit(text, integer, integer) from public, anon, authenticated;
+grant execute on function public.rate_limit_hit(text, integer, integer) to service_role;
+
+-- ---------------------------------------------------------------------
+-- Deleting your account
+--
+-- Removes the signed-in person's auth user; every table above references
+-- auth.users with on delete cascade, so all of their rows go with it. The
+-- app removes their attachment files through the Storage API first,
+-- since storage objects can't be deleted from SQL.
+-- ---------------------------------------------------------------------
+create or replace function public.delete_my_account()
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_uid uuid := (select auth.uid());
+begin
+  if v_uid is null then
+    raise exception 'not authenticated';
+  end if;
+  delete from auth.users where id = v_uid;
+end;
+$$;
+
+revoke execute on function public.delete_my_account() from public, anon;
+grant execute on function public.delete_my_account() to authenticated;
+
+-- ---------------------------------------------------------------------
 -- Internal functions are not part of the API
 --
 -- Everything in the public schema is reachable as /rest/v1/rpc/<name> by
@@ -857,7 +993,8 @@ $$;
 -- hold EXECUTE, so revoking it changes nothing for the app.
 --
 -- The app's own entry points (track_progress, topic_progress,
--- focus_tasks, import_track) are left alone.
+-- focus_tasks, import_track, delete_my_account, attachment_quota_ok) are
+-- left alone.
 -- ---------------------------------------------------------------------
 revoke execute on function
   public.topic_counts_apply(jsonb),

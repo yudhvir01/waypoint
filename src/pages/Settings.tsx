@@ -224,7 +224,9 @@ function AboutSection() {
       : result.kind === "bundle-ready"
         ? `Version ${result.version} is downloaded and ready.`
         : result.kind === "native"
-          ? `A new app version (${result.versionName}) is available. It's downloading now; follow the progress at the bottom of the screen.`
+          ? result.sha256
+            ? `A new app version (${result.versionName}) is available. It's downloading now; follow the progress at the bottom of the screen.`
+            : `A new app version (${result.versionName}) is needed. Use the Update button at the bottom of the screen.`
           : result.kind === "error"
             ? `Couldn't check: ${result.message}`
             : null;
@@ -499,6 +501,89 @@ function DataSection() {
   );
 }
 
+function DeleteAccountSection() {
+  const { mode, deleteAccount } = useBackend();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const what =
+    mode === "guest"
+      ? "Deletes every track, task, note and file stored in this browser."
+      : mode === "drive"
+        ? "Moves the “Waypoint” folder in your Google Drive (your data file and every attachment) to the Drive trash, where Google deletes it for good after 30 days, and removes Waypoint's access to your Google account."
+        : "Deletes your account, every track, task, note and card in it, and every image and audio file you attached. This can't be undone.";
+
+  async function handleDelete() {
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteAccount();
+      navigate("/", { replace: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't delete everything. Nothing was signed out; try again.");
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <Section title={mode === "guest" ? "Delete data" : "Delete account"}>
+      <p className="text-xs text-muted-foreground">
+        {what} Download a backup above first if you want to keep a copy.
+      </p>
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="self-start rounded-md border border-destructive/40 px-3 py-1.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+        >
+          {mode === "guest" ? "Delete all data…" : "Delete account…"}
+        </button>
+      ) : (
+        <div className="flex flex-col gap-2 rounded-md border border-destructive/40 p-3">
+          <label className="text-sm" htmlFor="delete-confirm">
+            Type <span className="font-semibold">delete</span> to confirm
+          </label>
+          <input
+            id="delete-confirm"
+            autoFocus
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            autoCapitalize="off"
+            autoComplete="off"
+            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void handleDelete()}
+              disabled={confirmText.trim().toLowerCase() !== "delete" || deleting}
+              className="rounded-md bg-destructive px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+            >
+              {deleting ? "Deleting…" : "Delete forever"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setConfirmText("");
+                setError(null);
+              }}
+              disabled={deleting}
+              className="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+      )}
+    </Section>
+  );
+}
+
 export function Settings() {
   const { mode } = useBackend();
   const location = useLocation();
@@ -552,6 +637,8 @@ export function Settings() {
 
         <DatabaseSection onMigrate={() => setMigrating(true)} onMigrateGoogle={handleMigrateGoogle} />
         {googleError && <p className="mt-3 text-sm text-destructive">{googleError}</p>}
+
+        <DeleteAccountSection />
       </div>
 
       {migrating && <GuestMigrationDialog onClose={() => setMigrating(false)} />}

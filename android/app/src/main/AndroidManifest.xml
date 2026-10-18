@@ -51,12 +51,9 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Lets the in-app updater hand a downloaded Waypoint update to
-         Android's installer. The person still confirms on Android's own
-         screen, and has to allow it once in Settings. -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <!-- The focus timer is a timer app: its "block finished" notification
-         should fire at the minute, not whenever Android next wakes up.
-         Android grants this one automatically for timers. -->
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- The site APK adds its self-update and exact-alarm permissions in
+         src/sideload/AndroidManifest.xml. The Play build has neither: the
+         focus timer's notification uses SCHEDULE_EXACT_ALARM (declared by
+         the notifications plugin) when the person allows it, and is
+         otherwise scheduled inexactly. -->
 </manifest>

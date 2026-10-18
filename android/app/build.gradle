@@ -16,6 +16,27 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    buildFeatures {
+        buildConfig = true
+    }
+    // Two builds of the same app. "sideload" is the APK people download
+    // from the site: it updates itself (ApkInstallerPlugin) and uses
+    // USE_EXACT_ALARM. "play" is the Play Store build: Play allows
+    // neither, so it leaves both out and gets new versions from Play.
+    // The permissions live in src/<flavor>/AndroidManifest.xml.
+    //   ./gradlew assembleSideloadRelease   (site APK)
+    //   ./gradlew bundlePlayRelease         (Play Store AAB)
+    flavorDimensions = ["distribution"]
+    productFlavors {
+        sideload {
+            dimension "distribution"
+            buildConfigField "boolean", "SELF_UPDATE", "true"
+        }
+        play {
+            dimension "distribution"
+            buildConfigField "boolean", "SELF_UPDATE", "false"
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false

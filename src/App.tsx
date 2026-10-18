@@ -13,6 +13,7 @@ import { RequireAuth, RedirectIfAuthed, NotFoundRedirect, HomeRoute } from "./co
 import { Login } from "./pages/Login";
 import { Landing } from "./pages/Landing";
 import { GoogleCallback } from "./pages/GoogleCallback";
+import { ResetPassword } from "./pages/ResetPassword";
 import { Dashboard } from "./pages/Dashboard";
 import { TrackDetail } from "./pages/TrackDetail";
 import { Settings } from "./pages/Settings";
@@ -32,6 +33,9 @@ const TaskNoteRedirect = lazy(() =>
 );
 const PrivacyPolicy = lazy(() =>
   import("./pages/PrivacyPolicy").then((m) => ({ default: m.PrivacyPolicy })),
+);
+const DeleteAccountInfo = lazy(() =>
+  import("./pages/DeleteAccountInfo").then((m) => ({ default: m.DeleteAccountInfo })),
 );
 const TermsOfService = lazy(() =>
   import("./pages/TermsOfService").then((m) => ({ default: m.TermsOfService })),
@@ -103,6 +107,14 @@ function App() {
                   }
                 />
                 <Route
+                  path="/delete-account"
+                  element={
+                    <Suspense fallback={null}>
+                      <DeleteAccountInfo />
+                    </Suspense>
+                  }
+                />
+                <Route
                   path="/terms"
                   element={
                     <Suspense fallback={null}>
@@ -115,6 +127,9 @@ function App() {
                     the app hasn't adopted a session yet — so this sits
                     outside both guards. */}
                 <Route path="/auth/google/callback" element={<GoogleCallback />} />
+                {/* The password-reset email lands here, signed in only far
+                    enough to set a new password. */}
+                <Route path="/auth/reset" element={<ResetPassword />} />
                 <Route path="/" element={<HomeRoute signedIn={<Dashboard />} signedOut={<Landing />} />} />
                 <Route element={<RedirectIfAuthed />}>
                   <Route path="/login" element={<Login />} />

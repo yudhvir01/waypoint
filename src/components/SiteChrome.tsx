@@ -25,9 +25,10 @@ export function SiteHeader() {
 export function SiteFooter() {
   return (
     <footer className="px-6 py-8 text-center text-xs text-muted-foreground">
-      <div className="flex justify-center gap-5">
+      <div className="flex flex-wrap justify-center gap-x-5 gap-y-2">
         <Link to="/privacy" className="hover:underline">Privacy Policy</Link>
         <Link to="/terms" className="hover:underline">Terms of Service</Link>
+        <Link to="/delete-account" className="hover:underline">Delete account</Link>
         <Link to="/guide" className="hover:underline">Guide</Link>
       </div>
       <p className="mt-2">© {new Date().getFullYear()} Waypoint</p>

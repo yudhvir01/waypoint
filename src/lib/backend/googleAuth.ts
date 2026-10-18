@@ -191,4 +191,19 @@ export class GoogleDriveSession {
     this.accessTokenExpiresAt = Date.now() + tokens.expires_in * 1000;
     return this.accessToken;
   }
+
+  // Withdraws Waypoint's access to this Google account. Best effort: the
+  // account is being left either way, and the person can also remove the
+  // app from their Google account's security page.
+  async revoke(): Promise<void> {
+    try {
+      await fetch("https://oauth2.googleapis.com/revoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ token: this.refreshToken }),
+      });
+    } catch {
+      // Nothing more to do.
+    }
+  }
 }

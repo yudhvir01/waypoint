@@ -1,6 +1,6 @@
 import type { Card, Confidence, FocusSession, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus, Waypoint } from "../database.types";
 import type { ParsedImport, ParsedTopic } from "../markdownImport";
-import { GUEST_USER_ID, getGuestDB, newGuestId, nowIso } from "./guestStore";
+import { GUEST_USER_ID, clearGuestData, getGuestDB, newGuestId, nowIso } from "./guestStore";
 import { diffCards, newCardSchedule } from "../cards";
 import { buildNoteContext, newNote, newestDayFirst, newestFirst } from "./localNotes";
 import { attachmentIdsIn, removeUnreferencedAttachments } from "./attachmentCleanup";
@@ -482,6 +482,12 @@ export class GuestBackend implements Backend {
       for (const id of attachmentIdsIn(note.content)) if (ids.includes(id)) inUse.add(id);
     }
     return inUse;
+  }
+
+  async deleteAccount(): Promise<void> {
+    await clearGuestData();
+    for (const url of this.attachmentUrls.values()) URL.revokeObjectURL(url);
+    this.attachmentUrls.clear();
   }
 
   async deleteAttachment(id: string): Promise<void> {

@@ -1,6 +1,8 @@
 import { useMemo, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { Capacitor } from "@capacitor/core";
 import { useBackend } from "../context/BackendProvider";
+import { UPDATE_BASE_URL } from "../lib/env";
 import { createSupabaseClient } from "../lib/supabaseClient";
 import { extractProjectRef, type SupabaseConfig } from "../lib/supabaseConfig";
 
@@ -204,6 +206,25 @@ function AuthFormPanel({
   const [info, setInfo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  async function handleForgot() {
+    setError(null);
+    setInfo(null);
+    if (!email) {
+      setError("Enter your email above first.");
+      return;
+    }
+    setSubmitting(true);
+    // The installed app's own origin (https://localhost) can't receive a
+    // link, so the email always points at the website.
+    const site = Capacitor.isNativePlatform() ? UPDATE_BASE_URL : window.location.origin;
+    const { error: resetError } = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: `${site}/auth/reset`,
+    });
+    if (resetError) setError(resetError.message);
+    else setInfo("If there's an account for that email, a link to reset the password is on its way.");
+    setSubmitting(false);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -261,6 +282,17 @@ function AuthFormPanel({
             required
           />
         </label>
+
+        {mode === "login" && (
+          <button
+            type="button"
+            onClick={() => void handleForgot()}
+            disabled={submitting}
+            className="-mt-2 self-start text-xs text-muted-foreground hover:text-foreground hover:underline"
+          >
+            Forgot password?
+          </button>
+        )}
 
         {error && <p className="text-sm text-destructive">{error}</p>}
         {info && <p className="text-sm text-success">{info}</p>}
