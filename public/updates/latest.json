@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "builtAt": 1792254133787,
-  "version": "2.3.0",
+  "builtAt": 1792302153649,
+  "version": "2.3.1",
   "bundle": {
-    "url": "/updates/waypoint-1792254133787.zip",
-    "checksum": "f49d9249f3acd209e31c0ec4b43c794d1cad753a11198d077f0b8902cd725344"
+    "url": "/updates/waypoint-1792302153649.zip",
+    "checksum": "d830c6f7ad66128e9ae15946b6b2306ccabed77861ae5654f310c2f171d5163f"
   },
   "minNativeVersion": 2,
   "apk": {
@@ -13,5 +13,5 @@
     "url": "/downloads/waypoint.apk",
     "sha256": "3974affb3088b5dd368bdf3e80f2a2a1ef4969ec6ea224a0ba86443df2d2a635"
   },
-  "notes": "Today: pick three and close the day; each track shows its trail"
+  "notes": "The AI import prompt now covers repeating tasks, the destination and topic order"
 }
