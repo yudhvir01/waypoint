@@ -8,11 +8,12 @@ const PREVIEW_TOPIC_LIMIT = 50;
 const PREVIEW_TASK_LIMIT = 20;
 
 const PLACEHOLDER = `# Track Name
-Optional description line before the first ##.
+Optional sentence: where this track ends.
 
 ## Topic Title
 - [ ] Task text #priority:high #due:2026-09-10
 - [x] Completed task
+- [ ] Practice for 20 minutes #repeat:daily
 - [ ] Task with no tags`;
 
 export function ImportMarkdownDialog({ onClose }: { onClose: () => void }) {
