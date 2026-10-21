@@ -56,6 +56,7 @@ Rules:
 - Exactly one "#" heading (a short track name, under 200 characters), then the destination sentence, then "##" topics. No "###" or deeper: flatten sub-sections into their own "##" topics. No other text inside the block.
 - Order topics in the sequence they'd be worked through, first stop first, and tasks within a topic the same way. Keep my notes' order unless it clearly isn't the order the work would happen in.
 - Give topics short, specific names ("Ownership", "Docker"), never vague ones like "Objective" or "Goal".
+- Keep each task's text a short title, under about 70 characters. Put extra detail after a colon ("Day 3 · Lectures 9-12: names of the lectures") or on indented "  - " lines under the task: Waypoint keeps the part after the colon, and the indented lines, in that task's own notes.
 - Every task: "- [ ] text" or "- [x] text" (done). Plain words only, with no bold, links or other formatting. Each one finishable in one sitting, roughly 25 minutes to two hours: "Learn Kubernetes" is too big, "Deploy one app to a local cluster" is right.
 - Tags go at the end of the task line, separated by spaces:
   - "#priority:high", "#priority:medium" or "#priority:low", only for what I said matters most or is urgent. Use them sparingly, or they stop meaning anything.

@@ -891,15 +891,30 @@ begin
     )
     returning id into v_topic_id;
 
-    insert into public.tasks (topic_id, title, done, priority, due_date, recurrence, sort_order)
-    select v_topic_id,
-           tk ->> 'title',
-           coalesce((tk ->> 'done')::boolean, false),
-           coalesce(nullif(tk ->> 'priority', ''), 'none'),
-           nullif(tk ->> 'dueDate', '')::date,
-           nullif(tk ->> 'recurrence', ''),
-           (ordinality - 1)::integer
-      from jsonb_array_elements(coalesce(v_topic -> 'tasks', '[]'::jsonb)) with ordinality as t(tk, ordinality);
+    -- A task with details (the rest of a long line, sub-bullets) also gets
+    -- its own note, which is where the task's page shows them.
+    with new_tasks as (
+      insert into public.tasks (topic_id, title, done, priority, due_date, recurrence, sort_order)
+      select v_topic_id,
+             tk ->> 'title',
+             coalesce((tk ->> 'done')::boolean, false),
+             coalesce(nullif(tk ->> 'priority', ''), 'none'),
+             nullif(tk ->> 'dueDate', '')::date,
+             nullif(tk ->> 'recurrence', ''),
+             (ordinality - 1)::integer
+        from jsonb_array_elements(coalesce(v_topic -> 'tasks', '[]'::jsonb)) with ordinality as t(tk, ordinality)
+      returning id, sort_order
+    )
+    insert into public.notes (user_id, task_id, title, content)
+    select v_uid, nt.id, src.title, src.details
+      from new_tasks nt
+      join (
+        select tk ->> 'title' as title,
+               nullif(tk ->> 'details', '') as details,
+               (ordinality - 1)::integer as idx
+          from jsonb_array_elements(coalesce(v_topic -> 'tasks', '[]'::jsonb)) with ordinality as t(tk, ordinality)
+      ) src on src.idx = nt.sort_order
+     where src.details is not null;
 
     v_topic_idx := v_topic_idx + 1;
   end loop;

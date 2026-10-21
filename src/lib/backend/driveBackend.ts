@@ -1,3 +1,4 @@
+import { detailsToHtml } from "../taskDetails";
 import type { Card, Confidence, FocusSession, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus, Waypoint } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
 import {
@@ -677,8 +678,13 @@ export class DriveBackend implements Backend {
       this.data.topics.push(topicRow);
 
       topic.tasks.forEach((task, taskIndex) => {
+        const taskId = newId();
+        if (task.details) {
+          const content = detailsToHtml(task.details);
+          this.data.notes.push(newNote(newId(), this.session.email, nowIso(), { title: task.title, content, taskId }));
+        }
         this.data.tasks.push({
-          id: newId(),
+          id: taskId,
           topic_id: topicRow.id,
           track_id: track.id,
           title: task.title,

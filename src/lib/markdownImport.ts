@@ -1,6 +1,7 @@
 import type { Recurrence, TaskPriority } from "./database.types";
 import { isRecurrence } from "./recurrence";
 import { LIMITS } from "./limits";
+import { MAX_DETAILS_CHARS, splitLongTitle } from "./taskDetails";
 
 export interface ParsedTask {
   title: string;
@@ -8,6 +9,9 @@ export interface ParsedTask {
   priority: TaskPriority;
   dueDate: string | null;
   recurrence?: Recurrence | null;
+  // Plain text for the task's note: the rest of a long line, wrapped
+  // lines and indented sub-bullets under it ("- " marks a bullet).
+  details?: string | null;
 }
 
 export interface ParsedTopic {
@@ -29,8 +33,9 @@ export const MAX_IMPORT_TASKS = 20_000;
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 
 const HEADING = /^(#{1,6})\s+(.+?)\s*$/;
-const CHECKBOX_ITEM = /^[-*+]\s*\[([ xX])\]\s*(.*)$/;
-const PLAIN_ITEM = /^[-*+]\s+(.+)$/;
+// "-", "*", "+" and "1." / "1)" all start a list item.
+const CHECKBOX_ITEM = /^(?:[-*+]|\d+[.)])\s*\[([ xX])\]\s*(.*)$/;
+const PLAIN_ITEM = /^(?:[-*+]|\d+[.)])\s+(.+)$/;
 const HR = /^(-{3,}|\*{3,}|_{3,})$/;
 const FENCE = /^```/;
 const TAG = /#(\w+):(\S+)/g;
@@ -83,6 +88,32 @@ function extractTags(
   });
 
   return { title: title.replace(/\s+/g, " ").trim(), priority, dueDate, recurrence };
+}
+
+// Titles are read in a list, so markdown decoration is dropped. A link
+// keeps its address: the text stays in the title, the URL goes to details.
+function cleanInline(text: string): { text: string; links: string[] } {
+  const links: string[] = [];
+  const cleaned = text
+    .replace(/!?\[([^\]]+)\]\((\S+?)\)/g, (_m, label: string, url: string) => {
+      links.push(`${label}: ${url}`);
+      return label;
+    })
+    .replace(/\*\*(.+?)\*\*|__(.+?)__/g, (_m, a?: string, b?: string) => a ?? b ?? "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+  return { text: cleaned, links };
+}
+
+function indentOf(line: string): number {
+  let width = 0;
+  for (const ch of line) {
+    if (ch === " ") width++;
+    else if (ch === "\t") width += 4;
+    else break;
+  }
+  return width;
 }
 
 interface TopicCandidate extends ParsedTopic {
@@ -140,6 +171,13 @@ export function parseImportMarkdown(input: string): ParsedImport {
   let inCodeBlock = false;
   let skippedBlocks = 0;
   let skippedLines = 0;
+  let splitTitles = 0;
+  // Extra lines for a task's note, gathered while its children are read.
+  const detailLines = new Map<ParsedTask, string[]>();
+  let lastTask: ParsedTask | null = null;
+  // Indent of the topic's top-level items; anything deeper belongs to the
+  // task above it.
+  let baseIndent: number | null = null;
 
   for (const rawLine of lines) {
     const line = rawLine.trimEnd();
@@ -177,6 +215,8 @@ export function parseImportMarkdown(input: string): ParsedImport {
       }
 
       if (level === 1) topLevelAncestor = title;
+      lastTask = null;
+      baseIndent = null;
 
       // Every heading below the track name is a topic *candidate* — it
       // only survives into the final result if list items actually turn
@@ -197,12 +237,33 @@ export function parseImportMarkdown(input: string): ParsedImport {
         warnings.push(`Task "${rawText}" found before any topic heading — skipped.`);
         continue;
       }
-      const { title, priority, dueDate, recurrence } = extractTags(rawText, warnings, rawText);
-      if (!title) {
+      const lineIndent = indentOf(rawLine);
+      if (lastTask && baseIndent !== null && lineIndent > baseIndent) {
+        // A sub-bullet: Waypoint has no subtasks, so it becomes a line in
+        // the parent task's details rather than a task of its own.
+        detailLines.get(lastTask)!.push(`- ${cleanInline(rawText).text}`);
+        continue;
+      }
+      baseIndent = baseIndent === null ? lineIndent : Math.min(baseIndent, lineIndent);
+
+      const tagged = extractTags(rawText, warnings, rawText);
+      const { text: cleanTitle, links } = cleanInline(tagged.title);
+      if (!cleanTitle) {
         warnings.push(`A task line under "${currentTopic.title}" had no text — skipped.`);
         continue;
       }
-      currentTopic.tasks.push({ title, done, priority, dueDate, recurrence });
+      const split = splitLongTitle(cleanTitle);
+      if (split.details) splitTitles++;
+      const task: ParsedTask = {
+        title: split.title,
+        done,
+        priority: tagged.priority,
+        dueDate: tagged.dueDate,
+        recurrence: tagged.recurrence,
+      };
+      detailLines.set(task, [...(split.details ? [split.details] : []), ...links]);
+      currentTopic.tasks.push(task);
+      lastTask = task;
       continue;
     }
 
@@ -212,7 +273,10 @@ export function parseImportMarkdown(input: string): ParsedImport {
     // it to structurally, so it's counted rather than spelled out line by
     // line — a 500-line roadmap can easily have 50+ of these.
     const text = trimmed.startsWith(">") ? trimmed.replace(/^>\s?/, "") : trimmed;
-    if (topics.length === 0) {
+    if (lastTask && baseIndent !== null && indentOf(rawLine) > baseIndent) {
+      // An indented line straight under a task continues it.
+      detailLines.get(lastTask)!.push(cleanInline(text).text);
+    } else if (topics.length === 0) {
       descriptionLines.push(text);
     } else {
       skippedLines++;
@@ -249,6 +313,11 @@ export function parseImportMarkdown(input: string): ParsedImport {
     );
   }
 
+  if (splitTitles > 0) {
+    warnings.push(
+      `${splitTitles} long task line${splitTitles === 1 ? " was" : "s were"} split: a short title, with the rest in the task's details.`,
+    );
+  }
   if (skippedBlocks > 0) {
     warnings.push(
       `${skippedBlocks} code or diagram block${skippedBlocks === 1 ? "" : "s"} skipped — not something Waypoint can turn into tasks.`,
@@ -272,7 +341,14 @@ export function parseImportMarkdown(input: string): ParsedImport {
   };
   const topicsOut = nonEmptyTopics.map(({ title, tasks }) => ({
     title: clip(title, LIMITS.topicTitle),
-    tasks: tasks.map((task) => ({ ...task, title: clip(task.title, LIMITS.taskTitle) })),
+    tasks: tasks.map((task) => {
+      const details = (detailLines.get(task) ?? []).join("\n").trim();
+      return {
+        ...task,
+        title: clip(task.title, LIMITS.taskTitle),
+        details: details ? clip(details, MAX_DETAILS_CHARS) : null,
+      };
+    }),
   }));
   const trackNameOut = clip(trackName, LIMITS.trackName);
   const descriptionOut = description === null ? null : clip(description, LIMITS.trackDescription);

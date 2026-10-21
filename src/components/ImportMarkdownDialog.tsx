@@ -183,6 +183,7 @@ export function ImportMarkdownDialog({ onClose }: { onClose: () => void }) {
                             <span className={task.done ? "line-through" : ""}>{task.title}</span>
                             {task.priority !== "none" && ` · ${task.priority}`}
                             {task.dueDate && ` · due ${task.dueDate}`}
+                            {task.details && " · has details"}
                           </li>
                         ))}
                         {hidden > 0 && (

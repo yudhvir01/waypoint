@@ -48,6 +48,17 @@ items under it become the track description.
 - **Both checkbox and plain bullets become tasks:** `- [ ] text`, `- [x] text`
   (already done), or just `- text` (imported as not done). `*` and `+` work
   as bullet markers too.
+- **Numbered items** (`1.` or `1)`) are tasks too, and bold, `code` and
+  `[links](url)` are cleaned out of titles (a link's address moves to the
+  task's details).
+- **Long lines are split into a title and details.** A task line over 80
+  characters is cut at its first natural break (`:`, a dash, `;` or a
+  bracket); the part before it is the title and the rest goes into the task's
+  own note, which opens when you tap the task. With no natural break, the
+  title is shortened and the whole line is kept in the details.
+- **Indented lines under a task are its details.** Indented sub-bullets and
+  wrapped lines don't become tasks of their own; they are added to the task
+  above them.
 - **Inline tags on a task line** are optional and stripped from the displayed
   title:
   - `#priority:low`, `#priority:medium`, or `#priority:high`
@@ -166,6 +177,10 @@ fresh one each time rather than reusing an old copy.
 From the dashboard, choose **+ Add track → Paste a plan**, paste the file,
 and review the preview — it shows exactly what will be created, plus any
 warnings — before you confirm.
+
+Details need the updated `import_track` in `supabase/setup.sql`: re-run that
+file in the SQL editor once. Until then, a Supabase project still imports every
+track, topic and task, just without the details notes.
 
 Very long names are shortened to fit (a track name to 200 characters, a topic to
 500, a task to 1,000), with a warning on the preview, so nothing fails to

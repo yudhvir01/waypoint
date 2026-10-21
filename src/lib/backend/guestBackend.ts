@@ -1,3 +1,4 @@
+import { detailsToHtml } from "../taskDetails";
 import type { Card, Confidence, FocusSession, Note, Task, TaskPriority, Topic, TopicStatus, Track, TrackStatus, Waypoint } from "../database.types";
 import type { ParsedImport, ParsedTopic } from "../markdownImport";
 import { GUEST_USER_ID, clearGuestData, getGuestDB, newGuestId, nowIso } from "./guestStore";
@@ -579,6 +580,10 @@ export class GuestBackend implements Backend {
           created_at: nowIso(),
         };
         await db.put("tasks", taskRow);
+        if (task.details) {
+          const content = detailsToHtml(task.details);
+          await db.put("notes", newNote(newGuestId(), GUEST_USER_ID, nowIso(), { title: task.title, content, taskId: taskRow.id }));
+        }
       }
     }
 

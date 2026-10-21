@@ -1,3 +1,4 @@
+import { detailsToHtml } from "../taskDetails";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Card, Confidence, FocusSession, Note, Task, Topic, Track, TrackStatus, TopicStatus, Waypoint } from "../database.types";
 import type { ParsedImport } from "../markdownImport";
@@ -836,6 +837,9 @@ export class SupabaseBackend implements Backend {
             priority: task.priority,
             dueDate: task.dueDate,
             recurrence: task.recurrence ?? null,
+            // Becomes the task's note. A project still on the older
+            // import_track ignores it and imports everything else.
+            details: task.details ? detailsToHtml(task.details) : null,
           })),
         })),
       },
